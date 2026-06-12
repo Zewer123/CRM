@@ -1,101 +1,76 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import OperationalError
 import os
 from dotenv import load_dotenv
 from functools import wraps
 
-try:
-    import psycopg2
-    from psycopg2.extras import RealDictCursor
-except ImportError:
-    psycopg2 = None
-    RealDictCursor = None
-
-# Load environment variables (secret keys, database info)
+# Load environment variables
 load_dotenv()
 
 # Create Flask app
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
-# Database configuration - use DATABASE_URL if available (Railway), else use individual vars
-DATABASE_URL = os.getenv('DATABASE_URL')
+# ============ DATABASE SETUP ============
 
-# Function to connect to database
-def get_db_connection():
-    """Creates connection to PostgreSQL database"""
-    try:
-        if psycopg2 is None:
-            print("ERROR: psycopg2 not available")
-            return None
-        
-        # Try to use DATABASE_URL from Railway
-        if DATABASE_URL:
-            # Handle both postgres:// and postgresql:// URLs
-            db_url = DATABASE_URL.replace('postgres://', 'postgresql://')
-            print(f"Connecting with DATABASE_URL...")
-            conn = psycopg2.connect(db_url)
-            return conn
-        
-        # Fallback to individual environment variables
-        print("Using individual DB environment variables...")
-        conn = psycopg2.connect(
-            host=os.getenv('DB_HOST', 'localhost'),
-            user=os.getenv('DB_USER', 'postgres'),
-            password=os.getenv('DB_PASSWORD', 'password'),
-            database=os.getenv('DB_NAME', 'aml_crm'),
-            port=os.getenv('DB_PORT', '5432')
-        )
-        return conn
-        
-    except Exception as e:
-        print(f"Database connection ERROR: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return None
+# Get DATABASE_URL from environment (Railway provides this)
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/aml_crm')
 
-# Login required decorator
-def login_required(f):
-    """Checks if user is logged in - if not, sends to login page"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
+# Ensure we use the correct PostgreSQL URI format
+if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
-# ============ ROUTES (Pages) ============
+print(f"Connecting to database: {DATABASE_URL[:50]}...")
+
+# Create SQLAlchemy engine
+try:
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,  # Test connection before using
+        pool_recycle=3600,   # Recycle connections after 1 hour
+        echo=False
+    )
+    print("✓ SQLAlchemy engine created")
+except Exception as e:
+    print(f"ERROR: Could not create database engine: {e}")
+    engine = None
+
+# ============ ROUTES ============
 
 @app.route('/api/health')
 def health_check():
     """Health check endpoint - tests database connection"""
     try:
-        conn = get_db_connection()
-        if conn:
-            cur = conn.cursor()
-            cur.execute('SELECT 1')
-            cur.close()
-            conn.close()
+        if engine is None:
+            return jsonify({
+                'status': 'unhealthy',
+                'database': 'not_configured',
+                'message': 'Database engine not initialized'
+            }), 500
+        
+        # Try to execute a simple query
+        with engine.connect() as conn:
+            conn.execute(text('SELECT 1'))
             return jsonify({
                 'status': 'healthy',
                 'database': 'connected',
                 'message': 'Database connection OK'
             }), 200
-        else:
-            return jsonify({
-                'status': 'unhealthy',
-                'database': 'disconnected',
-                'message': 'Could not establish database connection'
-            }), 500
+    except OperationalError as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'database': 'connection_error',
+            'message': f'Database connection failed: {str(e)[:200]}',
+            'error_type': 'OperationalError'
+        }), 500
     except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
         return jsonify({
             'status': 'unhealthy',
             'database': 'error',
-            'message': str(e),
-            'error_type': type(e).__name__,
-            'traceback': error_trace
+            'message': f'Unexpected error: {str(e)[:200]}',
+            'error_type': type(e).__name__
         }), 500
 
 @app.route('/')
@@ -110,48 +85,51 @@ def login():
     """Login page - accepts email and password"""
     if request.method == 'POST':
         data = request.get_json()
-        email = data.get('email')
-        password = data.get('password')
+        email = data.get('email', '').strip()
+        password = data.get('password', '')
         
-        # Check if email and password provided
+        # Validate input
         if not email or not password:
             return jsonify({'success': False, 'error': 'Email and password required'}), 400
         
-        # Connect to database
-        conn = get_db_connection()
-        if not conn:
-            print(f"ERROR: Could not connect to database!")
-            return jsonify({'success': False, 'error': 'Database connection failed. Please try again.'}), 500
-        
         try:
-            cur = conn.cursor(cursor_factory=RealDictCursor)
-            # Look up user by email
-            cur.execute('SELECT * FROM users WHERE email = %s', (email,))
-            user = cur.fetchone()
+            if engine is None:
+                print("ERROR: Database not configured")
+                return jsonify({'success': False, 'error': 'Database configuration error'}), 500
             
-            # Check password matches
-            if user and check_password_hash(user['password_hash'], password):
-                # Login successful - save to session
-                session['user_id'] = user['id']
-                session['user_email'] = user['email']
-                session['user_name'] = user['name']
-                session['user_role'] = user['role']
-                print(f"Login successful for: {email}")
-                return jsonify({'success': True, 'message': 'Login successful'}), 200
-            else:
-                print(f"Login failed for: {email} - invalid credentials")
-                return jsonify({'success': False, 'error': 'Invalid email or password'}), 401
+            # Query user by email
+            with engine.connect() as conn:
+                result = conn.execute(text('SELECT id, email, password_hash, name, role FROM users WHERE email = :email'), 
+                                      {'email': email})
+                user = result.fetchone()
+                
+                if user:
+                    user_id, user_email, password_hash, user_name, user_role = user
+                    
+                    # Check password
+                    if check_password_hash(password_hash, password):
+                        # Login successful
+                        session['user_id'] = user_id
+                        session['user_email'] = user_email
+                        session['user_name'] = user_name
+                        session['user_role'] = user_role
+                        print(f"✓ Login successful: {email}")
+                        return jsonify({'success': True, 'message': 'Login successful'}), 200
+                    else:
+                        print(f"✗ Invalid password for: {email}")
+                        return jsonify({'success': False, 'error': 'Invalid email or password'}), 401
+                else:
+                    print(f"✗ User not found: {email}")
+                    return jsonify({'success': False, 'error': 'Invalid email or password'}), 401
+                    
+        except OperationalError as e:
+            print(f"Database connection error: {e}")
+            return jsonify({'success': False, 'error': 'Database connection failed. Please try again.'}), 500
         except Exception as e:
-            print(f"Login error: {str(e)}")
+            print(f"Login error: {e}")
             import traceback
             traceback.print_exc()
-            return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
-        finally:
-            try:
-                cur.close()
-                conn.close()
-            except:
-                pass
+            return jsonify({'success': False, 'error': f'Server error: {str(e)[:100]}'}), 500
     
     # GET request - show login form
     return render_template('login.html')
@@ -161,6 +139,15 @@ def logout():
     """Logout - clears session and goes to login page"""
     session.clear()
     return redirect(url_for('login'))
+
+def login_required(f):
+    """Checks if user is logged in - if not, sends to login page"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 @app.route('/dashboard')
 @login_required
@@ -189,16 +176,17 @@ def get_user():
 @app.errorhandler(404)
 def page_not_found(error):
     """If page doesn't exist, show error"""
-    return render_template('404.html'), 404
+    return jsonify({'error': 'Page not found'}), 404
 
 @app.errorhandler(500)
 def server_error(error):
     """If server error, show error message"""
-    return render_template('500.html'), 500
+    return jsonify({'error': 'Server error'}), 500
 
 # ============ RUN SERVER ============
 
 if __name__ == '__main__':
     # Get port from environment or use 5000
     port = int(os.getenv('PORT', 5000))
-    app.run(debug=True, host='0.0.0.0', port=port)
+    print(f"Starting Flask server on port {port}...")
+    app.run(debug=False, host='0.0.0.0', port=port)
