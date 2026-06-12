@@ -3,16 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AML CRM - Login</title>
+    <title>Zewer Jewellery - AML Compliance Login</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="login-page">
     <div class="login-container">
         <div class="login-card">
-            <!-- Logo / Title -->
+            <!-- Logo -->
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='zewer-logo.png') }}" alt="Zewer Jewellery Logo">
+            </div>
+
+            <!-- Login Header -->
             <div class="login-header">
-                <h1>AML CRM</h1>
-                <p>Anti-Money Laundering Compliance System</p>
+                <h1>Zewer Jewellery</h1>
+                <p>AML Compliance Management System</p>
             </div>
 
             <!-- Login Form -->
@@ -58,7 +63,7 @@
 
             <!-- Temporary Credentials Info -->
             <div class="temp-credentials">
-                <h3>🔐 Test Credentials</h3>
+                <h3>💎 Test Credentials</h3>
                 <p><strong>Email:</strong> admin@aml-crm.com</p>
                 <p><strong>Password:</strong> TempPass123!</p>
                 <small>⚠️ Change these after first login!</small>
@@ -66,7 +71,7 @@
 
             <!-- Footer -->
             <div class="login-footer">
-                <p>&copy; 2024 AML CRM System. All rights reserved.</p>
+                <p>&copy; 2024 Zewer Jewellery. All rights reserved.</p>
             </div>
         </div>
     </div>

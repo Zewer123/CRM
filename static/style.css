@@ -20,7 +20,7 @@ html, body {
 /* ============ LOGIN PAGE BACKGROUND ============ */
 
 .login-page {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #2D5F5F 0%, #1a3a3a 100%);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -51,7 +51,7 @@ html, body {
 .login-header {
     text-align: center;
     margin-bottom: 30px;
-    border-bottom: 2px solid #667eea;
+    border-bottom: 3px solid #B8956A;
     padding-bottom: 20px;
 }
 
@@ -101,8 +101,8 @@ form {
 .form-group input[type="email"]:focus,
 .form-group input[type="password"]:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: #B8956A;
+    box-shadow: 0 0 0 3px rgba(184, 149, 106, 0.1);
 }
 
 .form-group input[type="email"]:disabled,
@@ -162,7 +162,7 @@ form {
 .btn-login {
     width: 100%;
     padding: 13px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #B8956A 0%, #9d7d5c 100%);
     color: white;
     border: none;
     border-radius: 5px;
@@ -172,11 +172,12 @@ form {
     transition: all 0.3s ease;
     margin-bottom: 25px;
     letter-spacing: 0.5px;
+    text-transform: uppercase;
 }
 
 .btn-login:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 5px 20px rgba(184, 149, 106, 0.4);
 }
 
 .btn-login:active:not(:disabled) {
@@ -189,7 +190,7 @@ form {
 }
 
 .btn-login.loading {
-    background: linear-gradient(90deg, #667eea 25%, #764ba2 50%, #667eea 75%);
+    background: linear-gradient(90deg, #B8956A 25%, #9d7d5c 50%, #B8956A 75%);
     background-size: 200% 100%;
     animation: loading 1.5s infinite;
 }
@@ -206,8 +207,8 @@ form {
 /* ============ TEMPORARY CREDENTIALS ============ */
 
 .temp-credentials {
-    background: linear-gradient(135deg, #f0f7ff 0%, #e6f0ff 100%);
-    border-left: 4px solid #667eea;
+    background: linear-gradient(135deg, #f5f2ed 0%, #ede9e2 100%);
+    border-left: 4px solid #B8956A;
     padding: 15px;
     border-radius: 5px;
     margin-bottom: 20px;
@@ -292,7 +293,7 @@ form {
 
 .spinner {
     border: 3px solid #f3f3f3;
-    border-top: 3px solid #667eea;
+    border-top: 3px solid #B8956A;
     border-radius: 50%;
     width: 20px;
     height: 20px;
@@ -305,4 +306,20 @@ form {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* ============ LOGO STYLING ============ */
+
+.logo-container {
+    text-align: center;
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #B8956A;
+}
+
+.logo-container img {
+    max-width: 180px;
+    height: auto;
+    display: block;
+    margin: 0 auto;
 }

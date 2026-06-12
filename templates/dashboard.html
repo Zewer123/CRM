@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - AML CRM</title>
+    <title>Dashboard - Zewer Jewellery AML Compliance</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         .dashboard-container {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2D5F5F 0%, #1a3a3a 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -17,9 +17,10 @@
             border-radius: 10px;
             margin-bottom: 30px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-top: 4px solid #B8956A;
         }
         .dashboard-header h1 {
-            color: #333;
+            color: #2D5F5F;
             margin-bottom: 10px;
         }
         .user-info {
@@ -27,7 +28,7 @@
             font-size: 14px;
         }
         .logout-btn {
-            background: #764ba2;
+            background: linear-gradient(135deg, #B8956A 0%, #9d7d5c 100%);
             color: white;
             border: none;
             padding: 10px 20px;
@@ -35,9 +36,12 @@
             cursor: pointer;
             text-decoration: none;
             display: inline-block;
+            transition: all 0.3s ease;
+            font-weight: 600;
         }
         .logout-btn:hover {
-            background: #5a3a7e;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(184, 149, 106, 0.3);
         }
         .welcome-message {
             background: white;
@@ -45,9 +49,10 @@
             border-radius: 10px;
             text-align: center;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-top: 4px solid #B8956A;
         }
         .welcome-message h2 {
-            color: #333;
+            color: #2D5F5F;
             margin-bottom: 15px;
         }
         .welcome-message p {
@@ -59,7 +64,7 @@
 <body>
     <div class="dashboard-container">
         <div class="dashboard-header">
-            <h1>🎉 Welcome to AML CRM</h1>
+            <h1>💎 Welcome to Zewer Jewellery</h1>
             <p class="user-info">Logged in as: <strong>{{ user_name }}</strong> ({{ user_role }})</p>
             <a href="/logout" class="logout-btn">Logout</a>
         </div>
@@ -67,11 +72,11 @@
         <div class="welcome-message">
             <h2>✅ Login Successful!</h2>
             <p>
-                You have successfully logged into the AML CRM System.<br>
-                This is a placeholder dashboard. More features coming soon!
+                You have successfully logged into the Zewer Jewellery AML Compliance System.<br>
+                This is your secure portal for managing compliance and documentation.
             </p>
             <p style="margin-top: 30px; font-size: 13px; color: #999;">
-                Next features: Company Master, Document Upload, Follow-ups
+                Next features: Company Management, Document Upload, Compliance Follow-ups
             </p>
         </div>
     </div>
