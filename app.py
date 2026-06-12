@@ -49,6 +49,22 @@ def health_check():
         print(f"Health check error: {e}")
         return jsonify({'status': 'unhealthy', 'error': str(e)[:100]}), 500
 
+@app.route('/api/debug')
+def debug():
+    """Check if DATABASE_URL is set"""
+    db_url = os.getenv('DATABASE_URL', 'NOT SET')
+    if db_url != 'NOT SET':
+        db_url_display = db_url[:50] + '...' if len(db_url) > 50 else db_url
+    else:
+        db_url_display = 'NOT SET'
+    
+    return jsonify({
+        'database_url_set': os.getenv('DATABASE_URL') is not None,
+        'database_url_display': db_url_display,
+        'secret_key_set': bool(os.getenv('SECRET_KEY')),
+        'port': os.getenv('PORT', 5000)
+    })
+
 @app.route('/')
 def index():
     if 'user_id' in session:
