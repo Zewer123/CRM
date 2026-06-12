@@ -1,10 +1,15 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
-import psycopg2
-from psycopg2.extras import RealDictCursor
 import os
 from dotenv import load_dotenv
 from functools import wraps
+
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+except ImportError:
+    psycopg2 = None
+    RealDictCursor = None
 
 # Load environment variables (secret keys, database info)
 load_dotenv()
@@ -13,24 +18,27 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
-# Database configuration
-DB_HOST = os.getenv('DB_HOST', 'localhost')
-DB_USER = os.getenv('DB_USER', 'postgres')
-DB_PASSWORD = os.getenv('DB_PASSWORD', 'password')
-DB_NAME = os.getenv('DB_NAME', 'aml_crm')
-DB_PORT = os.getenv('DB_PORT', '5432')
+# Database configuration - use DATABASE_URL if available (Railway), else use individual vars
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 # Function to connect to database
 def get_db_connection():
     """Creates connection to PostgreSQL database"""
     try:
-        conn = psycopg2.connect(
-            host=DB_HOST,
-            user=DB_USER,
-            password=DB_PASSWORD,
-            database=DB_NAME,
-            port=DB_PORT
-        )
+        if psycopg2 is None:
+            print("psycopg2 not available - database connection failed")
+            return None
+            
+        if DATABASE_URL:
+            conn = psycopg2.connect(DATABASE_URL)
+        else:
+            conn = psycopg2.connect(
+                host=os.getenv('DB_HOST', 'localhost'),
+                user=os.getenv('DB_USER', 'postgres'),
+                password=os.getenv('DB_PASSWORD', 'password'),
+                database=os.getenv('DB_NAME', 'aml_crm'),
+                port=os.getenv('DB_PORT', '5432')
+            )
         return conn
     except Exception as e:
         print(f"Database connection error: {e}")
