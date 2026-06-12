@@ -66,6 +66,38 @@ def login_required(f):
 
 # ============ ROUTES (Pages) ============
 
+@app.route('/api/health')
+def health_check():
+    """Health check endpoint - tests database connection"""
+    try:
+        conn = get_db_connection()
+        if conn:
+            cur = conn.cursor()
+            cur.execute('SELECT 1')
+            cur.close()
+            conn.close()
+            return jsonify({
+                'status': 'healthy',
+                'database': 'connected',
+                'message': 'Database connection OK'
+            }), 200
+        else:
+            return jsonify({
+                'status': 'unhealthy',
+                'database': 'disconnected',
+                'message': 'Could not establish database connection'
+            }), 500
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        return jsonify({
+            'status': 'unhealthy',
+            'database': 'error',
+            'message': str(e),
+            'error_type': type(e).__name__,
+            'traceback': error_trace
+        }), 500
+
 @app.route('/')
 def index():
     """Home page - redirects to dashboard if logged in, else to login"""
