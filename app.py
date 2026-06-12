@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from werkzeug.security import check_password_hash
-import pg8000.native
+import asyncio
+import asyncpg
 import os
 from dotenv import load_dotenv
 from functools import wraps
@@ -13,57 +14,47 @@ app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change')
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 print("=" * 80)
-print(f"DATABASE_URL: {DATABASE_URL[:60] if DATABASE_URL else 'NOT SET'}...")
+print(f"DATABASE_URL: {'SET' if DATABASE_URL else 'NOT SET'}")
 print("=" * 80)
 
-def get_db_connection():
-    """Connect to PostgreSQL using pg8000"""
+async def get_db_pool():
+    """Create asyncpg connection pool"""
     try:
-        if not DATABASE_URL:
-            print("ERROR: DATABASE_URL not set!")
-            return None
-        
-        # pg8000 can parse PostgreSQL URLs directly!
-        print(f"Attempting connection to: {DATABASE_URL[:60]}...")
-        conn = pg8000.native.connect(DATABASE_URL, timeout=10)
-        print("✓ Connection successful!")
-        return conn
-        
+        print("Creating asyncpg pool...")
+        pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=10)
+        print("✓ Pool created!")
+        return pool
     except Exception as e:
-        print(f"✗ Connection failed: {type(e).__name__}: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        print(f"✗ Pool creation failed: {e}")
         return None
+
+def run_async(coro):
+    """Helper to run async code in Flask"""
+    return asyncio.run(coro)
+
+@app.before_request
+def create_pool():
+    """Create pool on first request"""
+    if not hasattr(app, 'db_pool'):
+        app.db_pool = run_async(get_db_pool())
 
 @app.route('/api/health')
 def health_check():
     try:
-        conn = get_db_connection()
-        if conn:
-            conn.run('SELECT 1')
-            conn.close()
-            return jsonify({'status': 'healthy', 'message': 'Database OK'}), 200
-        else:
-            return jsonify({'status': 'unhealthy', 'message': 'Connection failed'}), 500
+        if hasattr(app, 'db_pool') and app.db_pool:
+            async def test():
+                async with app.db_pool.acquire() as conn:
+                    await conn.fetchval('SELECT 1')
+                return True
+            
+            result = run_async(test())
+            if result:
+                return jsonify({'status': 'healthy', 'database': 'connected'}), 200
+        
+        return jsonify({'status': 'unhealthy', 'error': 'No pool'}), 500
     except Exception as e:
         print(f"Health check error: {e}")
         return jsonify({'status': 'unhealthy', 'error': str(e)[:100]}), 500
-
-@app.route('/api/debug')
-def debug():
-    """Check if DATABASE_URL is set"""
-    db_url = os.getenv('DATABASE_URL', 'NOT SET')
-    if db_url != 'NOT SET':
-        db_url_display = db_url[:50] + '...' if len(db_url) > 50 else db_url
-    else:
-        db_url_display = 'NOT SET'
-    
-    return jsonify({
-        'database_url_set': os.getenv('DATABASE_URL') is not None,
-        'database_url_display': db_url_display,
-        'secret_key_set': bool(os.getenv('SECRET_KEY')),
-        'port': os.getenv('PORT', 5000)
-    })
 
 @app.route('/')
 def index():
@@ -81,19 +72,22 @@ def login():
         if not email or not password:
             return jsonify({'success': False, 'error': 'Email and password required'}), 400
         
+        if not hasattr(app, 'db_pool') or not app.db_pool:
+            return jsonify({'success': False, 'error': 'Database not available'}), 500
+        
         try:
-            conn = get_db_connection()
-            if not conn:
-                return jsonify({'success': False, 'error': 'Database connection failed'}), 500
+            async def authenticate():
+                async with app.db_pool.acquire() as conn:
+                    row = await conn.fetchrow(
+                        'SELECT id, email, password_hash, name, role FROM users WHERE email = $1',
+                        email
+                    )
+                    return row
             
-            # Query user
-            rows = conn.run(
-                'SELECT id, email, password_hash, name, role FROM users WHERE email = :email',
-                email=email
-            )
+            user_row = run_async(authenticate())
             
-            if rows and len(rows) > 0:
-                user_id, user_email, password_hash, user_name, user_role = rows[0]
+            if user_row:
+                user_id, user_email, password_hash, user_name, user_role = user_row
                 
                 if check_password_hash(password_hash, password):
                     session['user_id'] = user_id
@@ -101,20 +95,17 @@ def login():
                     session['user_name'] = user_name
                     session['user_role'] = user_role
                     print(f"✓ Login success: {email}")
-                    conn.close()
                     return jsonify({'success': True}), 200
                 else:
-                    conn.close()
                     return jsonify({'success': False, 'error': 'Invalid email or password'}), 401
             else:
-                conn.close()
                 return jsonify({'success': False, 'error': 'Invalid email or password'}), 401
         
         except Exception as e:
             print(f"Login error: {type(e).__name__}: {e}")
             import traceback
             traceback.print_exc()
-            return jsonify({'success': False, 'error': f'Error: {str(e)[:100]}'}), 500
+            return jsonify({'success': False, 'error': f'Error: {str(e)[:80]}'}), 500
     
     return render_template('login.html')
 
