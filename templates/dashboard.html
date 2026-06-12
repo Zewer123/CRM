@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - AML CRM</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .dashboard-container {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .dashboard-header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .dashboard-header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .user-info {
+            color: #666;
+            font-size: 14px;
+        }
+        .logout-btn {
+            background: #764ba2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .logout-btn:hover {
+            background: #5a3a7e;
+        }
+        .welcome-message {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .welcome-message h2 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        .welcome-message p {
+            color: #666;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <h1>🎉 Welcome to AML CRM</h1>
+            <p class="user-info">Logged in as: <strong>{{ user_name }}</strong> ({{ user_role }})</p>
+            <a href="/logout" class="logout-btn">Logout</a>
+        </div>
+
+        <div class="welcome-message">
+            <h2>✅ Login Successful!</h2>
+            <p>
+                You have successfully logged into the AML CRM System.<br>
+                This is a placeholder dashboard. More features coming soon!
+            </p>
+            <p style="margin-top: 30px; font-size: 13px; color: #999;">
+                Next features: Company Master, Document Upload, Follow-ups
+            </p>
+        </div>
+    </div>
+</body>
+</html>
