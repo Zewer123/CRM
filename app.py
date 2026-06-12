@@ -1,88 +1,98 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from werkzeug.security import check_password_hash
-from sqlalchemy import create_engine, text, event
-from sqlalchemy.exc import OperationalError
+import pg8000.native
 import os
 from dotenv import load_dotenv
 from functools import wraps
-import sys
+import urllib.parse
 
-# Load environment variables
 load_dotenv()
 
-# Create Flask app
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
-# ============ DATABASE SETUP ============
+# ============ DATABASE CONNECTION ============
 
 DATABASE_URL = os.getenv('DATABASE_URL')
 
-print("=" * 80, file=sys.stderr)
-print(f"DATABASE_URL from env: {DATABASE_URL[:60] if DATABASE_URL else 'NOT SET'}...", file=sys.stderr)
-print("=" * 80, file=sys.stderr)
-
-if not DATABASE_URL:
-    print("ERROR: DATABASE_URL is not set!", file=sys.stderr)
-    engine = None
-else:
-    # Fix URL format
-    if DATABASE_URL.startswith('postgres://'):
-        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
-        print(f"Converted postgres:// to postgresql://", file=sys.stderr)
-    
+def get_db_connection():
+    """Connect to PostgreSQL using pg8000 (pure Python, no system libs needed)"""
     try:
-        print(f"Creating SQLAlchemy engine with URL: {DATABASE_URL[:60]}...", file=sys.stderr)
+        if not DATABASE_URL:
+            print("ERROR: DATABASE_URL not set")
+            return None
         
-        engine = create_engine(
-            DATABASE_URL,
-            pool_pre_ping=True,
-            pool_recycle=3600,
-            echo=True  # Enable SQL logging
+        # Parse PostgreSQL URL
+        # Format: postgresql://user:password@host:port/database
+        url = DATABASE_URL.replace('postgresql://', '').replace('postgres://', '')
+        
+        # Split credentials and host
+        if '@' in url:
+            credentials, host_db = url.split('@')
+            user, password = credentials.split(':')
+        else:
+            user = 'postgres'
+            password = ''
+            host_db = url
+        
+        # Split host and database
+        if '/' in host_db:
+            host_port, database = host_db.split('/', 1)
+        else:
+            host_port = host_db
+            database = 'postgres'
+        
+        # Split host and port
+        if ':' in host_port:
+            host, port = host_port.split(':')
+            port = int(port)
+        else:
+            host = host_port
+            port = 5432
+        
+        # Decode password if URL encoded
+        password = urllib.parse.unquote(password)
+        
+        print(f"✓ Connecting to PostgreSQL: {user}@{host}:{port}/{database}")
+        
+        # Connect using pg8000
+        conn = pg8000.native.connect(
+            user=user,
+            password=password,
+            host=host,
+            port=port,
+            database=database,
+            timeout=10
         )
         
-        # Test the connection immediately
-        with engine.connect() as conn:
-            result = conn.execute(text('SELECT 1'))
-            print("✓✓✓ DATABASE CONNECTION TEST SUCCESSFUL ✓✓✓", file=sys.stderr)
-        
-        print("✓ SQLAlchemy engine created and tested successfully", file=sys.stderr)
+        print("✓ Database connection successful!")
+        return conn
         
     except Exception as e:
-        print(f"✗✗✗ ENGINE CREATION FAILED ✗✗✗", file=sys.stderr)
-        print(f"Error type: {type(e).__name__}", file=sys.stderr)
-        print(f"Error message: {str(e)}", file=sys.stderr)
+        print(f"✗ Database connection error: {e}")
         import traceback
-        traceback.print_exc(file=sys.stderr)
-        engine = None
+        traceback.print_exc()
+        return None
 
 # ============ ROUTES ============
 
 @app.route('/api/health')
 def health_check():
-    """Health check endpoint"""
+    """Health check - test database"""
     try:
-        if engine is None:
-            return jsonify({
-                'status': 'unhealthy',
-                'message': 'Engine is None - check logs',
-                'database_url_set': DATABASE_URL is not None
-            }), 500
-        
-        with engine.connect() as conn:
-            conn.execute(text('SELECT 1'))
-            return jsonify({
-                'status': 'healthy',
-                'database': 'connected',
-                'message': 'Database OK'
-            }), 200
-            
+        conn = get_db_connection()
+        if conn:
+            try:
+                result = conn.run('SELECT 1')
+                conn.close()
+                return jsonify({'status': 'healthy', 'database': 'connected'}), 200
+            except Exception as e:
+                conn.close()
+                return jsonify({'status': 'unhealthy', 'error': str(e)[:100]}), 500
+        else:
+            return jsonify({'status': 'unhealthy', 'error': 'Could not connect'}), 500
     except Exception as e:
-        print(f"Health check error: {e}", file=sys.stderr)
-        return jsonify({
-            'status': 'unhealthy',
-            'error': str(e)[:100]
-        }), 500
+        return jsonify({'status': 'unhealthy', 'error': str(e)[:100]}), 500
 
 @app.route('/')
 def index():
@@ -100,36 +110,39 @@ def login():
         if not email or not password:
             return jsonify({'success': False, 'error': 'Email and password required'}), 400
         
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Database not available'}), 500
+        
         try:
-            if engine is None:
-                return jsonify({'success': False, 'error': 'Database not available'}), 500
+            # Query user
+            result = conn.run(
+                'SELECT id, email, password_hash, name, role FROM users WHERE email = :email',
+                email=email
+            )
             
-            with engine.connect() as conn:
-                result = conn.execute(
-                    text('SELECT id, email, password_hash, name, role FROM users WHERE email = :email'),
-                    {'email': email}
-                )
-                user = result.fetchone()
+            if result:
+                user_id, user_email, password_hash, user_name, user_role = result[0]
                 
-                if user:
-                    user_id, user_email, password_hash, user_name, user_role = user
-                    
-                    if check_password_hash(password_hash, password):
-                        session['user_id'] = user_id
-                        session['user_email'] = user_email
-                        session['user_name'] = user_name
-                        session['user_role'] = user_role
-                        print(f"✓ Login successful: {email}", file=sys.stderr)
-                        return jsonify({'success': True}), 200
-                    else:
-                        return jsonify({'success': False, 'error': 'Invalid email or password'}), 401
+                # Check password
+                if check_password_hash(password_hash, password):
+                    session['user_id'] = user_id
+                    session['user_email'] = user_email
+                    session['user_name'] = user_name
+                    session['user_role'] = user_role
+                    print(f"✓ Login success: {email}")
+                    conn.close()
+                    return jsonify({'success': True}), 200
                 else:
+                    conn.close()
                     return jsonify({'success': False, 'error': 'Invalid email or password'}), 401
-                    
+            else:
+                conn.close()
+                return jsonify({'success': False, 'error': 'Invalid email or password'}), 401
+        
         except Exception as e:
-            print(f"Login error: {e}", file=sys.stderr)
-            import traceback
-            traceback.print_exc(file=sys.stderr)
+            print(f"✗ Login error: {e}")
+            conn.close()
             return jsonify({'success': False, 'error': str(e)[:100]}), 500
     
     return render_template('login.html')
@@ -150,7 +163,7 @@ def login_required(f):
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    return render_template('dashboard.html', 
+    return render_template('dashboard.html',
                           user_name=session.get('user_name'),
                           user_role=session.get('user_role'))
 
@@ -177,5 +190,5 @@ def server_error(e):
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
-    print(f"Starting server on port {port}...", file=sys.stderr)
+    print(f"Starting server on port {port}...")
     app.run(debug=False, host='0.0.0.0', port=port)
