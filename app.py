@@ -26,22 +26,32 @@ def get_db_connection():
     """Creates connection to PostgreSQL database"""
     try:
         if psycopg2 is None:
-            print("psycopg2 not available - database connection failed")
+            print("ERROR: psycopg2 not available")
             return None
-            
+        
+        # Try to use DATABASE_URL from Railway
         if DATABASE_URL:
-            conn = psycopg2.connect(DATABASE_URL)
-        else:
-            conn = psycopg2.connect(
-                host=os.getenv('DB_HOST', 'localhost'),
-                user=os.getenv('DB_USER', 'postgres'),
-                password=os.getenv('DB_PASSWORD', 'password'),
-                database=os.getenv('DB_NAME', 'aml_crm'),
-                port=os.getenv('DB_PORT', '5432')
-            )
+            # Handle both postgres:// and postgresql:// URLs
+            db_url = DATABASE_URL.replace('postgres://', 'postgresql://')
+            print(f"Connecting with DATABASE_URL...")
+            conn = psycopg2.connect(db_url)
+            return conn
+        
+        # Fallback to individual environment variables
+        print("Using individual DB environment variables...")
+        conn = psycopg2.connect(
+            host=os.getenv('DB_HOST', 'localhost'),
+            user=os.getenv('DB_USER', 'postgres'),
+            password=os.getenv('DB_PASSWORD', 'password'),
+            database=os.getenv('DB_NAME', 'aml_crm'),
+            port=os.getenv('DB_PORT', '5432')
+        )
         return conn
+        
     except Exception as e:
-        print(f"Database connection error: {e}")
+        print(f"Database connection ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return None
 
 # Login required decorator
@@ -78,7 +88,8 @@ def login():
         # Connect to database
         conn = get_db_connection()
         if not conn:
-            return jsonify({'success': False, 'error': 'Database error'}), 500
+            print(f"ERROR: Could not connect to database!")
+            return jsonify({'success': False, 'error': 'Database connection failed. Please try again.'}), 500
         
         try:
             cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -93,15 +104,22 @@ def login():
                 session['user_email'] = user['email']
                 session['user_name'] = user['name']
                 session['user_role'] = user['role']
+                print(f"Login successful for: {email}")
                 return jsonify({'success': True, 'message': 'Login successful'}), 200
             else:
+                print(f"Login failed for: {email} - invalid credentials")
                 return jsonify({'success': False, 'error': 'Invalid email or password'}), 401
         except Exception as e:
-            print(f"Login error: {e}")
-            return jsonify({'success': False, 'error': 'Server error'}), 500
+            print(f"Login error: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
         finally:
-            cur.close()
-            conn.close()
+            try:
+                cur.close()
+                conn.close()
+            except:
+                pass
     
     # GET request - show login form
     return render_template('login.html')
