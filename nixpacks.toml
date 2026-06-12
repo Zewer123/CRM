@@ -1,5 +1,2 @@
 [build]
-nixpkgs = ["python3", "postgresql", "libpq", "gcc", "openssl", "pkg-config"]
-
-[build.env]
-LD_LIBRARY_PATH = "/nix/store/${postgresql}/lib"
+nixpkgs = ["python3", "postgresql", "libpq", "gcc", "gnumake", "openssl", "pkg-config", "libffi"]
