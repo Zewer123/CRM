@@ -653,8 +653,8 @@ def api_delete_company(id):
 @admin_required
 def settings():
     conn = get_db()
-    users = conn.execute('SELECT id, email, name, role, is_active FROM users').fetchall()
-    dropdowns = conn.execute('SELECT * FROM dropdowns WHERE is_active = 1 ORDER BY field_name').fetchall()
+    users = conn.execute('SELECT id, email, name, role, is_active, contact_number FROM users ORDER BY role, name').fetchall()
+    dropdowns = conn.execute('SELECT * FROM dropdowns WHERE is_active = 1 ORDER BY field_name, value').fetchall()
     dropdown_groups = {}
     for dd in dropdowns:
         if dd['field_name'] not in dropdown_groups:
@@ -664,6 +664,8 @@ def settings():
     return render_template('settings.html',
         user_name=session.get('user_name'),
         user_role=session.get('user_role'),
+        user_email=session.get('user_email'),
+        current_user_id=session.get('user_id'),
         users=users,
         dropdown_groups=dropdown_groups
     )
@@ -674,8 +676,8 @@ def api_add_user():
     data = request.get_json()
     try:
         conn = get_db()
-        conn.execute('INSERT INTO users (email, password_hash, name, role, is_active) VALUES (?, ?, ?, ?, 1)',
-            (data.get('email'), generate_password_hash(data.get('password')), data.get('name'), data.get('role')))
+        conn.execute('INSERT INTO users (email, password_hash, name, role, contact_number, is_active) VALUES (?, ?, ?, ?, ?, 1)',
+            (data.get('email'), generate_password_hash(data.get('password')), data.get('name'), data.get('role'), data.get('contact_number')))
         conn.commit()
         conn.close()
         return jsonify({'success': True}), 200
@@ -821,3 +823,222 @@ def export_companies():
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8000))
     app.run(debug=False, host='0.0.0.0', port=port)
+
+# ============================================================
+# PATCH: Add tasks table and contact_number column to users
+# ============================================================
+def migrate_db():
+    conn = sqlite3.connect(DB)
+    cursor = conn.cursor()
+
+    # Add contact_number to users if missing
+    try:
+        cursor.execute('ALTER TABLE users ADD COLUMN contact_number TEXT')
+    except: pass
+
+    # Create tasks table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT,
+            assigned_to INTEGER,
+            created_by INTEGER,
+            company_id INTEGER,
+            priority TEXT DEFAULT 'normal',
+            status TEXT DEFAULT 'todo',
+            due_date DATE,
+            completed_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(assigned_to) REFERENCES users(id),
+            FOREIGN KEY(created_by) REFERENCES users(id),
+            FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE SET NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+migrate_db()
+
+# ============================================================
+# USER MANAGEMENT - NEW ROUTES
+# ============================================================
+
+@app.route('/api/user/<int:id>/edit', methods=['POST'])
+@admin_required
+def api_edit_user(id):
+    data = request.get_json()
+    try:
+        conn = get_db()
+        if data.get('password'):
+            conn.execute('UPDATE users SET name=?, email=?, role=?, contact_number=?, password_hash=? WHERE id=?',
+                (data.get('name'), data.get('email'), data.get('role'),
+                 data.get('contact_number'), generate_password_hash(data.get('password')), id))
+        else:
+            conn.execute('UPDATE users SET name=?, email=?, role=?, contact_number=? WHERE id=?',
+                (data.get('name'), data.get('email'), data.get('role'),
+                 data.get('contact_number'), id))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/user/<int:id>/toggle', methods=['POST'])
+@admin_required
+def api_toggle_user(id):
+    try:
+        conn = get_db()
+        user = conn.execute('SELECT is_active FROM users WHERE id=?', (id,)).fetchone()
+        if user:
+            conn.execute('UPDATE users SET is_active=? WHERE id=?', (0 if user['is_active'] else 1, id))
+            conn.commit()
+        conn.close()
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============================================================
+# TASKS
+# ============================================================
+
+def compliance_or_admin(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route('/tasks')
+@login_required
+def tasks():
+    conn = get_db()
+    user_id = session.get('user_id')
+    role = session.get('user_role')
+
+    # Staff only see their own tasks; others see all
+    if role == 'staff':
+        rows = conn.execute('''
+            SELECT t.*, u.name as assigned_name, c.client_name as company_name, c.ac_code
+            FROM tasks t
+            LEFT JOIN users u ON t.assigned_to = u.id
+            LEFT JOIN companies c ON t.company_id = c.id
+            WHERE t.assigned_to = ?
+            ORDER BY CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3 ELSE 4 END,
+                     t.due_date ASC NULLS LAST
+        ''', (user_id,)).fetchall()
+    else:
+        rows = conn.execute('''
+            SELECT t.*, u.name as assigned_name, c.client_name as company_name, c.ac_code
+            FROM tasks t
+            LEFT JOIN users u ON t.assigned_to = u.id
+            LEFT JOIN companies c ON t.company_id = c.id
+            ORDER BY CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3 ELSE 4 END,
+                     t.due_date ASC NULLS LAST
+        ''').fetchall()
+
+    all_users = conn.execute('SELECT id, name, role FROM users WHERE is_active=1 ORDER BY name').fetchall()
+    all_companies = conn.execute('SELECT id, ac_code, client_name FROM companies ORDER BY client_name').fetchall()
+    conn.close()
+
+    today = datetime.now().date()
+    task_list = []
+    for t in rows:
+        due = None
+        days_until = None
+        is_overdue = False
+        if t['due_date']:
+            try:
+                due_date = datetime.strptime(str(t['due_date'])[:10], '%Y-%m-%d').date()
+                days_until = (due_date - today).days
+                is_overdue = days_until < 0
+            except: pass
+        task_list.append({
+            'id': t['id'],
+            'title': t['title'],
+            'description': t['description'],
+            'assigned_to': t['assigned_to'],
+            'assigned_name': t['assigned_name'],
+            'company_id': t['company_id'],
+            'company_name': t['company_name'],
+            'ac_code': t['ac_code'],
+            'priority': t['priority'] or 'normal',
+            'status': t['status'] or 'todo',
+            'due_date': t['due_date'],
+            'days_until_due': days_until,
+            'is_overdue': is_overdue,
+            'created_by': t['created_by'],
+        })
+
+    return render_template('tasks.html',
+        user_name=session.get('user_name'),
+        user_role=role,
+        user_email=session.get('user_email'),
+        current_user_id=user_id,
+        tasks=task_list,
+        all_users=all_users,
+        all_companies=all_companies
+    )
+
+@app.route('/api/task/add', methods=['POST'])
+@login_required
+def api_add_task():
+    data = request.get_json()
+    try:
+        conn = get_db()
+        conn.execute('''INSERT INTO tasks (title, description, assigned_to, created_by, company_id, priority, due_date, status)
+            VALUES (?,?,?,?,?,?,?,?)''',
+            (data.get('title'), data.get('description'), data.get('assigned_to'),
+             session.get('user_id'), data.get('company_id'),
+             data.get('priority', 'normal'), data.get('due_date') or None, 'todo'))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/task/<int:id>/edit', methods=['POST'])
+@login_required
+def api_edit_task(id):
+    data = request.get_json()
+    try:
+        conn = get_db()
+        completed_at = 'CURRENT_TIMESTAMP' if data.get('status') == 'done' else None
+        conn.execute('''UPDATE tasks SET title=?, description=?, assigned_to=?, company_id=?,
+            priority=?, due_date=?, status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?''',
+            (data.get('title'), data.get('description'), data.get('assigned_to') or None,
+             data.get('company_id') or None, data.get('priority', 'normal'),
+             data.get('due_date') or None, data.get('status', 'todo'), id))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/task/<int:id>/status', methods=['POST'])
+@login_required
+def api_task_status(id):
+    data = request.get_json()
+    try:
+        conn = get_db()
+        conn.execute('UPDATE tasks SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+            (data.get('status'), id))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/task/<int:id>/delete', methods=['POST'])
+@login_required
+def api_delete_task(id):
+    try:
+        conn = get_db()
+        conn.execute('DELETE FROM tasks WHERE id=?', (id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

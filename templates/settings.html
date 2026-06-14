@@ -1,201 +1,314 @@
 {% extends "base.html" %}
-
-{% block title %}Settings - Zewer AML CRM{% endblock %}
+{% block title %}Admin Panel - Zewer AML{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>⚙️ Admin Settings</h1>
-    <p>Manage users and dropdowns</p>
+  <div>
+    <div class="page-title">⚙️ Admin Panel</div>
+    <div style="color:var(--text-muted);font-size:13px;margin-top:2px;">Manage users, roles and dropdown values</div>
+  </div>
 </div>
 
-<div class="settings-grid">
-    <!-- USER MANAGEMENT -->
-    <div class="settings-card">
-        <h3>👤 User Management</h3>
-        <button class="btn btn-primary" onclick="addUserModal()">➕ Add User</button>
-        
-        <table style="margin-top: 20px;">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in users %}
-                <tr>
-                    <td><strong>{{ user.name }}</strong></td>
-                    <td>{{ user.email }}</td>
-                    <td>
-                        <span class="badge" style="background: {% if user.role == 'admin' %}#E74C3C{% elif user.role == 'compliance' %}#F39C12{% else %}#2D5F5F{% endif %};">
-                            {{ user.role.upper() }}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="badge" style="background: {% if user.is_active %}#27AE60{% else %}#999{% endif %};">
-                            {{ 'Active' if user.is_active else 'Inactive' }}
-                        </span>
-                    </td>
-                    <td>
-                        <button class="btn btn-small btn-danger" onclick="deleteUser({{ user.id }})">Delete</button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    
-    <!-- DROPDOWN MANAGEMENT -->
-    <div class="settings-card">
-        <h3>📋 Dropdown Management</h3>
-        <button class="btn btn-primary" onclick="addDropdownModal()">➕ Add Value</button>
-        
-        <div style="margin-top: 20px;">
-            {% for field, values in dropdown_groups.items() %}
-            <details style="margin-bottom: 15px; border: 1px solid #E0E0E0; border-radius: 6px; padding: 15px;">
-                <summary style="cursor: pointer; font-weight: 600; color: #2D5F5F; user-select: none;">
-                    {{ field }} ({{ values|length }} values)
-                </summary>
-                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #E0E0E0;">
-                    {% for dd in values %}
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #f9f9f9; border-radius: 4px; margin-bottom: 8px;">
-                        <span>{{ dd.value }}</span>
-                        <button class="btn btn-small btn-danger" onclick="deleteDropdown({{ dd.id }})">Delete</button>
-                    </div>
-                    {% endfor %}
-                </div>
-            </details>
-            {% endfor %}
-        </div>
-    </div>
+<!-- TABS -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('users',this)">👥 Users & Roles</button>
+  <button class="tab-btn" onclick="switchTab('dropdowns',this)">📋 Dropdown Values</button>
 </div>
 
-<!-- ADD USER MODAL -->
-<div id="userModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
-    <div style="background: white; padding: 30px; border-radius: 8px; width: 90%; max-width: 400px;">
-        <h3 style="color: #2D5F5F; margin-bottom: 20px;">Add New User</h3>
-        <div class="form-group">
-            <label>Name</label>
-            <input type="text" id="userName" placeholder="Full name">
-        </div>
-        <div class="form-group">
-            <label>Email</label>
-            <input type="email" id="userEmail" placeholder="user@zewer.ae">
-        </div>
-        <div class="form-group">
-            <label>Password</label>
-            <input type="password" id="userPassword" placeholder="Strong password">
-        </div>
-        <div class="form-group">
-            <label>Role</label>
-            <select id="userRole">
-                <option value="admin">Admin</option>
-                <option value="compliance">Compliance</option>
-                <option value="staff">Staff</option>
-            </select>
-        </div>
-        <div style="display: flex; gap: 10px;">
-            <button class="btn btn-primary" onclick="saveUser()" style="flex: 1;">Save</button>
-            <button class="btn btn-danger" onclick="document.getElementById('userModal').style.display='none'" style="flex: 1;">Cancel</button>
-        </div>
+<!-- ===== TAB: USERS ===== -->
+<div id="tab-users" class="tab-panel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+    <div style="color:var(--text-muted);font-size:13px;">{{ users|length }} users registered</div>
+    <button class="btn btn-primary" onclick="openModal('addUserModal')">+ Add User</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Contact</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td style="font-weight:600;color:var(--text);">{{ u.name }}</td>
+          <td style="color:var(--text-muted);">{{ u.email }}</td>
+          <td style="color:var(--text-muted);">{{ u.contact_number or '—' }}</td>
+          <td>
+            <span class="badge badge-{{ u.role }}">{{ u.role.upper() }}</span>
+          </td>
+          <td>
+            <span class="badge {% if u.is_active %}badge-active{% else %}badge-inactive{% endif %}">
+              {{ 'Active' if u.is_active else 'Disabled' }}
+            </span>
+          </td>
+          <td>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn btn-ghost btn-sm" onclick="editUser({{ u.id }}, '{{ u.name }}', '{{ u.email }}', '{{ u.role }}', '{{ u.contact_number or '' }}')">✏️ Edit</button>
+              <button class="btn btn-ghost btn-sm" onclick="toggleUser({{ u.id }}, {{ u.is_active }})">
+                {{ '🔴 Disable' if u.is_active else '🟢 Enable' }}
+              </button>
+              {% if u.id != current_user_id %}
+              <button class="btn btn-danger btn-sm" onclick="deleteUser({{ u.id }}, '{{ u.name }}')">🗑️</button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ROLE GUIDE -->
+  <div style="margin-top:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">
+    <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);border-radius:10px;padding:16px;">
+      <div style="font-weight:700;color:#c4b5fd;margin-bottom:8px;">👑 Admin</div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.7;">Full access: all companies, users, dropdowns, settings, tasks, reports</div>
     </div>
+    <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);border-radius:10px;padding:16px;">
+      <div style="font-weight:700;color:#93c5fd;margin-bottom:8px;">🛡️ Compliance</div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.7;">View, add, edit companies. Access to alerts, reports, tasks. No user/settings management.</div>
+    </div>
+    <div style="background:rgba(94,234,212,0.08);border:1px solid rgba(94,234,212,0.2);border-radius:10px;padding:16px;">
+      <div style="font-weight:700;color:#5eead4;margin-bottom:8px;">📋 Staff</div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.7;">Tasks only — view assigned tasks, update status. No access to company records.</div>
+    </div>
+  </div>
 </div>
 
-<!-- ADD DROPDOWN MODAL -->
-<div id="dropdownModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
-    <div style="background: white; padding: 30px; border-radius: 8px; width: 90%; max-width: 400px;">
-        <h3 style="color: #2D5F5F; margin-bottom: 20px;">Add Dropdown Value</h3>
-        <div class="form-group">
-            <label>Field Name</label>
-            <select id="fieldName">
-                <option value="">Select field...</option>
-                <option value="AC STATUS">AC Status</option>
-                <option value="TYPE OF CLIENT">Type of Client</option>
-                <option value="MODE OF AC">Mode of AC</option>
-                <option value="RISK STATUS">Risk Status</option>
-                <option value="KYC STATUS">KYC Status</option>
-                <option value="COUNTRY">Country</option>
-                <option value="REGION">Region</option>
-                <option value="FREEZONE">Freezone</option>
-            </select>
+<!-- ===== TAB: DROPDOWNS ===== -->
+<div id="tab-dropdowns" class="tab-panel" style="display:none;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+    <div style="color:var(--text-muted);font-size:13px;">These values appear in the Add Company dropdowns</div>
+    <button class="btn btn-primary" onclick="openModal('addDropdownModal')">+ Add Value</button>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
+    {% for field, values in dropdown_groups.items() %}
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">{{ field }}</div>
+        <span style="font-size:11px;color:var(--text-dim);background:var(--bg);padding:2px 8px;border-radius:20px;">{{ values|length }}</span>
+      </div>
+      <div style="max-height:220px;overflow-y:auto;">
+        {% for dd in values %}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(51,65,85,0.4);">
+          <span style="font-size:13px;color:var(--text-muted);">{{ dd.value }}</span>
+          <button class="btn btn-danger btn-sm btn-icon" onclick="deleteDropdown({{ dd.id }}, '{{ dd.value | replace("'", "") }}')" title="Delete">✕</button>
         </div>
-        <div class="form-group">
-            <label>Value</label>
-            <input type="text" id="dropdownValue" placeholder="New value">
-        </div>
-        <div style="display: flex; gap: 10px;">
-            <button class="btn btn-primary" onclick="saveDropdown()" style="flex: 1;">Save</button>
-            <button class="btn btn-danger" onclick="document.getElementById('dropdownModal').style.display='none'" style="flex: 1;">Cancel</button>
-        </div>
+        {% endfor %}
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="quickAdd('{{ field }}')">+ Add to {{ field }}</button>
+      </div>
     </div>
+    {% endfor %}
+  </div>
 </div>
 
+<!-- ===== MODAL: ADD USER ===== -->
+<div class="modal-overlay" id="addUserModal">
+  <div class="modal-box">
+    <div class="modal-title">👤 Add New User</div>
+    <div class="form-grid">
+      <div class="form-group form-full">
+        <label>Full Name *</label>
+        <input type="text" id="uName" placeholder="e.g. Jaseel Ahmed">
+      </div>
+      <div class="form-group">
+        <label>Email *</label>
+        <input type="email" id="uEmail" placeholder="user@zewer.ae">
+      </div>
+      <div class="form-group">
+        <label>Contact Number</label>
+        <input type="text" id="uContact" placeholder="971501234567">
+      </div>
+      <div class="form-group">
+        <label>Password *</label>
+        <input type="password" id="uPassword" placeholder="Min 8 characters">
+      </div>
+      <div class="form-group">
+        <label>Role *</label>
+        <select id="uRole">
+          <option value="compliance">Compliance</option>
+          <option value="staff">Staff</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('addUserModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveUser()">Save User</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: EDIT USER ===== -->
+<div class="modal-overlay" id="editUserModal">
+  <div class="modal-box">
+    <div class="modal-title">✏️ Edit User</div>
+    <input type="hidden" id="editUserId">
+    <div class="form-grid">
+      <div class="form-group form-full">
+        <label>Full Name *</label>
+        <input type="text" id="editUName">
+      </div>
+      <div class="form-group">
+        <label>Email *</label>
+        <input type="email" id="editUEmail">
+      </div>
+      <div class="form-group">
+        <label>Contact Number</label>
+        <input type="text" id="editUContact">
+      </div>
+      <div class="form-group">
+        <label>New Password <small style="color:var(--text-dim);">(leave blank to keep)</small></label>
+        <input type="password" id="editUPassword" placeholder="Leave blank to keep current">
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="editURole">
+          <option value="compliance">Compliance</option>
+          <option value="staff">Staff</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('editUserModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditUser()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: ADD DROPDOWN ===== -->
+<div class="modal-overlay" id="addDropdownModal">
+  <div class="modal-box">
+    <div class="modal-title">📋 Add Dropdown Value</div>
+    <div class="form-grid">
+      <div class="form-group form-full">
+        <label>Field / Category *</label>
+        <select id="ddField">
+          <option value="">-- Select field --</option>
+          {% for field in dropdown_groups.keys() %}
+          <option value="{{ field }}">{{ field }}</option>
+          {% endfor %}
+          <option value="__new__">+ New field category</option>
+        </select>
+      </div>
+      <div class="form-group form-full" id="newFieldGroup" style="display:none;">
+        <label>New Field Name</label>
+        <input type="text" id="ddNewField" placeholder="e.g. BUSINESS TYPE">
+      </div>
+      <div class="form-group form-full">
+        <label>Value *</label>
+        <input type="text" id="ddValue" placeholder="e.g. Dubai Economy & Tourism">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('addDropdownModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveDropdown()">Add Value</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
 <script>
-    function addUserModal() {
-        document.getElementById('userModal').style.display = 'flex';
-    }
-    
-    function addDropdownModal() {
-        document.getElementById('dropdownModal').style.display = 'flex';
-    }
-    
-    function saveUser() {
-        const data = {
-            name: document.getElementById('userName').value,
-            email: document.getElementById('userEmail').value,
-            password: document.getElementById('userPassword').value,
-            role: document.getElementById('userRole').value
-        };
-        
-        fetch('/api/user/add', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        }).then(r => r.json()).then(d => {
-            if (d.success) {
-                location.reload();
-            } else {
-                alert('Error: ' + d.error);
-            }
-        });
-    }
-    
-    function saveDropdown() {
-        const data = {
-            field_name: document.getElementById('fieldName').value,
-            value: document.getElementById('dropdownValue').value
-        };
-        
-        fetch('/api/dropdown/add', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        }).then(r => r.json()).then(d => {
-            if (d.success) {
-                location.reload();
-            } else {
-                alert('Error: ' + d.error);
-            }
-        });
-    }
-    
-    function deleteUser(id) {
-        if (confirm('Delete this user?')) {
-            fetch(`/api/user/${id}/delete`, { method: 'POST' })
-                .then(r => r.json())
-                .then(d => d.success ? location.reload() : alert('Error'));
-        }
-    }
-    
-    function deleteDropdown(id) {
-        if (confirm('Delete this dropdown value?')) {
-            fetch(`/api/dropdown/${id}/delete`, { method: 'POST' })
-                .then(r => r.json())
-                .then(d => d.success ? location.reload() : alert('Error'));
-        }
-    }
+const CURRENT_USER_ID = {{ current_user_id }};
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).style.display = 'block';
+  btn.classList.add('active');
+}
+
+// ADD USER
+function saveUser() {
+  const data = {
+    name: document.getElementById('uName').value.trim(),
+    email: document.getElementById('uEmail').value.trim(),
+    contact_number: document.getElementById('uContact').value.trim(),
+    password: document.getElementById('uPassword').value,
+    role: document.getElementById('uRole').value,
+  };
+  if (!data.name || !data.email || !data.password) { alert('Name, email and password are required'); return; }
+  fetch('/api/user/add', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
+    .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
+}
+
+// EDIT USER
+function editUser(id, name, email, role, contact) {
+  document.getElementById('editUserId').value = id;
+  document.getElementById('editUName').value = name;
+  document.getElementById('editUEmail').value = email;
+  document.getElementById('editURole').value = role;
+  document.getElementById('editUContact').value = contact;
+  document.getElementById('editUPassword').value = '';
+  openModal('editUserModal');
+}
+function saveEditUser() {
+  const id = document.getElementById('editUserId').value;
+  const data = {
+    name: document.getElementById('editUName').value.trim(),
+    email: document.getElementById('editUEmail').value.trim(),
+    contact_number: document.getElementById('editUContact').value.trim(),
+    password: document.getElementById('editUPassword').value,
+    role: document.getElementById('editURole').value,
+  };
+  fetch(`/api/user/${id}/edit`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
+    .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
+}
+
+// TOGGLE USER
+function toggleUser(id, currentActive) {
+  fetch(`/api/user/${id}/toggle`, { method:'POST' })
+    .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
+}
+
+// DELETE USER
+function deleteUser(id, name) {
+  if (!confirm(`Delete user "${name}"? This cannot be undone.`)) return;
+  fetch(`/api/user/${id}/delete`, { method:'POST' })
+    .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
+}
+
+// DROPDOWN FIELD CHANGE
+document.getElementById('ddField').addEventListener('change', function() {
+  document.getElementById('newFieldGroup').style.display = this.value === '__new__' ? 'block' : 'none';
+});
+
+// QUICK ADD
+function quickAdd(field) {
+  document.getElementById('ddField').value = field;
+  document.getElementById('newFieldGroup').style.display = 'none';
+  document.getElementById('ddValue').value = '';
+  openModal('addDropdownModal');
+}
+
+// SAVE DROPDOWN
+function saveDropdown() {
+  let field = document.getElementById('ddField').value;
+  if (field === '__new__') field = document.getElementById('ddNewField').value.trim().toUpperCase();
+  const value = document.getElementById('ddValue').value.trim();
+  if (!field || !value) { alert('Field and value are required'); return; }
+  fetch('/api/dropdown/add', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({field_name:field, value}) })
+    .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
+}
+
+// DELETE DROPDOWN
+function deleteDropdown(id, val) {
+  if (!confirm(`Remove "${val}" from dropdowns?`)) return;
+  fetch(`/api/dropdown/${id}/delete`, { method:'POST' })
+    .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
+}
 </script>
 {% endblock %}
