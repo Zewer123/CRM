@@ -10,6 +10,15 @@ import io
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'zewer-aml-crm-secret-2026')
 
+@app.context_processor
+def inject_user():
+    return {
+        'user_name': session.get('user_name', ''),
+        'user_role': session.get('user_role', ''),
+        'user_email': session.get('user_email', ''),
+        'current_user_id': session.get('user_id'),
+    }
+
 DB = 'aml_crm.db'
 
 def init_db():

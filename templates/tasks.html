@@ -112,7 +112,7 @@
           </td>
           <td>
             <div style="display:flex;gap:6px;">
-              <button class="btn btn-ghost btn-sm btn-icon" onclick="editTask({{ t.id }}, {{ t | tojson | replace("'", "&#39;") }})" title="Edit">✏️</button>
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="editTask({{ t.id }}, '{{ t.title | replace("'","\\'")|replace('"','\\"') }}', '{{ t.description or "" | replace("'","\\'")|replace('"','\\"') }}', '{{ t.assigned_to or "" }}', '{{ t.priority or "normal" }}', '{{ t.due_date[:10] if t.due_date else "" }}', '{{ t.status or "todo" }}', '{{ t.company_id or "" }}')" title="Edit">✏️</button>
               {% if user_role == 'admin' or t.created_by == current_user_id %}
               <button class="btn btn-danger btn-sm btn-icon" onclick="deleteTask({{ t.id }})" title="Delete">🗑️</button>
               {% endif %}
@@ -258,15 +258,15 @@ function saveTask() {
     .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
 }
 
-function editTask(id, t) {
+function editTask(id, title, desc, assignedTo, priority, due, status, companyId) {
   document.getElementById('editTaskId').value = id;
-  document.getElementById('etTitle').value = t.title || '';
-  document.getElementById('etDesc').value = t.description || '';
-  document.getElementById('etAssign').value = t.assigned_to || '';
-  document.getElementById('etPriority').value = t.priority || 'normal';
-  document.getElementById('etDue').value = t.due_date ? t.due_date.substr(0,10) : '';
-  document.getElementById('etStatus').value = t.status || 'todo';
-  document.getElementById('etCompany').value = t.company_id || '';
+  document.getElementById('etTitle').value = title || '';
+  document.getElementById('etDesc').value = desc || '';
+  document.getElementById('etAssign').value = assignedTo || '';
+  document.getElementById('etPriority').value = priority || 'normal';
+  document.getElementById('etDue').value = due || '';
+  document.getElementById('etStatus').value = status || 'todo';
+  document.getElementById('etCompany').value = companyId || '';
   openModal('editTaskModal');
 }
 
