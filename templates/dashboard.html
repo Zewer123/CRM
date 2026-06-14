@@ -1,79 +1,45 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - AML CRM</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        .dashboard-container {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .dashboard-header {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        .dashboard-header h1 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-        .user-info {
-            color: #666;
-            font-size: 14px;
-        }
-        .logout-btn {
-            background: #764ba2;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-        }
-        .logout-btn:hover {
-            background: #5a3a7e;
-        }
-        .welcome-message {
-            background: white;
-            padding: 40px;
-            border-radius: 10px;
-            text-align: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        .welcome-message h2 {
-            color: #333;
-            margin-bottom: 15px;
-        }
-        .welcome-message p {
-            color: #666;
-            line-height: 1.6;
-        }
-    </style>
-</head>
-<body>
-    <div class="dashboard-container">
-        <div class="dashboard-header">
-            <h1>🎉 Welcome to AML CRM</h1>
-            <p class="user-info">Logged in as: <strong>{{ user_name }}</strong> ({{ user_role }})</p>
-            <a href="/logout" class="logout-btn">Logout</a>
-        </div>
+{% extends "base.html" %}
 
-        <div class="welcome-message">
-            <h2>✅ Login Successful!</h2>
-            <p>
-                You have successfully logged into the AML CRM System.<br>
-                This is a placeholder dashboard. More features coming soon!
-            </p>
-            <p style="margin-top: 30px; font-size: 13px; color: #999;">
-                Next features: Company Master, Document Upload, Follow-ups
-            </p>
-        </div>
+{% block title %}Dashboard - Zewer AML CRM{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📊 Dashboard</h1>
+    <p>Compliance Health at a Glance</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">Total Companies</div>
+        <div class="stat-number">{{ total_companies }}</div>
     </div>
-</body>
-</html>
+    <div class="stat-card">
+        <div style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">Active</div>
+        <div class="stat-number" style="color: #27AE60;">{{ active_companies }}</div>
+    </div>
+    <div class="stat-card">
+        <div style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">Expiring (30 days)</div>
+        <div class="stat-number" style="color: #F39C12;">{{ expiring_30 }}</div>
+    </div>
+    <div class="stat-card">
+        <div style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">Expiring (60 days)</div>
+        <div class="stat-number" style="color: #E74C3C;">{{ expiring_60 }}</div>
+    </div>
+</div>
+
+<div style="background: white; padding: 25px; border-radius: 8px; border-left: 5px solid #B8956A;">
+    <h3 style="color: #2D5F5F; margin-bottom: 15px;">Risk Breakdown</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+        {% for risk, count in risk_breakdown.items() %}
+        <div style="text-align: center; padding: 15px; background: #f5f5f5; border-radius: 6px;">
+            <div style="font-size: 24px; font-weight: 700; color: #2D5F5F;">{{ count }}</div>
+            <div style="font-size: 12px; color: #666; text-transform: uppercase;">{{ risk or 'Unspecified' }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div style="margin-top: 30px; text-align: center; color: #999; font-size: 14px;">
+    ✨ Real-time compliance monitoring
+</div>
+{% endblock %}

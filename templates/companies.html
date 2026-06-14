@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Companies - Zewer AML CRM{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🏢 Companies Management</h1>
+    <p>Manage all customer compliance records</p>
+</div>
+
+<div style="margin-bottom: 20px; display: flex; gap: 10px;">
+    <form style="display: flex; gap: 10px; width: 100%;">
+        <input type="text" name="search" placeholder="Search by company, customer, or AC code..." style="flex: 1; padding: 10px; border: 2px solid #E0E0E0; border-radius: 6px;">
+        <button type="submit" class="btn btn-primary">🔍 Search</button>
+        <a href="{{ url_for('company_new') }}" class="btn btn-primary">➕ Add Company</a>
+        <a href="{{ url_for('export_companies') }}" class="btn btn-primary">📥 Export</a>
+    </form>
+</div>
+
+<div class="companies-grid">
+    {% if companies %}
+        {% for company in companies %}
+        <div class="company-card {% if company.trade_license_expiry and company.trade_license_expiry < now().date() %}expired{% elif company.trade_license_expiry and company.trade_license_expiry < now().date() + timedelta(days=90) %}expiring{% endif %}">
+            
+            <!-- Row 1: Company Name, Customer, Type -->
+            <div class="card-row-1">
+                <div>
+                    <div class="card-company-name">{{ company.client_name }}</div>
+                    <div class="card-customer-name">{{ company.customer_name or '—' }}</div>
+                </div>
+                <div>AC: <strong>{{ company.ac_code }}</strong></div>
+                <div class="card-type">{{ company.type_of_client or '—' }}</div>
+            </div>
+            
+            <!-- Row 2: Key Fields -->
+            <div class="card-row-2">
+                <div class="card-field">
+                    <span class="card-field-label">TL Expiry</span>
+                    <span class="card-field-value {% if company.trade_license_expiry and company.trade_license_expiry < now().date() %}expired{% elif company.trade_license_expiry and company.trade_license_expiry < now().date() + timedelta(days=90) %}expiring{% endif %}">
+                        {% if company.trade_license_days_left %}{{ company.trade_license_days_left }}d{% else %}—{% endif %}
+                    </span>
+                </div>
+                <div class="card-field">
+                    <span class="card-field-label">Ejari Expiry</span>
+                    <span class="card-field-value {% if company.address_proof_days_left and company.address_proof_days_left < 0 %}expired{% elif company.address_proof_days_left and company.address_proof_days_left < 90 %}expiring{% endif %}">
+                        {% if company.address_proof_days_left %}{{ company.address_proof_days_left }}d{% else %}—{% endif %}
+                    </span>
+                </div>
+                <div class="card-field">
+                    <span class="card-field-label">KYC Status</span>
+                    <span class="card-field-value">{{ company.kyc_status or 'Pending' }}</span>
+                </div>
+                <div class="card-field">
+                    <span class="card-field-label">Risk Level</span>
+                    <span class="card-field-value">{{ company.risk_status or '—' }}</span>
+                </div>
+            </div>
+            
+            <!-- Row 3: Action Buttons -->
+            <div class="card-row-3">
+                {% if company.whatsapp_link %}
+                <a href="{{ company.whatsapp_link }}" target="_blank" class="btn btn-small" style="background: #25D366; color: white;">💬 WhatsApp</a>
+                {% endif %}
+                <a href="{{ url_for('company_detail', id=company.id) }}" class="btn btn-primary btn-small">👁️ View</a>
+                <a href="{{ url_for('company_new') }}" class="btn btn-secondary btn-small">✏️ Edit</a>
+                <button class="btn btn-danger btn-small" onclick="deleteCompany({{ company.id }})">🗑️ Delete</button>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+    <div style="background: white; padding: 30px; text-align: center; border-radius: 8px; color: #999;">
+        <p>No companies found. <a href="{{ url_for('company_new') }}">Create one now!</a></p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    function deleteCompany(id) {
+        if (confirm('Delete this company and all related records?')) {
+            fetch(`/api/company/${id}/delete`, { method: 'POST' })
+                .then(r => r.json())
+                .then(d => d.success ? location.reload() : alert('Error: ' + d.error));
+        }
+    }
+</script>
+{% endblock %}

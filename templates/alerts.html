@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <h1>⚠️ Document Expiry Alerts</h1>
+    <p>Documents expiring in the next 90 days</p>
+</div>
+
+<table style="width: 100%; background: white; border-radius: 8px; overflow: hidden;">
+    <tr style="background: #2D5F5F; color: white;">
+        <th style="padding: 15px; text-align: left;">Company</th>
+        <th style="padding: 15px;">Trade License Expiry</th>
+        <th style="padding: 15px;">Address Proof Expiry</th>
+    </tr>
+    {% for alert in alerts %}
+    <tr style="border-bottom: 1px solid #E0E0E0;">
+        <td style="padding: 15px;">{{ alert.client_name }}</td>
+        <td style="padding: 15px;">{{ alert.trade_license_expiry or '—' }}</td>
+        <td style="padding: 15px;">{{ alert.address_proof_expiry or '—' }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

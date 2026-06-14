@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Zewer AML CRM{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <span style="font-size: 24px;">💎</span>
+            <div>
+                <div class="navbar-title">Zewer AML</div>
+                <div style="font-size: 11px; color: #999; letter-spacing: 1px;">COMPLIANCE CRM</div>
+            </div>
+        </div>
+        
+        <div class="navbar-menu">
+            <a href="{{ url_for('dashboard') }}" class="navbar-link {% if request.endpoint == 'dashboard' %}active{% endif %}">📊 Dashboard</a>
+            <a href="{{ url_for('companies') }}" class="navbar-link {% if request.endpoint in ['companies', 'company_detail', 'company_new'] %}active{% endif %}">🏢 Companies</a>
+            <a href="{{ url_for('alerts') }}" class="navbar-link {% if request.endpoint == 'alerts' %}active{% endif %}">⚠️ Alerts</a>
+            <a href="{{ url_for('reports') }}" class="navbar-link {% if request.endpoint == 'reports' %}active{% endif %}">📈 Reports</a>
+            {% if user_role == 'admin' %}
+            <a href="{{ url_for('settings') }}" class="navbar-link {% if request.endpoint == 'settings' %}active{% endif %}">⚙️ Settings</a>
+            {% endif %}
+        </div>
+        
+        <div class="navbar-right">
+            <div style="text-align: right;">
+                <div class="user-name">{{ user_name }}</div>
+                <div class="user-role">{{ user_role.capitalize() }}</div>
+            </div>
+            <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>
