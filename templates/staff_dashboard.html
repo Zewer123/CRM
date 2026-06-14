@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}My Tasks - Zewer AML{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">👋 Welcome, {{ user_name }}</div>
+    <div style="font-size:13px;color:var(--text-dim);margin-top:2px;">{{ today }} — Your task overview</div>
+  </div>
+  <a href="{{ url_for('tasks') }}" class="btn btn-primary btn-sm">+ New Task</a>
+</div>
+
+<!-- STAT CARDS -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px;">
+  <div class="stat-card {% if overdue_count > 0 %}danger{% endif %}">
+    <div class="stat-label">Overdue</div>
+    <div class="stat-value">{{ overdue_count }}</div>
+    <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">needs attention</div>
+  </div>
+  <div class="stat-card warning">
+    <div class="stat-label">To Do</div>
+    <div class="stat-value">{{ todo_count }}</div>
+    <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">not started</div>
+  </div>
+  <div class="stat-card warning">
+    <div class="stat-label">In Progress</div>
+    <div class="stat-value">{{ inprogress_count }}</div>
+    <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">active</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Awaiting Close</div>
+    <div class="stat-value">{{ pending_count }}</div>
+    <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">marked done</div>
+  </div>
+</div>
+
+<!-- TASK LIST -->
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div class="card-title">📋 My Pending Tasks</div>
+    <a href="{{ url_for('tasks') }}" style="font-size:12px;color:var(--primary-light);text-decoration:none;">All tasks →</a>
+  </div>
+
+  {% if my_tasks %}
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    {% for t in my_tasks %}
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;
+      display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;
+      {% if t.is_overdue %}border-left:3px solid #ef4444;{% elif t.days_until_due is not none and t.days_until_due <= 3 %}border-left:3px solid #fb923c;{% elif t.status=='pending_close' %}border-left:3px solid #fcd34d;{% else %}border-left:3px solid var(--border);{% endif %}">
+      <div>
+        <div style="font-weight:600;color:var(--text);font-size:14px;margin-bottom:4px;">{{ t.title }}</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <span class="badge badge-{% if t.priority=='urgent' %}urgent{% elif t.priority=='high' %}high-p{% elif t.priority=='low' %}low-p{% else %}normal{% endif %}">
+            {{ (t.priority or 'normal').upper() }}
+          </span>
+          {% if t.status == 'pending_close' %}
+          <span style="font-size:11px;color:#fcd34d;font-weight:600;">⏳ Awaiting Close</span>
+          {% elif t.status == 'inprogress' %}
+          <span class="badge badge-compliance">🔄 In Progress</span>
+          {% else %}
+          <span class="badge" style="background:var(--surface3);color:var(--text-muted);">📋 To Do</span>
+          {% endif %}
+          {% if t.due_date %}
+          <span style="font-size:11px;
+            {% if t.is_overdue %}color:#fca5a5;{% elif t.days_until_due is not none and t.days_until_due <= 3 %}color:#fb923c;{% else %}color:var(--text-dim);{% endif %}">
+            📅 {{ t.due_date }}
+            {% if t.is_overdue %} ({{ t.days_until_due|abs }}d overdue)
+            {% elif t.days_until_due == 0 %} (today)
+            {% elif t.days_until_due is not none %} ({{ t.days_until_due }}d left)
+            {% endif %}
+          </span>
+          {% endif %}
+          {% if t.company_name %}
+          <span style="font-size:11px;color:var(--primary-light);">🏢 {{ t.ac_code }} {{ t.company_name }}</span>
+          {% endif %}
+        </div>
+        {% if t.description %}
+        <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">{{ t.description[:100] }}{% if t.description|length > 100 %}…{% endif %}</div>
+        {% endif %}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <a href="{{ url_for('tasks') }}" class="btn btn-ghost btn-sm" title="Open in Tasks">Open →</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:50px;color:var(--text-dim);">
+    <div style="font-size:32px;margin-bottom:12px;">🎉</div>
+    <div style="font-size:15px;font-weight:600;color:var(--text);">All caught up!</div>
+    <div style="font-size:13px;margin-top:6px;">No pending tasks assigned to you.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
