@@ -5,7 +5,7 @@
 <div class="page-header">
   <div class="page-title">✅ Tasks</div>
   {% if user_role in ['admin','compliance'] %}
-  <button class="btn btn-primary" onclick="openModal('addTaskModal')">+ New Task</button>
+  <button class="btn btn-primary" onclick="openAddTask()">+ New Task</button>
   {% endif %}
 </div>
 
@@ -15,12 +15,12 @@
   <div class="stat-card danger"><div class="stat-label">Overdue</div><div class="stat-value">{{ tasks|selectattr('is_overdue')|list|length }}</div></div>
   <div class="stat-card warning"><div class="stat-label">In Progress</div><div class="stat-value">{{ tasks|selectattr('status','eq','inprogress')|list|length }}</div></div>
   <div class="stat-card"><div class="stat-label">To Do</div><div class="stat-value">{{ tasks|selectattr('status','eq','todo')|list|length }}</div></div>
-  <div class="stat-card success"><div class="stat-label">Awaiting Close</div><div class="stat-value">{{ tasks|selectattr('status','eq','pending_close')|list|length }}</div></div>
+  <div class="stat-card warning"><div class="stat-label">Awaiting Close</div><div class="stat-value">{{ tasks|selectattr('status','eq','pending_close')|list|length }}</div></div>
   <div class="stat-card success"><div class="stat-label">Closed</div><div class="stat-value">{{ tasks|selectattr('status','eq','done')|list|length }}</div></div>
 </div>
 
 <!-- FILTERS -->
-<div class="search-bar">
+<div class="search-bar" style="margin-bottom:16px;">
   <div class="form-group search-input">
     <label>STATUS</label>
     <select id="filterStatus" onchange="filterTasks()">
@@ -50,19 +50,21 @@
   </div>
 </div>
 
-<!-- TABLE -->
+<!-- TASK TABLE -->
 <div class="card" style="padding:0;overflow:hidden;">
   <div class="table-wrap">
     <table id="taskTable">
-      <thead><tr>
-        <th>TASK</th>
-        <th>ASSIGNED TO</th>
-        <th>COMPANY</th>
-        <th>PRIORITY</th>
-        <th>DUE DATE</th>
-        <th>STATUS</th>
-        <th>ACTIONS</th>
-      </tr></thead>
+      <thead>
+        <tr>
+          <th>TASK</th>
+          <th>ASSIGNED TO</th>
+          <th>COMPANY</th>
+          <th>PRIORITY</th>
+          <th>DUE DATE</th>
+          <th>STATUS</th>
+          <th>ACTIONS</th>
+        </tr>
+      </thead>
       <tbody>
         {% for t in tasks %}
         <tr data-status="{{ t.status }}" data-user="{{ t.assigned_to or '' }}" data-priority="{{ t.priority }}">
@@ -73,10 +75,6 @@
           </td>
           <td>
             <div style="color:var(--text-muted);">{{ t.assigned_name or '—' }}</div>
-            {% if t.assigned_mobile %}
-            <a href="https://wa.me/{{ t.assigned_mobile | replace('+','') | replace(' ','') | replace('-','') }}" target="_blank"
-               style="font-size:11px;color:var(--wa);text-decoration:none;">💬 WhatsApp</a>
-            {% endif %}
           </td>
           <td style="color:var(--text-muted);font-size:12px;">
             {% if t.company_id %}
@@ -93,42 +91,49 @@
             {% if t.due_date %}
               {% if t.is_overdue and t.status not in ['done','pending_close'] %}
               <span class="exp-expired" style="font-weight:600;">{{ t.due_date[:10] }}</span>
-              <div style="font-size:11px;" class="exp-expired">OVERDUE {{ t.days_until_due|abs }}d</div>
+              <div class="exp-expired" style="font-size:11px;">{{ t.days_until_due|abs }}d overdue</div>
               {% elif t.days_until_due is not none and t.days_until_due <= 3 and t.status not in ['done','pending_close'] %}
               <span class="exp-critical" style="font-weight:600;">{{ t.due_date[:10] }}</span>
-              <div style="font-size:11px;" class="exp-critical">{{ t.days_until_due }}d left</div>
+              <div class="exp-critical" style="font-size:11px;">{{ t.days_until_due }}d left</div>
               {% else %}
               <span style="color:var(--text-muted);">{{ t.due_date[:10] }}</span>
               {% endif %}
             {% else %}—{% endif %}
           </td>
           <td>
-            {% if t.status == 'pending_close' %}
-              {% if t.created_by == current_user_id or user_role == 'admin' %}
-              <span style="background:#78350f;color:#fcd34d;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:600;">⏳ Awaiting Your Close</span>
-              {% else %}
-              <span style="background:#1e3a5f;color:#93c5fd;padding:3px 8px;border-radius:5px;font-size:11px;">Pending Close</span>
-              {% endif %}
-            {% elif t.status == 'done' %}
+            {% if t.status == 'done' %}
               <span class="badge badge-active">✅ Closed</span>
+            {% elif t.status == 'pending_close' %}
+              {% if t.created_by == current_user_id or user_role == 'admin' %}
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <span style="font-size:11px;color:#fcd34d;font-weight:600;">⏳ Mark Done — Close it?</span>
+                <div style="display:flex;gap:4px;">
+                  <button class="btn btn-success btn-sm" onclick="setStatus({{ t.id }},'done')">✅ Close</button>
+                  <button class="btn btn-ghost btn-sm" onclick="setStatus({{ t.id }},'inprogress')">↩️</button>
+                </div>
+              </div>
+              {% else %}
+              <span class="badge badge-compliance">⏳ Pending Close</span>
+              {% endif %}
             {% else %}
-              <select onchange="updateStatus({{ t.id }}, this.value, {{ t.created_by }}, {{ current_user_id }}, '{{ user_role }}')"
-                style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;cursor:pointer;">
-                <option value="todo" {% if t.status=='todo' %}selected{% endif %}>📋 To Do</option>
-                <option value="inprogress" {% if t.status=='inprogress' %}selected{% endif %}>🔄 In Progress</option>
-                <option value="pending_close" {% if t.status=='pending_close' %}selected{% endif %}>✋ Mark Done</option>
-              </select>
+            <select onchange="setStatus({{ t.id }}, this.value)"
+              style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;cursor:pointer;width:100%;">
+              <option value="todo" {% if t.status=='todo' %}selected{% endif %}>📋 To Do</option>
+              <option value="inprogress" {% if t.status=='inprogress' %}selected{% endif %}>🔄 In Progress</option>
+              <option value="pending_close">✋ Mark as Done</option>
+            </select>
             {% endif %}
           </td>
           <td>
-            <div style="display:flex;gap:6px;align-items:center;">
-              {% if t.status == 'pending_close' and (t.created_by == current_user_id or user_role == 'admin') %}
-              <button class="btn btn-success btn-sm" onclick="closeTask({{ t.id }})">✅ Close</button>
-              <button class="btn btn-ghost btn-sm" onclick="rejectClose({{ t.id }})">↩️ Reopen</button>
-              {% elif t.status != 'done' %}
-                {% if user_role in ['admin','compliance'] or t.assigned_to == current_user_id %}
-                <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditTask({{ t.id }}, '{{ t.title|replace("'","\\'") }}', '{{ (t.description or '')|replace("'","\\'") }}', '{{ t.assigned_to or "" }}', '{{ t.priority or "normal" }}', '{{ t.due_date[:10] if t.due_date else "" }}', '{{ t.status or "todo" }}', '{{ t.company_id or "" }}')" title="Edit">✏️</button>
-                {% endif %}
+            <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;">
+              {% set wa = t.assigned_mobile %}
+              {% if wa %}
+              <a href="https://wa.me/{{ wa|replace('+','')|replace(' ','')|replace('-','') }}" target="_blank"
+                 class="btn btn-wa btn-sm btn-icon" title="WhatsApp {{ t.assigned_name }}">💬</a>
+              {% endif %}
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="viewTask({{ t.id }})" title="View">👁️</button>
+              {% if t.status != 'done' and (user_role in ['admin','compliance'] or t.assigned_to == current_user_id or t.created_by == current_user_id) %}
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditTask({{ t.id }},'{{ t.title|replace("'","\\'") }}','{{ (t.description or '')|replace("'","\\'") }}','{{ t.assigned_to or "" }}','{{ t.priority or "normal" }}','{{ t.due_date[:10] if t.due_date else "" }}','{{ t.status or "todo" }}','{{ t.company_id or "" }}')" title="Edit">✏️</button>
               {% endif %}
               {% if user_role == 'admin' or t.created_by == current_user_id %}
               <button class="btn btn-danger btn-sm btn-icon" onclick="deleteTask({{ t.id }})" title="Delete">🗑️</button>
@@ -137,24 +142,34 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-dim);">No tasks yet.</td></tr>
+        <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-dim);">No tasks yet. Create one!</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
 
-<!-- ===== MODAL: ADD TASK ===== -->
+<!-- VIEW TASK MODAL -->
+<div class="modal-overlay" id="viewTaskModal">
+  <div class="modal-box" style="max-width:520px;">
+    <div class="modal-title">👁️ Task Details</div>
+    <div id="viewTaskContent"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('viewTaskModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD TASK MODAL -->
 <div class="modal-overlay" id="addTaskModal">
   <div class="modal-box" style="max-width:580px;">
     <div class="modal-title">➕ New Task</div>
 
-    <!-- TEMPLATE PICKER -->
     {% if task_templates %}
     <div class="form-group" style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
-      <label>Quick Template <span style="color:var(--text-dim);font-weight:400;">(optional — fills title & description)</span></label>
+      <label>Quick Template <span style="color:var(--text-dim);font-weight:400;text-transform:none;">(optional — fills title)</span></label>
       <select id="taskTemplate" onchange="applyTemplate()">
-        <option value="">— Start from scratch —</option>
+        <option value="">— Start from scratch / type below —</option>
         {% for t in task_templates %}
         <option value="{{ t.value }}" data-desc="{{ t.description or '' }}">{{ t.value }}</option>
         {% endfor %}
@@ -164,12 +179,12 @@
 
     <div class="form-grid">
       <div class="form-group form-full">
-        <label>Task Title *</label>
-        <input type="text" id="tTitle" placeholder="What needs to be done?">
+        <label>Task Title * <span style="color:var(--text-dim);font-weight:400;text-transform:none;">(type freely or use template above)</span></label>
+        <input type="text" id="tTitle" placeholder="Describe what needs to be done...">
       </div>
       <div class="form-group form-full">
         <label>Description / Notes</label>
-        <textarea id="tDesc" rows="3" placeholder="Additional details..."></textarea>
+        <textarea id="tDesc" rows="2" placeholder="Additional details..."></textarea>
       </div>
       <div class="form-group">
         <label>Assign To *</label>
@@ -201,19 +216,19 @@
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('addTaskModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveTask()">Create Task</button>
+      <button class="btn btn-primary" id="saveTaskBtn" onclick="saveTask()">Create Task</button>
     </div>
   </div>
 </div>
 
-<!-- ===== MODAL: EDIT TASK ===== -->
+<!-- EDIT TASK MODAL -->
 <div class="modal-overlay" id="editTaskModal">
   <div class="modal-box" style="max-width:580px;">
     <div class="modal-title">✏️ Edit Task</div>
     <input type="hidden" id="etId">
     <div class="form-grid">
       <div class="form-group form-full"><label>Title *</label><input type="text" id="etTitle"></div>
-      <div class="form-group form-full"><label>Description</label><textarea id="etDesc" rows="3"></textarea></div>
+      <div class="form-group form-full"><label>Description</label><textarea id="etDesc" rows="2"></textarea></div>
       <div class="form-group">
         <label>Assign To</label>
         <select id="etAssign">
@@ -239,7 +254,7 @@
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('editTaskModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveEditTask()">Save</button>
+      <button class="btn btn-primary" onclick="saveEditTask()">Save Changes</button>
     </div>
   </div>
 </div>
@@ -247,44 +262,74 @@
 
 {% block scripts %}
 <script>
-// Apply template
-function applyTemplate() {
-  const sel = document.getElementById('taskTemplate');
-  const opt = sel.options[sel.selectedIndex];
-  if (!sel.value) return;
-  document.getElementById('tTitle').value = sel.value;
-  document.getElementById('tDesc').value = opt.dataset.desc || '';
+// Build task lookup for view modal
+const TASKS_DATA = {
+  {% for t in tasks %}
+  {{ t.id }}: {
+    title: {{ t.title | tojson }},
+    description: {{ (t.description or '') | tojson }},
+    assigned_name: {{ (t.assigned_name or '—') | tojson }},
+    assigned_mobile: {{ (t.assigned_mobile or '') | tojson }},
+    created_by_name: {{ (t.created_by_name or '—') | tojson }},
+    company_name: {{ (t.company_name or '') | tojson }},
+    ac_code: {{ (t.ac_code or '') | tojson }},
+    priority: {{ (t.priority or 'normal') | tojson }},
+    status: {{ (t.status or 'todo') | tojson }},
+    due_date: {{ (t.due_date[:10] if t.due_date else '') | tojson }},
+  },
+  {% endfor %}
+};
+
+// Set default due date = tomorrow
+function getTomorrow() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().split('T')[0];
 }
 
-// Set tomorrow as default due date when modal opens
-document.getElementById('addTaskModal').addEventListener('transitionend', function(){});
-document.querySelector('button[onclick="openModal('addTaskModal')"]') && void 0;
+function openAddTask() {
+  document.getElementById('tTitle').value = '';
+  document.getElementById('tDesc').value = '';
+  document.getElementById('tAssign').value = '';
+  document.getElementById('tPriority').value = 'normal';
+  document.getElementById('tDue').value = getTomorrow();
+  document.getElementById('tCompany').value = '';
+  const tpl = document.getElementById('taskTemplate');
+  if (tpl) tpl.value = '';
+  const btn = document.getElementById('saveTaskBtn');
+  btn.disabled = false;
+  btn.textContent = 'Create Task';
+  openModal('addTaskModal');
+}
 
-// Actually set it immediately
-(function() {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const yyyy = tomorrow.getFullYear();
-  const mm = String(tomorrow.getMonth()+1).padStart(2,'0');
-  const dd = String(tomorrow.getDate()).padStart(2,'0');
-  const tomorrowStr = `${yyyy}-${mm}-${dd}`;
-  // Set on page load
-  const tDue = document.getElementById('tDue');
-  if (tDue && !tDue.value) tDue.value = tomorrowStr;
-})();
+function applyTemplate() {
+  const sel = document.getElementById('taskTemplate');
+  if (!sel.value) return;
+  document.getElementById('tTitle').value = sel.value;
+  const desc = sel.options[sel.selectedIndex].dataset.desc;
+  if (desc) document.getElementById('tDesc').value = desc;
+}
 
 function saveTask() {
+  const title = document.getElementById('tTitle').value.trim();
+  if (!title) { alert('Task title is required'); document.getElementById('tTitle').focus(); return; }
   const data = {
-    title: document.getElementById('tTitle').value.trim(),
+    title,
     description: document.getElementById('tDesc').value.trim(),
     assigned_to: document.getElementById('tAssign').value || null,
     priority: document.getElementById('tPriority').value,
     due_date: document.getElementById('tDue').value || null,
     company_id: document.getElementById('tCompany').value || null,
   };
-  if (!data.title) { alert('Task title is required'); return; }
+  const btn = document.getElementById('saveTaskBtn');
+  btn.disabled = true; btn.textContent = '⏳ Saving...';
   fetch('/api/task/add', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
-    .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) { location.reload(); }
+      else { btn.disabled=false; btn.textContent='Create Task'; alert('Error: '+d.error); }
+    })
+    .catch(e => { btn.disabled=false; btn.textContent='Create Task'; alert('Network error: '+e); });
 }
 
 function openEditTask(id, title, desc, assignedTo, priority, due, status, companyId) {
@@ -308,30 +353,40 @@ function saveEditTask() {
     due_date: document.getElementById('etDue').value || null,
     company_id: document.getElementById('etCompany').value || null,
   };
+  if (!data.title) { alert('Title required'); return; }
   fetch(`/api/task/${id}/edit`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
     .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
 }
 
-function updateStatus(id, status, createdBy, currentUser, role) {
-  // If marking done, it goes to pending_close — creator must close
+function viewTask(id) {
+  const t = TASKS_DATA[id];
+  if (!t) return;
+  const statusMap = { todo:'📋 To Do', inprogress:'🔄 In Progress', pending_close:'⏳ Awaiting Close', done:'✅ Closed' };
+  const priorityMap = { urgent:'🔴 Urgent', high:'🟠 High', normal:'🔵 Normal', low:'⚪ Low' };
+  document.getElementById('viewTaskContent').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div><div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">TASK</div><div style="font-size:15px;font-weight:700;color:var(--text);">${t.title}</div></div>
+      ${t.description ? `<div><div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">DESCRIPTION</div><div style="color:var(--text-muted);font-size:13px;line-height:1.6;">${t.description}</div></div>` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div><div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">ASSIGNED TO</div><div style="color:var(--text);font-size:13px;">${t.assigned_name}${t.assigned_mobile ? ` <a href="https://wa.me/${t.assigned_mobile.replace(/[+ -]/g,'')}" target="_blank" style="color:#25d366;margin-left:6px;">💬</a>` : ''}</div></div>
+        <div><div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">CREATED BY</div><div style="color:var(--text);font-size:13px;">${t.created_by_name}</div></div>
+        <div><div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">PRIORITY</div><div style="font-size:13px;">${priorityMap[t.priority]||t.priority}</div></div>
+        <div><div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">STATUS</div><div style="font-size:13px;">${statusMap[t.status]||t.status}</div></div>
+        <div><div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">DUE DATE</div><div style="color:var(--text);font-size:13px;">${t.due_date||'—'}</div></div>
+        ${t.company_name ? `<div><div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">COMPANY</div><div style="color:var(--primary-light);font-size:13px;">${t.ac_code} — ${t.company_name}</div></div>` : ''}
+      </div>
+    </div>`;
+  openModal('viewTaskModal');
+}
+
+function setStatus(id, status) {
   fetch(`/api/task/${id}/status`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}) })
-    .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
-}
-
-function closeTask(id) {
-  if (!confirm('Mark this task as Closed?')) return;
-  fetch(`/api/task/${id}/status`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'done'}) })
-    .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
-}
-
-function rejectClose(id) {
-  fetch(`/api/task/${id}/status`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'inprogress'}) })
     .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
 }
 
 function deleteTask(id) {
   if (!confirm('Delete this task?')) return;
-  fetch(`/api/task/${id}/delete`, { method:'POST' })
+  fetch(`/api/task/${id}/delete`, {method:'POST'})
     .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
 }
 

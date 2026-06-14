@@ -368,3 +368,20 @@ tbody tr:last-child td { border-bottom: none; }
   .form-full { grid-column: 1; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ===== DATE INPUT - WHITE CALENDAR ICON, CLICK ANYWHERE ===== */
+input[type="date"] {
+  color-scheme: dark;
+  cursor: pointer;
+  position: relative;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(2);
+  cursor: pointer;
+  position: absolute;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  opacity: 0.9;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }

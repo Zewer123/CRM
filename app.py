@@ -552,16 +552,26 @@ def alerts():
 def reports():
     conn = get_db()
     today = datetime.now().date()
+    date_from = request.args.get('from', '')
+    date_to = request.args.get('to', '')
+    where = '1=1'
+    params = []
+    if date_from:
+        where += ' AND created_at >= ?'; params.append(date_from)
+    if date_to:
+        where += ' AND created_at <= ?'; params.append(date_to + ' 23:59:59')
+    total = conn.execute(f'SELECT COUNT(*) FROM companies WHERE {where}', params).fetchone()[0]
     return render_template('reports.html',
-        risk_data=conn.execute('SELECT risk_status,COUNT(*) as c FROM companies GROUP BY risk_status').fetchall(),
-        doc_data=conn.execute('SELECT doc_status,COUNT(*) as c FROM companies GROUP BY doc_status').fetchall(),
-        type_data=conn.execute('SELECT type_of_client,COUNT(*) as c FROM companies GROUP BY type_of_client ORDER BY c DESC').fetchall(),
-        region_data=conn.execute('SELECT region,COUNT(*) as c FROM companies GROUP BY region ORDER BY c DESC LIMIT 10').fetchall(),
-        kyc_data=conn.execute('SELECT kyc_status,COUNT(*) as c FROM companies GROUP BY kyc_status ORDER BY c DESC').fetchall(),
-        mode_data=conn.execute('SELECT mode_of_ac,COUNT(*) as c FROM companies GROUP BY mode_of_ac ORDER BY c DESC').fetchall(),
+        risk_data=conn.execute(f'SELECT risk_status,COUNT(*) as c FROM companies WHERE {where} GROUP BY risk_status', params).fetchall(),
+        doc_data=conn.execute(f'SELECT doc_status,COUNT(*) as c FROM companies WHERE {where} GROUP BY doc_status', params).fetchall(),
+        type_data=conn.execute(f'SELECT type_of_client,COUNT(*) as c FROM companies WHERE {where} GROUP BY type_of_client ORDER BY c DESC', params).fetchall(),
+        region_data=conn.execute(f'SELECT region,COUNT(*) as c FROM companies WHERE {where} GROUP BY region ORDER BY c DESC LIMIT 10', params).fetchall(),
+        kyc_data=conn.execute(f'SELECT kyc_status,COUNT(*) as c FROM companies WHERE {where} GROUP BY kyc_status ORDER BY c DESC', params).fetchall(),
+        mode_data=conn.execute(f'SELECT mode_of_ac,COUNT(*) as c FROM companies WHERE {where} GROUP BY mode_of_ac ORDER BY c DESC', params).fetchall(),
         expired_tl=conn.execute('SELECT COUNT(*) FROM companies WHERE trade_license_expiry<?',(today,)).fetchone()[0],
         expiring_30=conn.execute('SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ?',(today,today+timedelta(days=30))).fetchone()[0],
-        expiring_90=conn.execute('SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ?',(today,today+timedelta(days=90))).fetchone()[0])
+        expiring_90=conn.execute('SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ?',(today,today+timedelta(days=90))).fetchone()[0],
+        total=total, date_from=date_from, date_to=date_to)
 
 # ── SETTINGS ────────────────────────────────────────────────
 
@@ -890,20 +900,88 @@ def api_import_companies():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/export/report')
+@compliance_required
+def export_report():
+    rtype = request.args.get('type', 'all')
+    fmt = request.args.get('format', 'xlsx')
+    date_from = request.args.get('from', '')
+    date_to = request.args.get('to', '')
+    conn = get_db()
+    today = datetime.now().date()
+    where = '1=1'; params = []
+    if date_from: where += ' AND created_at >= ?'; params.append(date_from)
+    if date_to: where += ' AND created_at <= ?'; params.append(date_to + ' 23:59:59')
+
+    if rtype == 'expiry':
+        rows = conn.execute(f'SELECT ac_code,client_name,trade_license_no,trade_license_expiry,address_proof_expiry,risk_status,region,account_manager FROM companies WHERE {where} ORDER BY trade_license_expiry', params).fetchall()
+    elif rtype == 'kyc':
+        rows = conn.execute(f'SELECT ac_code,client_name,kyc_status,doc_status,risk_status,verified_by,verified_date FROM companies WHERE {where} ORDER BY kyc_status', params).fetchall()
+    elif rtype == 'risk':
+        rows = conn.execute(f'SELECT ac_code,client_name,risk_status,doc_status,kyc_status,region,account_manager FROM companies WHERE {where} ORDER BY risk_status', params).fetchall()
+    else:
+        rows = conn.execute(f'SELECT * FROM companies WHERE {where} ORDER BY client_name', params).fetchall()
+    conn.close()
+
+    fname = f'report_{rtype}_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
+    if fmt == 'xlsx' and OPENPYXL_AVAILABLE:
+        import openpyxl
+        wb = openpyxl.Workbook()
+        ws = wb.active; ws.title = rtype.upper()
+        if rows:
+            ws.append(list(rows[0].keys()))
+            for r in rows: ws.append(list(r))
+        from io import BytesIO
+        out = BytesIO(); wb.save(out); out.seek(0)
+        return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True, download_name=fname+'.xlsx')
+    else:
+        out = io.StringIO(); w = csv.writer(out)
+        if rows:
+            w.writerow(rows[0].keys())
+            for r in rows: w.writerow(r)
+        out.seek(0)
+        return send_file(io.BytesIO(out.getvalue().encode()), mimetype='text/csv',
+            as_attachment=True, download_name=fname+'.csv')
+
 @app.route('/export/companies')
 @compliance_required
 def export_companies():
+    scope = request.args.get('scope', 'all')
+    fmt = request.args.get('format', 'csv')
     conn = get_db()
-    rows = conn.execute('SELECT * FROM companies').fetchall()
+    q = 'SELECT * FROM companies WHERE 1=1'
+    if scope == 'active': q += ' AND ac_status="Active"'
+    elif scope == 'inactive': q += ' AND ac_status="Inactive"'
+    elif scope == 'high': q += ' AND risk_status="High"'
+    elif scope == 'medium': q += ' AND risk_status="Medium"'
+    elif scope == 'low': q += ' AND risk_status="Low"'
+    elif scope == 'incomplete': q += ' AND doc_status="Incompleted"'
+    rows = conn.execute(q).fetchall()
     conn.close()
-    out = io.StringIO()
-    w = csv.writer(out)
-    if rows:
-        w.writerow(rows[0].keys())
-        for r in rows: w.writerow(r)
-    out.seek(0)
-    return send_file(io.BytesIO(out.getvalue().encode()), mimetype='text/csv', as_attachment=True,
-        download_name=f'companies_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv')
+    fname = f'companies_{scope}_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
+    if fmt == 'xlsx' and OPENPYXL_AVAILABLE:
+        import openpyxl
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Companies"
+        if rows:
+            ws.append(list(rows[0].keys()))
+            for r in rows: ws.append(list(r))
+        from io import BytesIO
+        out = BytesIO()
+        wb.save(out); out.seek(0)
+        return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True, download_name=fname+'.xlsx')
+    else:
+        out = io.StringIO()
+        w = csv.writer(out)
+        if rows:
+            w.writerow(rows[0].keys())
+            for r in rows: w.writerow(r)
+        out.seek(0)
+        return send_file(io.BytesIO(out.getvalue().encode()), mimetype='text/csv',
+            as_attachment=True, download_name=fname+'.csv')
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8000))

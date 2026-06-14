@@ -5,7 +5,7 @@
 <div class="page-header">
   <div class="page-title">🏢 Companies</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
-    <a href="{{ url_for('export_companies') }}" class="btn btn-ghost btn-sm">⬇️ Export CSV</a>
+    <button class="btn btn-ghost btn-sm" onclick="openModal('exportModal')">⬇️ Export</button>
     <button class="btn btn-ghost btn-sm" onclick="downloadTemplate()">📋 Template</button>
     <button class="btn btn-ghost btn-sm" onclick="openModal('importModal')">⬆️ Import</button>
     <a href="{{ url_for('company_new') }}" class="btn btn-primary btn-sm">+ Add Company</a>
@@ -50,6 +50,15 @@
 
 <div style="color:var(--text-dim);font-size:12px;margin-bottom:10px;">{{ companies|length }} companies</div>
 
+<!-- COLUMN HEADERS -->
+<div style="display:flex;align-items:center;gap:16px;padding:0 18px;margin-bottom:4px;">
+  <div style="min-width:90px;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">AC Code</div>
+  <div style="flex:2;min-width:160px;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Company / Manager</div>
+  <div style="min-width:100px;text-align:center;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Docs</div>
+  <div style="min-width:70px;text-align:center;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Risk</div>
+  <div style="min-width:110px;text-align:center;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Trade Lic Expiry</div>
+  <div style="min-width:120px;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-left:auto;text-align:right;">Actions</div>
+</div>
 <!-- COMPANY CARDS -->
 <div style="display:flex;flex-direction:column;gap:8px;">
   {% for c in companies %}
@@ -61,15 +70,11 @@
       <span class="badge {% if c.ac_status=='Active' %}badge-active{% else %}badge-inactive{% endif %}" style="font-size:10px;margin-top:3px;">{{ c.ac_status }}</span>
     </div>
 
-    <!-- COMPANY NAME + ACCOUNT MANAGER -->
+    <!-- COMPANY NAME + ACCOUNT MANAGER + CONTACT -->
     <div style="flex:2;min-width:160px;">
       <div style="font-weight:600;color:var(--text);font-size:14px;">{{ c.client_name }}</div>
-      {% if c.account_manager %}
-      <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">👤 {{ c.account_manager }}</div>
-      {% endif %}
-      {% if c.contact_person_name %}
-      <div style="font-size:11px;color:var(--text-dim);">📞 {{ c.contact_person_name }}</div>
-      {% endif %}
+      {% if c.account_manager %}<div style="font-size:11px;color:var(--primary-light);margin-top:2px;">👤 {{ c.account_manager }}</div>{% endif %}
+      {% if c.contact_person_name %}<div style="font-size:11px;color:var(--text-dim);">📞 {{ c.contact_person_name }}</div>{% endif %}
     </div>
 
     <!-- DOC COMPLETION BAR -->
@@ -147,6 +152,36 @@
     </div>
   </div>
 </div>
+<!-- EXPORT MODAL -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal-box">
+    <div class="modal-title">⬇️ Export Companies</div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label>Which companies?</label>
+      <select id="exportScope">
+        <option value="all">All Companies</option>
+        <option value="active">Active Only</option>
+        <option value="inactive">Inactive Only</option>
+        <option value="high">High Risk Only</option>
+        <option value="medium">Medium Risk Only</option>
+        <option value="low">Low Risk Only</option>
+        <option value="incomplete">Incomplete Docs Only</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label>Format</label>
+      <select id="exportFormat">
+        <option value="csv">CSV</option>
+        <option value="xlsx">Excel (.xlsx)</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('exportModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="doExport()">⬇️ Download</button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -173,6 +208,13 @@ function deleteCompany(id, name) {
 
 function downloadTemplate() {
   window.location.href = '/export/template';
+}
+
+function doExport() {
+  const scope = document.getElementById('exportScope').value;
+  const fmt = document.getElementById('exportFormat').value;
+  window.location.href = `/export/companies?scope=${scope}&format=${fmt}`;
+  closeModal('exportModal');
 }
 
 function importCompanies() {

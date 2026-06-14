@@ -1,26 +1,214 @@
 {% extends "base.html" %}
-
-{% block title %}Reports - Zewer AML CRM{% endblock %}
+{% block title %}Reports - Zewer AML{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>📈 Reports</h1>
-    <p>Compliance metrics and breakdown</p>
+  <div class="page-title">📈 Reports</div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-ghost btn-sm" onclick="openModal('exportReportModal')">⬇️ Export Report</button>
+  </div>
 </div>
 
-<div style="background: white; padding: 25px; border-radius: 8px; border-left: 5px solid #B8956A; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-    <h3 style="color: #2D5F5F; margin-bottom: 20px;">Risk Distribution</h3>
-    
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
-        {% for item in risk_data %}
-        <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, 
-            {% if item.risk_status == 'High' %}#E74C3C{% elif item.risk_status == 'Medium' %}#F39C12{% else %}#27AE60{% endif %} 0%, 
-            {% if item.risk_status == 'High' %}#c0392b{% elif item.risk_status == 'Medium' %}#d68910{% else %}#229954{% endif %} 100%); 
-            border-radius: 8px; color: white;">
-            <div style="font-size: 32px; font-weight: 700;">{{ item.c }}</div>
-            <div style="font-size: 14px; opacity: 0.9;">{{ item.risk_status or 'Unspecified' }} Risk</div>
-        </div>
-        {% endfor %}
-    </div>
+<!-- DATE FILTER -->
+<div class="search-bar" style="margin-bottom:20px;">
+  <div class="form-group" style="min-width:180px;">
+    <label>FROM DATE</label>
+    <input type="date" id="dateFrom" value="{{ date_from }}">
+  </div>
+  <div class="form-group" style="min-width:180px;">
+    <label>TO DATE</label>
+    <input type="date" id="dateTo" value="{{ date_to }}">
+  </div>
+  <div class="form-group" style="min-width:150px;">
+    <label>QUICK RANGE</label>
+    <select id="quickRange" onchange="applyQuickRange()">
+      <option value="">Custom</option>
+      <option value="30">Last 30 days</option>
+      <option value="90">Last 90 days</option>
+      <option value="180">Last 6 months</option>
+      <option value="365">Last 1 year</option>
+      <option value="all">All time</option>
+    </select>
+  </div>
+  <button class="btn btn-primary btn-sm" onclick="applyFilter()">Apply</button>
 </div>
+
+<!-- SUMMARY STATS -->
+<div class="stat-grid" style="margin-bottom:24px;">
+  <div class="stat-card purple"><div class="stat-label">Total Companies</div><div class="stat-value">{{ total }}</div></div>
+  <div class="stat-card danger"><div class="stat-label">Expired Trade Lic.</div><div class="stat-value">{{ expired_tl }}</div></div>
+  <div class="stat-card warning"><div class="stat-label">Expiring in 30d</div><div class="stat-value">{{ expiring_30 }}</div></div>
+  <div class="stat-card warning"><div class="stat-label">Expiring in 90d</div><div class="stat-value">{{ expiring_90 }}</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px;">
+
+  <!-- RISK -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">⚠️ Risk Distribution</div></div>
+    <table>
+      <thead><tr><th>Risk Level</th><th>Count</th><th>%</th></tr></thead>
+      <tbody>
+        {% for r in risk_data %}
+        <tr>
+          <td><span class="badge badge-{{ (r.risk_status or 'unspecified').lower() }}">{{ r.risk_status or 'Unspecified' }}</span></td>
+          <td style="font-weight:600;color:var(--text);">{{ r.c }}</td>
+          <td style="color:var(--text-muted);">{{ ((r.c / total * 100)|int if total > 0 else 0) }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- DOC STATUS -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">📄 Document Status</div></div>
+    <table>
+      <thead><tr><th>Status</th><th>Count</th><th>%</th></tr></thead>
+      <tbody>
+        {% for r in doc_data %}
+        <tr>
+          <td><span class="badge {% if r.doc_status=='Completed' %}badge-completed{% else %}badge-incomplete{% endif %}">{{ r.doc_status or '—' }}</span></td>
+          <td style="font-weight:600;color:var(--text);">{{ r.c }}</td>
+          <td style="color:var(--text-muted);">{{ ((r.c / total * 100)|int if total > 0 else 0) }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- CLIENT TYPE -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">🏢 Client Type</div></div>
+    <table>
+      <thead><tr><th>Type</th><th>Count</th></tr></thead>
+      <tbody>
+        {% for r in type_data %}
+        <tr>
+          <td style="color:var(--text-muted);">{{ r.type_of_client or 'Unknown' }}</td>
+          <td style="font-weight:600;color:var(--text);">{{ r.c }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- REGION -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">📍 Top Regions</div></div>
+    <table>
+      <thead><tr><th>Region</th><th>Count</th></tr></thead>
+      <tbody>
+        {% for r in region_data %}
+        <tr>
+          <td style="color:var(--text-muted);">{{ r.region or 'Unknown' }}</td>
+          <td style="font-weight:600;color:var(--text);">{{ r.c }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- KYC STATUS -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">🛡️ KYC Status</div></div>
+    <table>
+      <thead><tr><th>KYC Status</th><th>Count</th></tr></thead>
+      <tbody>
+        {% for r in kyc_data %}
+        <tr>
+          <td style="color:var(--text-muted);font-size:12px;">{{ r.kyc_status or 'Not Set' }}</td>
+          <td style="font-weight:600;color:var(--text);">{{ r.c }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MODE OF AC -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">🔄 Mode of Account</div></div>
+    <table>
+      <thead><tr><th>Mode</th><th>Count</th></tr></thead>
+      <tbody>
+        {% for r in mode_data %}
+        <tr>
+          <td style="color:var(--text-muted);">{{ r.mode_of_ac or 'Unknown' }}</td>
+          <td style="font-weight:600;color:var(--text);">{{ r.c }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- EXPORT MODAL -->
+<div class="modal-overlay" id="exportReportModal">
+  <div class="modal-box">
+    <div class="modal-title">⬇️ Export Report</div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label>Report Type</label>
+      <select id="repType">
+        <option value="summary">Summary Report</option>
+        <option value="expiry">Expiry Report (Trade Licenses)</option>
+        <option value="kyc">KYC Status Report</option>
+        <option value="risk">Risk Distribution Report</option>
+        <option value="all">Full Company List</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label>Format</label>
+      <select id="repFormat">
+        <option value="xlsx">Excel (.xlsx)</option>
+        <option value="csv">CSV</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('exportReportModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="exportReport()">⬇️ Download</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function applyQuickRange() {
+  const val = document.getElementById('quickRange').value;
+  if (!val || val === 'all') {
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value = '';
+    if (val === 'all') applyFilter();
+    return;
+  }
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - parseInt(val));
+  document.getElementById('dateFrom').value = from.toISOString().split('T')[0];
+  document.getElementById('dateTo').value = to.toISOString().split('T')[0];
+  applyFilter();
+}
+
+function applyFilter() {
+  const from = document.getElementById('dateFrom').value;
+  const to = document.getElementById('dateTo').value;
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  window.location.href = '/reports?' + params.toString();
+}
+
+function exportReport() {
+  const type = document.getElementById('repType').value;
+  const fmt = document.getElementById('repFormat').value;
+  const from = document.getElementById('dateFrom').value;
+  const to = document.getElementById('dateTo').value;
+  let url = `/export/report?type=${type}&format=${fmt}`;
+  if (from) url += `&from=${from}`;
+  if (to) url += `&to=${to}`;
+  window.location.href = url;
+  closeModal('exportReportModal');
+}
+</script>
 {% endblock %}
