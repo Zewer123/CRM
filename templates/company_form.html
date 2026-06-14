@@ -5,7 +5,7 @@
 <div style="max-width:960px;margin:0 auto;">
   <div class="page-header">
     <div>
-      <div class="page-breadcrumb"><a href="{{ url_for('companies') }}">← Companies</a></div>
+      <div class="page-breadcrumb"><a href="#" onclick="goBack('/companies');return false;">← Back</a></div>
       <div class="page-title">{% if edit %}✏️ Edit: {{ company.client_name }}{% else %}➕ Add New Company{% endif %}</div>
     </div>
   </div>
@@ -705,3 +705,4 @@ function submitForm() {
 }
 </script>
 {% endblock %}
+
