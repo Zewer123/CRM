@@ -4,9 +4,7 @@
 {% block content %}
 <div class="page-header">
   <div class="page-title">✅ Tasks</div>
-  {% if user_role in ['admin','compliance'] %}
   <button class="btn btn-primary" onclick="openAddTask()">+ New Task</button>
-  {% endif %}
 </div>
 
 <!-- STATS -->
@@ -119,10 +117,10 @@
                 onclick="sendTaskWA('{{ wa|replace('+','')|replace(' ','')|replace('-','') }}', '{{ t.assigned_name|replace("'","\'") }}', '{{ t.title|replace("'","\'") }}', '{{ t.due_date[:10] if t.due_date else "" }}', '{{ t.priority }}')">💬</button>
               {% endif %}
               <button class="btn btn-ghost btn-sm btn-icon" onclick="viewTask({{ t.id }})" title="View">👁️</button>
-              {% if t.status != 'done' and (user_role in ['admin','compliance'] or t.assigned_to == current_user_id or t.created_by == current_user_id) %}
+              {% if t.status != 'done' %}
               <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditTask({{ t.id }},'{{ t.title|replace("'","\\'") }}','{{ (t.description or '')|replace("'","\\'") }}','{{ t.assigned_to or "" }}','{{ t.priority or "normal" }}','{{ t.due_date[:10] if t.due_date else "" }}','{{ t.status or "todo" }}','{{ t.company_id or "" }}')" title="Edit">✏️</button>
               {% endif %}
-              {% if user_role == 'admin' or t.created_by == current_user_id %}
+              {% if user_role == 'admin' %}
               <button class="btn btn-danger btn-sm btn-icon" onclick="deleteTask({{ t.id }})" title="Delete">🗑️</button>
               {% endif %}
             </div>
@@ -486,4 +484,5 @@ function filterTasks() {
 }
 </script>
 {% endblock %}
+
 
