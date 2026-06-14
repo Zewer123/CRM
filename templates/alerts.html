@@ -9,35 +9,29 @@
 </div>
 
 {% if alerts %}
-<div class="companies-grid">
-    {% for alert in alerts %}
-    <div class="company-card expiring">
-        <div class="card-row-1">
-            <div>
-                <div class="card-company-name">{{ alert.client_name }}</div>
-            </div>
-            <div class="card-badges">
-                <span class="badge" style="background: #F39C12;">⚠️ Expiring Soon</span>
-            </div>
-        </div>
-        
-        <div class="card-row-2">
-            <div class="card-field">
-                <span class="card-field-label">Trade License</span>
-                <span class="card-field-value expiring">{{ alert.trade_license_expiry or '—' }}</span>
-            </div>
-            <div class="card-field">
-                <span class="card-field-label">Address Proof</span>
-                <span class="card-field-value expiring">{{ alert.address_proof_expiry or '—' }}</span>
-            </div>
-        </div>
-        
-        <div class="card-row-3">
-            <a href="{{ url_for('company_detail', id=alert.id) }}" class="btn-view">👁️ View</a>
-            <a href="{{ url_for('company_new') }}" class="btn-edit">✏️ Update</a>
-        </div>
-    </div>
-    {% endfor %}
+<div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead style="background: linear-gradient(135deg, #E74C3C 0%, #c0392b 100%); color: white;">
+            <tr>
+                <th style="padding: 15px; text-align: left; font-weight: 600;">Company</th>
+                <th style="padding: 15px; text-align: left; font-weight: 600;">Trade License</th>
+                <th style="padding: 15px; text-align: left; font-weight: 600;">Address Proof</th>
+                <th style="padding: 15px; text-align: center; font-weight: 600;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for alert in alerts %}
+            <tr style="border-bottom: 1px solid #E0E0E0;">
+                <td style="padding: 15px;"><strong style="color: #2D5F5F;">{{ alert.client_name }}</strong></td>
+                <td style="padding: 15px; color: #E74C3C; font-weight: 600;">{{ alert.trade_license_expiry or '—' }}</td>
+                <td style="padding: 15px; color: #E74C3C; font-weight: 600;">{{ alert.address_proof_expiry or '—' }}</td>
+                <td style="padding: 15px; text-align: center;">
+                    <a href="{{ url_for('company_detail', id=alert.id) }}" class="btn btn-primary" style="font-size: 12px;">View Details</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 {% else %}
 <div style="background: white; padding: 40px; text-align: center; border-radius: 8px; color: #999;">

@@ -18,13 +18,9 @@
             {% if item.risk_status == 'High' %}#c0392b{% elif item.risk_status == 'Medium' %}#d68910{% else %}#229954{% endif %} 100%); 
             border-radius: 8px; color: white;">
             <div style="font-size: 32px; font-weight: 700;">{{ item.c }}</div>
-            <div style="font-size: 14px; opacity: 0.9;">{{ item.risk_status }} Risk</div>
+            <div style="font-size: 14px; opacity: 0.9;">{{ item.risk_status or 'Unspecified' }} Risk</div>
         </div>
         {% endfor %}
     </div>
-</div>
-
-<div style="text-align: center; margin-top: 40px; padding: 20px; color: #999;">
-    <p>More reports coming soon!</p>
 </div>
 {% endblock %}

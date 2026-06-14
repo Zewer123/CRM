@@ -22,22 +22,49 @@
             <a href="{{ url_for('companies') }}" class="navbar-link">🏢 Companies</a>
             <a href="{{ url_for('alerts') }}" class="navbar-link">⚠️ Alerts</a>
             <a href="{{ url_for('reports') }}" class="navbar-link">📈 Reports</a>
-            {% if user_role == 'admin' %}
-            <a href="{{ url_for('settings') }}" class="navbar-link">⚙️ Settings</a>
-            {% endif %}
         </div>
         
         <div class="navbar-right">
-            <div class="user-info">
-                <div class="user-name">{{ user_name }}</div>
-                <div class="user-role">{{ user_role.upper() }}</div>
+            <!-- USER DROPDOWN -->
+            <div class="user-dropdown">
+                <button class="user-btn" onclick="toggleUserMenu()">
+                    <div class="user-info">
+                        <div class="user-name">{{ user_name }}</div>
+                        <div class="user-role">{{ user_role.upper() }}</div>
+                    </div>
+                    <span style="font-size: 20px;">⚙️</span>
+                </button>
+                
+                <div class="dropdown-menu" id="userMenu" style="display: none;">
+                    {% if user_role == 'admin' %}
+                    <a href="{{ url_for('settings') }}" class="dropdown-item">⚙️ Settings</a>
+                    <a href="{{ url_for('settings') }}" class="dropdown-item">👥 Users</a>
+                    <a href="{{ url_for('settings') }}" class="dropdown-item">📋 Dropdowns</a>
+                    <div class="dropdown-divider"></div>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" class="dropdown-item logout">🚪 Logout</a>
+                </div>
             </div>
-            <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
         </div>
     </nav>
     
     <div class="container">
         {% block content %}{% endblock %}
     </div>
+    
+    <script>
+        function toggleUserMenu() {
+            const menu = document.getElementById('userMenu');
+            menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            const userDropdown = document.querySelector('.user-dropdown');
+            if (!userDropdown.contains(e.target)) {
+                document.getElementById('userMenu').style.display = 'none';
+            }
+        });
+    </script>
 </body>
 </html>

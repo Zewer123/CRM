@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file, flash
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
 from werkzeug.security import check_password_hash, generate_password_hash
 import sqlite3
 import os
@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from functools import wraps
 import csv
 import io
-from collections import defaultdict
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'zewer-aml-crm-secret-2026')
@@ -14,7 +13,6 @@ app.secret_key = os.getenv('SECRET_KEY', 'zewer-aml-crm-secret-2026')
 DB = 'aml_crm.db'
 
 def init_db():
-    """Initialize database if it doesn't exist"""
     if os.path.exists(DB):
         return
     
@@ -103,7 +101,6 @@ def init_db():
             verified_date DATE,
             followup_details TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE
         );
         
@@ -178,7 +175,7 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
-# ============ AUTH ============
+# AUTH
 @app.route('/')
 def index():
     if 'user_id' in session:
@@ -212,7 +209,7 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# ============ DASHBOARD ============
+# DASHBOARD
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -239,7 +236,7 @@ def dashboard():
         risk_breakdown=risk_breakdown
     )
 
-# ============ COMPANIES ============
+# COMPANIES
 @app.route('/companies')
 @login_required
 def companies():
@@ -249,8 +246,9 @@ def companies():
     params = []
     
     if search:
-        query += ' AND (client_name LIKE ? OR customer_name LIKE ? OR ac_code LIKE ?)'
-        params = [f'%{search}%'] * 3
+        query += ' AND (client_name LIKE ? OR customer_name LIKE ? OR mobile LIKE ?)'
+        search_term = f'%{search}%'
+        params = [search_term, search_term, search_term]
     
     query += ' ORDER BY created_at DESC'
     companies = conn.execute(query, params).fetchall()
@@ -259,24 +257,23 @@ def companies():
     return render_template('companies.html',
         user_name=session.get('user_name'),
         user_role=session.get('user_role'),
-        companies=companies,
-        today=datetime.now().date(),
-        timedelta=timedelta
+        companies=companies
     )
 
 @app.route('/company/new')
 @login_required
 def company_new():
     conn = get_db()
-    fields = conn.execute('SELECT DISTINCT field_name FROM dropdowns WHERE is_active = 1').fetchall()
+    fields = conn.execute('SELECT DISTINCT field_name FROM dropdowns WHERE is_active = 1 ORDER BY field_name').fetchall()
     dropdown_data = {}
     for f in fields:
-        vals = conn.execute('SELECT value FROM dropdowns WHERE field_name = ? AND is_active = 1', (f['field_name'],)).fetchall()
+        vals = conn.execute('SELECT value FROM dropdowns WHERE field_name = ? AND is_active = 1 ORDER BY value', (f['field_name'],)).fetchall()
         dropdown_data[f['field_name']] = [v['value'] for v in vals]
     conn.close()
     
     return render_template('company_form.html',
         user_name=session.get('user_name'),
+        user_role=session.get('user_role'),
         dropdown_data=dropdown_data
     )
 
@@ -336,24 +333,27 @@ def api_delete_company(id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# ============ SETTINGS ============
+# SETTINGS
 @app.route('/settings')
 @admin_required
 def settings():
     conn = get_db()
     users = conn.execute('SELECT id, email, name, role, is_active FROM users').fetchall()
-    dropdowns = conn.execute('SELECT * FROM dropdowns WHERE is_active = 1 ORDER BY field_name, value').fetchall()
+    dropdowns = conn.execute('SELECT * FROM dropdowns WHERE is_active = 1 ORDER BY field_name').fetchall()
     
-    dropdown_groups = defaultdict(list)
+    dropdown_groups = {}
     for dd in dropdowns:
+        if dd['field_name'] not in dropdown_groups:
+            dropdown_groups[dd['field_name']] = []
         dropdown_groups[dd['field_name']].append(dd)
     
     conn.close()
     
     return render_template('settings.html',
         user_name=session.get('user_name'),
+        user_role=session.get('user_role'),
         users=users,
-        dropdown_groups=dict(dropdown_groups)
+        dropdown_groups=dropdown_groups
     )
 
 @app.route('/api/user/add', methods=['POST'])
@@ -408,7 +408,7 @@ def api_delete_dropdown(id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# ============ ALERTS & REPORTS ============
+# ALERTS & REPORTS
 @app.route('/alerts')
 @login_required
 def alerts():
@@ -422,6 +422,7 @@ def alerts():
     
     return render_template('alerts.html',
         user_name=session.get('user_name'),
+        user_role=session.get('user_role'),
         alerts=expiring
     )
 
@@ -434,8 +435,31 @@ def reports():
     
     return render_template('reports.html',
         user_name=session.get('user_name'),
+        user_role=session.get('user_role'),
         risk_data=risk_data
     )
+
+# EXPORT
+@app.route('/export/companies')
+@login_required
+def export_companies():
+    conn = get_db()
+    companies = conn.execute('SELECT * FROM companies').fetchall()
+    conn.close()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    if companies:
+        writer.writerow(companies[0].keys())
+        for company in companies:
+            writer.writerow(company)
+    
+    output.seek(0)
+    return send_file(io.BytesIO(output.getvalue().encode()),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f'companies_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv')
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8000))

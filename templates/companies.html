@@ -4,82 +4,99 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>🏢 Companies Management</h1>
+    <h1>🏢 Companies</h1>
     <p>Manage all customer compliance records</p>
 </div>
 
-<div style="margin-bottom: 20px; display: flex; gap: 10px;">
-    <form style="display: flex; gap: 10px; width: 100%;">
-        <input type="text" name="search" placeholder="Search by company, customer, or AC code..." style="flex: 1; padding: 10px; border: 2px solid #E0E0E0; border-radius: 6px;">
-        <button type="submit" class="btn btn-primary">🔍 Search</button>
-        <a href="{{ url_for('company_new') }}" class="btn btn-primary">➕ Add Company</a>
+<!-- TOOLBAR -->
+<div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+    <form style="display: flex; gap: 10px; flex: 1; min-width: 300px;">
+        <input type="text" name="search" placeholder="Search by company name, customer, or phone..." style="flex: 1; padding: 10px; border: 2px solid #E0E0E0; border-radius: 6px; font-size: 14px;">
+        <button type="submit" class="btn btn-primary" style="white-space: nowrap;">🔍 Search</button>
     </form>
+    
+    <div style="display: flex; gap: 10px;">
+        <a href="{{ url_for('company_new') }}" class="btn btn-primary">➕ Add Company</a>
+        <button class="btn btn-primary" onclick="exportCompanies()" title="Export to CSV">📥 Export</button>
+        <button class="btn btn-primary" onclick="importCompanies()" title="Import from CSV">📤 Import</button>
+    </div>
 </div>
 
-<div class="companies-grid">
-    {% if companies %}
-        {% for company in companies %}
-        <div class="company-card">
-            
-            <!-- Row 1: Company Name, Customer, Badges -->
-            <div class="card-row-1">
-                <div>
-                    <div class="card-company-name">{{ company.client_name }}</div>
-                    <div class="card-customer-name">{{ company.customer_name or '—' }}</div>
-                </div>
-                <div style="text-align: center;">
-                    <strong style="color: #2D5F5F;">{{ company.ac_code }}</strong>
-                </div>
-                <div class="card-badges">
-                    {% if company.type_of_client %}
-                    <span class="badge">{{ company.type_of_client }}</span>
-                    {% endif %}
-                    {% if company.ac_status %}
-                    <span class="badge" style="background: {% if company.ac_status == 'Active' %}#27AE60{% else %}#E74C3C{% endif %};">{{ company.ac_status }}</span>
-                    {% endif %}
-                    {% if company.risk_status %}
-                    <span class="badge" style="background: {% if company.risk_status == 'High' %}#E74C3C{% elif company.risk_status == 'Medium' %}#F39C12{% else %}#27AE60{% endif %};">{{ company.risk_status }}</span>
-                    {% endif %}
-                </div>
-            </div>
-            
-            <!-- Row 2: Key Metrics -->
-            <div class="card-row-2">
-                <div class="card-field">
-                    <span class="card-field-label">Trade License</span>
-                    <span class="card-field-value">{{ company.trade_license_expiry or '—' }}</span>
-                </div>
-                <div class="card-field">
-                    <span class="card-field-label">Ejari</span>
-                    <span class="card-field-value">{{ company.address_proof_expiry or '—' }}</span>
-                </div>
-                <div class="card-field">
-                    <span class="card-field-label">KYC</span>
-                    <span class="card-field-value">{{ company.kyc_status or '—' }}</span>
-                </div>
-                <div class="card-field">
-                    <span class="card-field-label">Doc Status</span>
-                    <span class="card-field-value">{{ company.doc_status or '—' }}</span>
-                </div>
-            </div>
-            
-            <!-- Row 3: ACTION BUTTONS IN ONE ROW -->
-            <div class="card-row-3">
-                {% if company.whatsapp_link %}
-                <a href="{{ company.whatsapp_link }}" target="_blank" class="btn-whatsapp">💬</a>
-                {% endif %}
-                <a href="{{ url_for('company_detail', id=company.id) }}" class="btn-view">👁️ View</a>
-                <a href="{{ url_for('company_new') }}" class="btn-edit">✏️ Edit</a>
-                <button class="btn-delete" onclick="deleteCompany({{ company.id }})">🗑️ Delete</button>
-            </div>
-        </div>
-        {% endfor %}
-    {% else %}
-    <div style="background: white; padding: 30px; text-align: center; border-radius: 8px; color: #999;">
-        <p>No companies found. <a href="{{ url_for('company_new') }}">Create one now!</a></p>
-    </div>
-    {% endif %}
+<!-- COMPANIES TABLE -->
+<div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead style="background: linear-gradient(135deg, #2D5F5F 0%, #1a3a3a 100%); color: white;">
+            <tr>
+                <th style="padding: 15px; text-align: left; font-weight: 600;">Company Name</th>
+                <th style="padding: 15px; text-align: left; font-weight: 600;">Customer Name</th>
+                <th style="padding: 15px; text-align: left; font-weight: 600;">Phone</th>
+                <th style="padding: 15px; text-align: left; font-weight: 600;">Status</th>
+                <th style="padding: 15px; text-align: left; font-weight: 600;">Risk</th>
+                <th style="padding: 15px; text-align: center; font-weight: 600;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if companies %}
+                {% for company in companies %}
+                <tr style="border-bottom: 1px solid #E0E0E0;">
+                    <td style="padding: 15px;"><strong style="color: #2D5F5F;">{{ company.client_name }}</strong></td>
+                    <td style="padding: 15px;">{{ company.customer_name or '—' }}</td>
+                    <td style="padding: 15px;">{{ company.mobile or '—' }}</td>
+                    <td style="padding: 15px;">
+                        <span style="background: {% if company.ac_status == 'Active' %}#27AE60{% else %}#E74C3C{% endif %}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+                            {{ company.ac_status }}
+                        </span>
+                    </td>
+                    <td style="padding: 15px;">
+                        <span style="background: {% if company.risk_status == 'High' %}#E74C3C{% elif company.risk_status == 'Medium' %}#F39C12{% else %}#27AE60{% endif %}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+                            {{ company.risk_status or 'Unspecified' }}
+                        </span>
+                    </td>
+                    <td style="padding: 15px; text-align: center;">
+                        <div style="display: flex; gap: 6px; justify-content: center;">
+                            {% if company.whatsapp_link %}
+                            <a href="{{ company.whatsapp_link }}" target="_blank" class="action-btn whatsapp" title="WhatsApp">💬</a>
+                            {% endif %}
+                            <a href="{{ url_for('company_detail', id=company.id) }}" class="action-btn view" title="View Details">👁️</a>
+                            <a href="{{ url_for('company_new') }}?id={{ company.id }}" class="action-btn edit" title="Edit">✏️</a>
+                            <button class="action-btn delete" onclick="deleteCompany({{ company.id }})" title="Delete">🗑️</button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+            <tr>
+                <td colspan="6" style="padding: 40px; text-align: center; color: #999;">
+                    No companies found. <a href="{{ url_for('company_new') }}" style="color: #B8956A; text-decoration: none; font-weight: 600;">Create one now!</a>
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
 </div>
+
+<style>
+    .action-btn {
+        display: inline-flex;
+        width: 32px;
+        height: 32px;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: all 0.3s;
+        text-decoration: none;
+    }
+    
+    .action-btn.whatsapp { background: #25D366; color: white; }
+    .action-btn.view { background: #2D5F5F; color: white; }
+    .action-btn.edit { background: #B8956A; color: white; }
+    .action-btn.delete { background: #E74C3C; color: white; }
+    
+    .action-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+</style>
 
 <script>
     function deleteCompany(id) {
@@ -88,6 +105,18 @@
                 .then(r => r.json())
                 .then(d => d.success ? location.reload() : alert('Error'));
         }
+    }
+    
+    function exportCompanies() {
+        // Simple CSV export
+        const link = document.createElement('a');
+        link.href = '/export/companies';
+        link.click();
+    }
+    
+    function importCompanies() {
+        alert('Import feature coming soon!');
+        // TODO: Implement CSV import
     }
 </script>
 {% endblock %}

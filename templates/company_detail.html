@@ -3,78 +3,103 @@
 {% block title %}{{ company.client_name }} - Zewer AML CRM{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1>{{ company.client_name }}</h1>
-    <p>AC Code: <strong>{{ company.ac_code }}</strong> | Customer: <strong>{{ company.customer_name or '—' }}</strong></p>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+    <div>
+        <h1 style="color: #2D5F5F; margin-bottom: 5px;">{{ company.client_name }}</h1>
+        <p style="color: #999; font-size: 14px;">AC Code: <strong>{{ company.ac_code }}</strong></p>
+    </div>
+    <div style="display: flex; gap: 10px;">
+        <a href="{{ url_for('companies') }}" class="btn btn-primary">← Back</a>
+        <button class="btn btn-danger" onclick="deleteCompany({{ company.id }})">🗑️ Delete</button>
+    </div>
 </div>
 
+<!-- COMPANY INFO SECTION -->
 <div style="background: white; padding: 25px; border-radius: 8px; border-left: 5px solid #B8956A; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-    <h3 style="color: #2D5F5F; margin-bottom: 20px;">Company Details</h3>
+    <h3 style="color: #2D5F5F; margin-bottom: 20px;">📋 Company Details</h3>
     
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
         <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase;">Status</label>
-            <div style="font-weight: 600; color: #2D5F5F;">{{ company.ac_status }}</div>
+            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Customer Name</label>
+            <div style="font-weight: 600; color: #2D5F5F;">{{ company.customer_name or '—' }}</div>
         </div>
         <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase;">Risk Level</label>
-            <div style="font-weight: 600; color: {% if company.risk_status == 'High' %}#E74C3C{% elif company.risk_status == 'Medium' %}#F39C12{% else %}#27AE60{% endif %};">{{ company.risk_status }}</div>
+            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Phone</label>
+            <div style="font-weight: 600; color: #2D5F5F;">{{ company.mobile or '—' }}</div>
         </div>
         <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase;">KYC Status</label>
+            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Email</label>
+            <div style="font-weight: 600; color: #2D5F5F;">{{ company.email_id or '—' }}</div>
+        </div>
+        <div>
+            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Status</label>
+            <span style="background: {% if company.ac_status == 'Active' %}#27AE60{% else %}#E74C3C{% endif %}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">{{ company.ac_status }}</span>
+        </div>
+        <div>
+            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Risk Level</label>
+            <span style="background: {% if company.risk_status == 'High' %}#E74C3C{% elif company.risk_status == 'Medium' %}#F39C12{% else %}#27AE60{% endif %}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">{{ company.risk_status or 'Unspecified' }}</span>
+        </div>
+        <div>
+            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">KYC Status</label>
             <div style="font-weight: 600; color: #2D5F5F;">{{ company.kyc_status or '—' }}</div>
         </div>
         <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase;">Doc Status</label>
-            <div style="font-weight: 600; color: #2D5F5F;">{{ company.doc_status or '—' }}</div>
-        </div>
-        <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase;">Trade License Expiry</label>
-            <div style="font-weight: 600; color: #2D5F5F;">{{ company.trade_license_expiry or '—' }}</div>
-        </div>
-        <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase;">Type of Client</label>
+            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Type of Client</label>
             <div style="font-weight: 600; color: #2D5F5F;">{{ company.type_of_client or '—' }}</div>
         </div>
         <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase;">Region</label>
+            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Region</label>
             <div style="font-weight: 600; color: #2D5F5F;">{{ company.region or '—' }}</div>
         </div>
         <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase;">Email</label>
-            <div style="font-weight: 600; color: #2D5F5F;">{{ company.email_id or '—' }}</div>
+            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Trade License</label>
+            <div style="font-weight: 600; color: #2D5F5F;">{{ company.trade_license_expiry or '—' }}</div>
+        </div>
+        <div>
+            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Address Proof</label>
+            <div style="font-weight: 600; color: #2D5F5F;">{{ company.address_proof_expiry or '—' }}</div>
         </div>
     </div>
     
-    {% if company.whatsapp_link %}
-    <div style="margin-top: 20px;">
-        <a href="{{ company.whatsapp_link }}" target="_blank" class="btn btn-primary">💬 WhatsApp</a>
+    {% if company.address %}
+    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #E0E0E0;">
+        <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 8px; display: block;">Address</label>
+        <div style="color: #2D5F5F;">{{ company.address }}</div>
     </div>
     {% endif %}
 </div>
 
-{% if ubos %}
+<!-- DOCUMENTS SECTION -->
 <div style="background: white; padding: 25px; border-radius: 8px; border-left: 5px solid #B8956A; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-    <h3 style="color: #2D5F5F; margin-bottom: 20px;">UBOs (Beneficial Owners)</h3>
+    <h3 style="color: #2D5F5F; margin-bottom: 20px;">📄 Documents</h3>
     
-    <table>
-        <thead>
+    <div style="background: #f9f9f9; padding: 30px; text-align: center; border-radius: 8px; color: #999;">
+        <p style="margin-bottom: 10px;">📁 Document management coming soon</p>
+        <p style="font-size: 13px;">Upload, manage, and track company documents here</p>
+    </div>
+</div>
+
+<!-- UBOs SECTION -->
+{% if ubos %}
+<div style="background: white; padding: 25px; border-radius: 8px; border-left: 5px solid #B8956A; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+    <h3 style="color: #2D5F5F; margin-bottom: 20px;">👥 Beneficial Owners (UBOs)</h3>
+    
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead style="background: #f9f9f9; border-bottom: 2px solid #E0E0E0;">
             <tr>
-                <th>Name</th>
-                <th>Position</th>
-                <th>Nationality</th>
-                <th>Passport Expiry</th>
-                <th>Emirates ID Expiry</th>
+                <th style="padding: 12px; text-align: left; font-weight: 600; color: #2D5F5F;">Name</th>
+                <th style="padding: 12px; text-align: left; font-weight: 600; color: #2D5F5F;">Position</th>
+                <th style="padding: 12px; text-align: left; font-weight: 600; color: #2D5F5F;">Nationality</th>
+                <th style="padding: 12px; text-align: left; font-weight: 600; color: #2D5F5F;">Passport Expiry</th>
             </tr>
         </thead>
         <tbody>
             {% for ubo in ubos %}
-            <tr>
-                <td><strong>{{ ubo.person_name }}</strong></td>
-                <td>{{ ubo.position or '—' }}</td>
-                <td>{{ ubo.nationality or '—' }}</td>
-                <td>{{ ubo.passport_expiry or '—' }}</td>
-                <td>{{ ubo.emirates_id_expiry or '—' }}</td>
+            <tr style="border-bottom: 1px solid #E0E0E0;">
+                <td style="padding: 12px;"><strong>{{ ubo.person_name }}</strong></td>
+                <td style="padding: 12px;">{{ ubo.position or '—' }}</td>
+                <td style="padding: 12px;">{{ ubo.nationality or '—' }}</td>
+                <td style="padding: 12px;">{{ ubo.passport_expiry or '—' }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -82,14 +107,9 @@
 </div>
 {% endif %}
 
-<div style="display: flex; gap: 10px;">
-    <a href="{{ url_for('companies') }}" class="btn btn-primary">← Back</a>
-    <button class="btn btn-danger" onclick="deleteCompany({{ company.id }})">🗑️ Delete</button>
-</div>
-
 <script>
     function deleteCompany(id) {
-        if (confirm('Delete this company?')) {
+        if (confirm('Delete this company and all related data?')) {
             fetch(`/api/company/${id}/delete`, { method: 'POST' })
                 .then(r => r.json())
                 .then(d => d.success ? window.location.href = '/companies' : alert('Error'));
