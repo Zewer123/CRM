@@ -815,6 +815,7 @@ def export_template():
     if not HAS_XL: return "openpyxl not installed",500
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
+    from openpyxl.worksheet.datavalidation import DataValidation
 
     wb = openpyxl.Workbook()
 
@@ -875,13 +876,10 @@ def export_template():
     for col, h in enumerate(headers, 1):
         ws.column_dimensions[get_column_letter(col)].width = col_widths.get(h, 16)
 
-    # Freeze header row
-    ws.freeze_panes = 'A2'
+    # Freeze top 2 rows (header + sample)
+    ws.freeze_panes = 'A3'
 
-    # ── SHEET 2: DROPDOWN VALUES ─────────────────────────────
-    ws2 = wb.create_sheet("Dropdown Values")
-
-    # Get all dropdown data from DB
+    # ── CELL DROPDOWN VALIDATION ──────────────────────────────
     conn = get_db()
     dd_rows = all_(conn, "SELECT field_name, value FROM dropdowns WHERE is_active=1 ORDER BY field_name, value")
     conn.close()
@@ -890,29 +888,55 @@ def export_template():
     for r in dd_rows:
         dd.setdefault(r['field_name'], []).append(r['value'])
 
-    # Header
-    ws2.cell(row=1, column=1, value="Field Name").font = Font(bold=True, color="D97706", size=11)
-    ws2.cell(row=1, column=2, value="Allowed Values").font = Font(bold=True, color="D97706", size=11)
-    ws2.cell(row=1, column=1).fill = PatternFill(start_color="1C1917", end_color="1C1917", fill_type="solid")
-    ws2.cell(row=1, column=2).fill = PatternFill(start_color="1C1917", end_color="1C1917", fill_type="solid")
+    # Map column field names to DB dropdown field_names
+    dropdown_map = {
+        'ac_status': 'AC STATUS',
+        'nature': 'NATURE',
+        'type_of_client': 'TYPE OF CLIENT',
+        'name_of_freezone': 'NAME OF FREEZONE',
+        'mode_of_ac': 'MODE OF AC',
+        'country_of_incorporation': 'COUNTRY',
+        'region': 'REGION',
+        'address_proof_type': 'ADDRESS PROOF TYPE',
+        'account_manager': 'ACCOUNT MANAGER',
+        'issuing_authority': 'ISSUING AUTHORITY',
+        'legal_type': 'LEGAL TYPE',
+        'vat_cert': 'VAT CERT',
+        'vat_declaration': 'VAT DECLARATION',
+        'moa': 'MOA',
+        'pep': 'PEP',
+        'undertaking': 'UNDERTAKING',
+        'source_of_fund': 'SOURCE OF FUND',
+        'doc_status': 'DOC STATUS',
+        'risk_status': 'RISK STATUS',
+        'kyc_status': 'KYC STATUS',
+    }
 
-    row = 2
-    for field, values in sorted(dd.items()):
-        if field == 'TASK TEMPLATE': continue  # skip task templates
-        # Field name spanning multiple rows
-        ws2.cell(row=row, column=1, value=field).font = Font(bold=True, size=10)
-        ws2.cell(row=row, column=1).fill = PatternFill(start_color="292524", end_color="292524", fill_type="solid")
-        ws2.cell(row=row, column=1).font = Font(bold=True, color="F5F5F4", size=10)
-        for i, val in enumerate(values):
-            ws2.cell(row=row+i, column=2, value=val).font = Font(size=10)
-            ws2.cell(row=row+i, column=2).alignment = Alignment(horizontal="left")
-        row += max(len(values), 1) + 1  # gap between sections
+    for col_idx, h in enumerate(headers, 1):
+        db_field = dropdown_map.get(h)
+        if not db_field:
+            continue
+        values = dd.get(db_field, [])
+        if not values:
+            continue
+        joined = ','.join(values)
+        if len(joined) > 250:
+            joined = joined[:250].rsplit(',', 1)[0]  # trim to fit Excel limit
+        formula = '\"' + joined.replace(',', '\",\"') + '\"'
+        dv = DataValidation(
+            type="list",
+            formula1='"' + joined + '"',
+            allow_blank=True,
+            showDropDown=False,
+            showErrorMessage=True,
+            errorTitle="Invalid Value",
+            error="Please select a value from the dropdown list."
+        )
+        col_letter = get_column_letter(col_idx)
+        dv.sqref = f"{col_letter}3:{col_letter}1000"
+        ws.add_data_validation(dv)
 
-    ws2.column_dimensions['A'].width = 28
-    ws2.column_dimensions['B'].width = 50
-    ws2.freeze_panes = 'A2'
-
-    # ── SHEET 3: INSTRUCTIONS ───────────────────────────────
+    # ── SHEET 2: INSTRUCTIONS ───────────────────────────────
     ws3 = wb.create_sheet("Instructions")
     instructions = [
         ["ZEWER AML CRM — Company Import Template"],
@@ -921,7 +945,7 @@ def export_template():
         ["1. Fill in company data in the 'Companies' sheet starting from Row 3"],
         ["2. Row 2 is a sample — you can delete it before importing"],
         ["3. AC Code and Client Name are REQUIRED — all others are optional"],
-        ["4. For dropdown fields, use exact values from the 'Dropdown Values' sheet"],
+        ["4. For dropdown fields, click the cell — a dropdown arrow will appear to select valid values"],
         ["5. Dates must be in YYYY-MM-DD format (e.g. 2025-12-31)"],
         ["6. Phone numbers should include country code (e.g. +97142258019)"],
         ["7. Duplicate AC Codes will be skipped on import"],
@@ -1032,3 +1056,4 @@ def api_import_companies():
 
 if __name__=='__main__':
     app.run(debug=False,host='0.0.0.0',port=int(os.getenv('PORT',8000)))
+
