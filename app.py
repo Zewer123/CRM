@@ -29,7 +29,36 @@ app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'zewer-aml-crm-secret-2026')
 
 # SQLite database path - /app always exists in Railway container
-DB = os.getenv('DB_PATH', '/tmp/aml_crm.db')
+# Find a writable path for the database
+def _get_db_path():
+    # Try env var first, then fallback options
+    candidates = [
+        os.getenv('DB_PATH', ''),
+        '/tmp/aml_crm.db',
+        os.path.join(os.path.expanduser('~'), 'aml_crm.db'),
+        '/var/tmp/aml_crm.db',
+    ]
+    for path in candidates:
+        if not path:
+            continue
+        try:
+            directory = os.path.dirname(path) or '.'
+            # Test if directory exists and is writable
+            if os.path.isdir(directory) and os.access(directory, os.W_OK):
+                return path
+            # Try to create a test file
+            test = path + '.test'
+            with open(test, 'w') as f:
+                f.write('test')
+            os.remove(test)
+            return path
+        except:
+            continue
+    # Last resort
+    return '/tmp/aml_crm.db'
+
+DB = _get_db_path()
+print(f"Using database: {DB}")
 
 @app.context_processor
 def inject_user():
