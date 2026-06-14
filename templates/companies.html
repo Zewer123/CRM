@@ -50,9 +50,10 @@
 <div style="color:var(--text-dim);font-size:12px;margin-bottom:10px;">{{ companies|length }} companies</div>
 
 <!-- COLUMN HEADERS -->
-<div style="display:grid;grid-template-columns:90px 1fr 80px 80px 140px 130px;gap:0;padding:6px 16px;margin-bottom:4px;align-items:center;">
+<div style="display:grid;grid-template-columns:90px 1fr 1fr 80px 80px 140px 130px;gap:0;padding:6px 16px;margin-bottom:4px;align-items:center;">
   <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">AC Code</div>
-  <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Company / Contact</div>
+  <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Company</div>
+  <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Contact Person</div>
   <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;text-align:center;">Docs</div>
   <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;text-align:center;">Risk</div>
   <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;text-align:center;">Trade Lic. Expiry</div>
@@ -63,7 +64,7 @@
 <div style="display:flex;flex-direction:column;gap:6px;">
   {% for c in companies %}
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;
-    display:grid;grid-template-columns:90px 1fr 80px 80px 140px 130px;gap:0;align-items:center;
+    display:grid;grid-template-columns:90px 1fr 1fr 80px 80px 140px 130px;gap:0;align-items:center;
     transition:all 0.15s;box-shadow:0 1px 3px rgba(0,0,0,0.2);"
     onmouseover="this.style.borderColor='var(--primary)';this.style.background='var(--surface3)'"
     onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)'">
@@ -81,19 +82,30 @@
       </div>
     </div>
 
-    <!-- COMPANY / CONTACT -->
+    <!-- COMPANY -->
     <div style="padding-right:12px;">
       <div style="font-weight:600;color:var(--text);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.client_name }}</div>
-      {% if c.contact_person_name %}
-      <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">👤 {{ c.contact_person_name }}{% if c.mobile %} · {{ c.mobile }}{% endif %}</div>
-      {% elif c.mobile %}
-      <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">📱 {{ c.mobile }}</div>
-      {% endif %}
       {% if c.account_manager %}
-      <div style="font-size:11px;color:var(--primary);">🗂 Mgr: {{ c.account_manager }}</div>
+      <div style="font-size:11px;color:var(--primary);margin-top:3px;">👤 {{ c.account_manager }}</div>
       {% endif %}
       {% if c.email_id %}
       <div style="font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">✉️ {{ c.email_id }}</div>
+      {% endif %}
+    </div>
+
+    <!-- CONTACT PERSON -->
+    <div style="padding-right:12px;">
+      {% if c.contact_person_name %}
+      <div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.contact_person_name }}</div>
+      {% endif %}
+      {% if c.contact_person_number %}
+      <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">📱 {{ c.contact_person_number }}</div>
+      {% endif %}
+      {% if c.mobile and not c.contact_person_number %}
+      <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">📱 {{ c.mobile }}</div>
+      {% endif %}
+      {% if not c.contact_person_name and not c.contact_person_number %}
+      <div style="font-size:11px;color:var(--text-dim);">—</div>
       {% endif %}
     </div>
 
