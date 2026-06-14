@@ -149,13 +149,55 @@
   </div>
 </div>
 
-<!-- VIEW TASK MODAL -->
+<!-- VIEW / MANAGE TASK MODAL -->
 <div class="modal-overlay" id="viewTaskModal">
-  <div class="modal-box" style="max-width:520px;">
-    <div class="modal-title">👁️ Task Details</div>
+  <div class="modal-box" style="max-width:600px;">
+    <div class="modal-title">📋 Task Details</div>
     <div id="viewTaskContent"></div>
+    
+    <!-- UPDATE SECTION -->
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px;">Update Task</div>
+      <div class="form-grid" style="gap:12px;">
+        <div class="form-group">
+          <label>Status</label>
+          <select id="vtStatus">
+            <option value="todo">📋 To Do</option>
+            <option value="inprogress">🔄 In Progress</option>
+            <option value="pending_close">✋ Mark as Done</option>
+            <option value="done">✅ Close</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Re-assign To</label>
+          <select id="vtAssign">
+            <option value="">— Keep current —</option>
+            {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Priority</label>
+          <select id="vtPriority">
+            <option value="normal">Normal</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Due Date</label>
+          <input type="date" id="vtDue">
+        </div>
+        <div class="form-group form-full">
+          <label>Remarks / Notes</label>
+          <textarea id="vtRemarks" rows="3" placeholder="Add remarks, update notes, or reason for status change..."></textarea>
+        </div>
+      </div>
+    </div>
+    
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('viewTaskModal')">Close</button>
+      <button class="btn btn-primary" id="vtSaveBtn" onclick="saveTaskUpdate()">💾 Save Update</button>
     </div>
   </div>
 </div>
@@ -358,25 +400,74 @@ function saveEditTask() {
     .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
 }
 
+let _currentViewTaskId = null;
+
 function viewTask(id) {
   const t = TASKS_DATA[id];
   if (!t) return;
+  _currentViewTaskId = id;
+  
   const statusMap = { todo:'📋 To Do', inprogress:'🔄 In Progress', pending_close:'⏳ Awaiting Close', done:'✅ Closed' };
   const priorityMap = { urgent:'🔴 Urgent', high:'🟠 High', normal:'🔵 Normal', low:'⚪ Low' };
+  
   document.getElementById('viewTaskContent').innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:12px;">
-      <div><div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">TASK</div><div style="font-size:15px;font-weight:700;color:var(--text);">${t.title}</div></div>
-      ${t.description ? `<div><div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">DESCRIPTION</div><div style="color:var(--text-muted);font-size:13px;line-height:1.6;">${t.description}</div></div>` : ''}
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div><div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">ASSIGNED TO</div><div style="color:var(--text);font-size:13px;">${t.assigned_name}${t.assigned_mobile ? ` <a href="https://wa.me/${t.assigned_mobile.replace(/[+ -]/g,'')}" target="_blank" style="color:#25d366;margin-left:6px;">💬</a>` : ''}</div></div>
-        <div><div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">CREATED BY</div><div style="color:var(--text);font-size:13px;">${t.created_by_name}</div></div>
-        <div><div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">PRIORITY</div><div style="font-size:13px;">${priorityMap[t.priority]||t.priority}</div></div>
-        <div><div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">STATUS</div><div style="font-size:13px;">${statusMap[t.status]||t.status}</div></div>
-        <div><div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">DUE DATE</div><div style="color:var(--text);font-size:13px;">${t.due_date||'—'}</div></div>
-        ${t.company_name ? `<div><div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">COMPANY</div><div style="color:var(--primary-light);font-size:13px;">${t.ac_code} — ${t.company_name}</div></div>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
+      <div style="grid-column:1/-1;"><div style="font-size:16px;font-weight:700;color:var(--text);">${t.title}</div>
+        ${t.description ? `<div style="color:var(--text-muted);font-size:13px;margin-top:4px;line-height:1.5;">${t.description}</div>` : ''}
       </div>
+      <div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Assigned To</div>
+        <div style="font-size:13px;margin-top:2px;">${t.assigned_name||'—'}${t.assigned_mobile ? ` <a href="https://wa.me/${t.assigned_mobile.replace(/[+\s\-]/g,'')}" target="_blank" style="color:#16a34a;margin-left:6px;font-size:12px;">💬 WA</a>` : ''}</div></div>
+      <div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Created By</div><div style="font-size:13px;margin-top:2px;">${t.created_by_name||'—'}</div></div>
+      <div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Current Status</div><div style="font-size:13px;margin-top:2px;">${statusMap[t.status]||t.status}</div></div>
+      <div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Priority</div><div style="font-size:13px;margin-top:2px;">${priorityMap[t.priority]||t.priority}</div></div>
+      <div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Due Date</div><div style="font-size:13px;margin-top:2px;">${t.due_date||'—'}</div></div>
+      ${t.company_name ? `<div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Company</div><div style="font-size:13px;margin-top:2px;color:var(--primary);">${t.ac_code} — ${t.company_name}</div></div>` : ''}
     </div>`;
+  
+  // Pre-fill update form
+  document.getElementById('vtStatus').value = t.status || 'todo';
+  document.getElementById('vtAssign').value = '';
+  document.getElementById('vtPriority').value = t.priority || 'normal';
+  document.getElementById('vtDue').value = t.due_date || '';
+  document.getElementById('vtRemarks').value = '';
+  
   openModal('viewTaskModal');
+}
+
+function saveTaskUpdate() {
+  const id = _currentViewTaskId;
+  if (!id) return;
+  
+  const btn = document.getElementById('vtSaveBtn');
+  btn.disabled = true; btn.textContent = '⏳ Saving...';
+  
+  const t = TASKS_DATA[id];
+  const newAssign = document.getElementById('vtAssign').value;
+  const remarks = document.getElementById('vtRemarks').value.trim();
+  
+  // Build update data
+  const statusData = { status: document.getElementById('vtStatus').value };
+  fetch(`/api/task/${id}/status`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(statusData) })
+    .then(r => r.json())
+    .then(d => {
+      if (!d.success) throw new Error(d.error);
+      // Also update other fields
+      const editData = {
+        title: t.title,
+        description: remarks ? (t.description ? t.description + '\n\n[Update]: ' + remarks : '[Update]: ' + remarks) : t.description,
+        assigned_to: newAssign || t.assigned_to || null,
+        priority: document.getElementById('vtPriority').value,
+        due_date: document.getElementById('vtDue').value || t.due_date || null,
+        company_id: t.company_id || null,
+      };
+      return fetch(`/api/task/${id}/edit`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(editData) });
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) { closeModal('viewTaskModal'); location.reload(); }
+      else { btn.disabled=false; btn.textContent='💾 Save Update'; alert('Error: '+d.error); }
+    })
+    .catch(e => { btn.disabled=false; btn.textContent='💾 Save Update'; alert('Error: '+e); });
 }
 
 function setStatus(id, status) {
