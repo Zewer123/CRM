@@ -165,12 +165,15 @@ def setup_db():
     ''')
 
     # Migrations for existing DBs
-    for col, defn in [('contact_number', 'TEXT'), ('whatsapp_number', 'TEXT'), ('deal_after_vat', 'TEXT'),
-                      ('registration_screening_tool', 'TEXT')]:
-        try: c.execute(f'ALTER TABLE users ADD COLUMN {col} {defn}')
+    for col in ['contact_number','mobile']:
+        try: c.execute(f'ALTER TABLE users ADD COLUMN {col} TEXT')
         except: pass
-        try: c.execute(f'ALTER TABLE companies ADD COLUMN {col} {defn}')
+    for col in ['whatsapp_number','deal_after_vat','registration_screening_tool']:
+        try: c.execute(f'ALTER TABLE companies ADD COLUMN {col} TEXT')
         except: pass
+    # Add description column to dropdowns for task templates
+    try: c.execute('ALTER TABLE dropdowns ADD COLUMN description TEXT')
+    except: pass
 
     # Seed admin
     if not c.execute('SELECT id FROM users WHERE email=?', ('admin@zewer.ae',)).fetchone():
@@ -208,6 +211,25 @@ def setup_db():
             for v in vals:
                 try: c.execute('INSERT INTO dropdowns (field_name,value) VALUES (?,?)', (field,v))
                 except: pass
+
+    # Seed task templates
+    templates = [
+        ('TASK TEMPLATE', 'Collect Updated Trade License', 'Request client to provide renewed trade license document'),
+        ('TASK TEMPLATE', 'KYC Update Required', 'Client KYC documents are outdated - collect updated forms'),
+        ('TASK TEMPLATE', 'Address Proof Renewal', 'Collect updated Ejari/Tenancy/Utility bill for address proof'),
+        ('TASK TEMPLATE', 'Passport Renewal Follow-up', 'UBO or authorized person passport has expired or expiring'),
+        ('TASK TEMPLATE', 'Emirates ID Update', 'Collect renewed Emirates ID for UBO or authorized person'),
+        ('TASK TEMPLATE', 'VAT Certificate Collection', 'Request updated VAT registration certificate from client'),
+        ('TASK TEMPLATE', 'Screening Review', 'Conduct AML screening review for client'),
+        ('TASK TEMPLATE', 'MOA Collection', 'Obtain signed Memorandum of Association from client'),
+        ('TASK TEMPLATE', 'Undertaking Form', 'Get signed undertaking form from client'),
+        ('TASK TEMPLATE', 'Source of Funds Verification', 'Verify and document source of funds for this client'),
+        ('TASK TEMPLATE', 'Risk Assessment Review', 'Review and update risk rating for this client'),
+        ('TASK TEMPLATE', 'Annual KYC Review', 'Perform annual KYC review and update all documents'),
+    ]
+    for field, value, desc in templates:
+        try: c.execute('INSERT OR IGNORE INTO dropdowns (field_name,value,description,is_active) VALUES (?,?,?,1)', (field, value, desc))
+        except: pass
 
     conn.commit()
     conn.close()
@@ -579,30 +601,36 @@ def api_delete_dropdown(id):
 @login_required
 def tasks():
     conn = get_db()
-    uid = session.get('user_id')
-    role = session.get('user_role')
-    if role == 'staff':
-        rows = conn.execute('''SELECT t.*,u.name as assigned_name,c.client_name as company_name,c.ac_code
-            FROM tasks t LEFT JOIN users u ON t.assigned_to=u.id LEFT JOIN companies c ON t.company_id=c.id
-            WHERE t.assigned_to=? ORDER BY CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3 ELSE 4 END, t.due_date''', (uid,)).fetchall()
+    uid = session.get("user_id")
+    role = session.get("user_role")
+    base_q = """SELECT t.*, u.name as assigned_name, u.mobile as assigned_mobile,
+        cu.name as created_by_name, c.client_name as company_name, c.ac_code
+        FROM tasks t LEFT JOIN users u ON t.assigned_to=u.id
+        LEFT JOIN users cu ON t.created_by=cu.id
+        LEFT JOIN companies c ON t.company_id=c.id"""
+    order = " ORDER BY CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3 ELSE 4 END, t.due_date"
+    if role == "staff":
+        rows = conn.execute(base_q + " WHERE t.assigned_to=?" + order, (uid,)).fetchall()
     else:
-        rows = conn.execute('''SELECT t.*,u.name as assigned_name,c.client_name as company_name,c.ac_code
-            FROM tasks t LEFT JOIN users u ON t.assigned_to=u.id LEFT JOIN companies c ON t.company_id=c.id
-            ORDER BY CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3 ELSE 4 END, t.due_date''').fetchall()
-    all_users = conn.execute('SELECT id,name,role FROM users WHERE is_active=1 ORDER BY name').fetchall()
-    all_companies = conn.execute('SELECT id,ac_code,client_name FROM companies ORDER BY client_name').fetchall()
+        rows = conn.execute(base_q + order).fetchall()
+    all_users = conn.execute("SELECT id,name,role,mobile FROM users WHERE is_active=1 ORDER BY name").fetchall()
+    all_companies = conn.execute("SELECT id,ac_code,client_name FROM companies ORDER BY client_name").fetchall()
+    task_templates = conn.execute("SELECT value, description FROM dropdowns WHERE field_name='TASK TEMPLATE' AND is_active=1 ORDER BY value").fetchall()
     conn.close()
-    today = datetime.now().date()
     tlist = []
     for t in rows:
-        d = days_left(t['due_date'])
-        tlist.append(dict(id=t['id'],title=t['title'],description=t['description'],
-            assigned_to=t['assigned_to'],assigned_name=t['assigned_name'],
-            company_id=t['company_id'],company_name=t['company_name'],
-            priority=t['priority'] or 'normal',status=t['status'] or 'todo',
-            due_date=t['due_date'],days_until_due=d,is_overdue=(d is not None and d < 0),
-            created_by=t['created_by']))
-    return render_template('tasks.html', tasks=tlist, all_users=all_users, all_companies=all_companies)
+        d = days_left(t["due_date"])
+        tlist.append(dict(
+            id=t["id"], title=t["title"], description=t["description"],
+            assigned_to=t["assigned_to"], assigned_name=t["assigned_name"],
+            assigned_mobile=t["assigned_mobile"],
+            created_by=t["created_by"], created_by_name=t["created_by_name"],
+            company_id=t["company_id"], company_name=t["company_name"], ac_code=t["ac_code"],
+            priority=t["priority"] or "normal", status=t["status"] or "todo",
+            due_date=t["due_date"], days_until_due=d, is_overdue=(d is not None and d < 0)
+        ))
+    return render_template("tasks.html", tasks=tlist, all_users=all_users,
+        all_companies=all_companies, task_templates=task_templates)
 
 @app.route('/api/task/add', methods=['POST'])
 @login_required

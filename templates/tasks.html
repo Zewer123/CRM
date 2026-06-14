@@ -1,33 +1,44 @@
 {% extends "base.html" %}
-{% block title %}Tasks - Zewer AML{% endblock %}
+{% block title %}Tasks - Zewer AML CRM{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div class="page-title">✅ Tasks</div>
+  {% if user_role in ['admin','compliance'] %}
   <button class="btn btn-primary" onclick="openModal('addTaskModal')">+ New Task</button>
+  {% endif %}
+</div>
+
+<!-- STATS -->
+<div class="stat-grid" style="margin-bottom:20px;">
+  <div class="stat-card purple"><div class="stat-label">Total</div><div class="stat-value">{{ tasks|length }}</div></div>
+  <div class="stat-card danger"><div class="stat-label">Overdue</div><div class="stat-value">{{ tasks|selectattr('is_overdue')|list|length }}</div></div>
+  <div class="stat-card warning"><div class="stat-label">In Progress</div><div class="stat-value">{{ tasks|selectattr('status','eq','inprogress')|list|length }}</div></div>
+  <div class="stat-card"><div class="stat-label">To Do</div><div class="stat-value">{{ tasks|selectattr('status','eq','todo')|list|length }}</div></div>
+  <div class="stat-card success"><div class="stat-label">Awaiting Close</div><div class="stat-value">{{ tasks|selectattr('status','eq','pending_close')|list|length }}</div></div>
+  <div class="stat-card success"><div class="stat-label">Closed</div><div class="stat-value">{{ tasks|selectattr('status','eq','done')|list|length }}</div></div>
 </div>
 
 <!-- FILTERS -->
-<div class="search-bar" style="margin-bottom:18px;">
+<div class="search-bar">
   <div class="form-group search-input">
     <label>STATUS</label>
     <select id="filterStatus" onchange="filterTasks()">
       <option value="">All</option>
       <option value="todo">To Do</option>
       <option value="inprogress">In Progress</option>
-      <option value="done">Done</option>
+      <option value="pending_close">Awaiting Close</option>
+      <option value="done">Closed</option>
     </select>
   </div>
   <div class="form-group" style="min-width:160px;">
     <label>ASSIGNED TO</label>
     <select id="filterUser" onchange="filterTasks()">
       <option value="">Everyone</option>
-      {% for u in all_users %}
-      <option value="{{ u.id }}">{{ u.name }}</option>
-      {% endfor %}
+      {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
     </select>
   </div>
-  <div class="form-group" style="min-width:150px;">
+  <div class="form-group" style="min-width:130px;">
     <label>PRIORITY</label>
     <select id="filterPriority" onchange="filterTasks()">
       <option value="">All</option>
@@ -39,80 +50,86 @@
   </div>
 </div>
 
-<!-- STATS -->
-<div class="stat-grid" style="margin-bottom:20px;">
-  <div class="stat-card">
-    <div class="stat-label">Total Tasks</div>
-    <div class="stat-value">{{ tasks|length }}</div>
-  </div>
-  <div class="stat-card danger">
-    <div class="stat-label">Overdue</div>
-    <div class="stat-value">{{ tasks|selectattr('is_overdue')|list|length }}</div>
-  </div>
-  <div class="stat-card warning">
-    <div class="stat-label">In Progress</div>
-    <div class="stat-value">{{ tasks|selectattr('status','eq','inprogress')|list|length }}</div>
-  </div>
-  <div class="stat-card success">
-    <div class="stat-label">Done</div>
-    <div class="stat-value">{{ tasks|selectattr('status','eq','done')|list|length }}</div>
-  </div>
-</div>
-
-<!-- TASK TABLE -->
+<!-- TABLE -->
 <div class="card" style="padding:0;overflow:hidden;">
   <div class="table-wrap">
     <table id="taskTable">
-      <thead>
-        <tr>
-          <th>TASK</th>
-          <th>ASSIGNED TO</th>
-          <th>COMPANY</th>
-          <th>PRIORITY</th>
-          <th>DUE DATE</th>
-          <th>STATUS</th>
-          <th>ACTIONS</th>
-        </tr>
-      </thead>
+      <thead><tr>
+        <th>TASK</th>
+        <th>ASSIGNED TO</th>
+        <th>COMPANY</th>
+        <th>PRIORITY</th>
+        <th>DUE DATE</th>
+        <th>STATUS</th>
+        <th>ACTIONS</th>
+      </tr></thead>
       <tbody>
         {% for t in tasks %}
         <tr data-status="{{ t.status }}" data-user="{{ t.assigned_to or '' }}" data-priority="{{ t.priority }}">
           <td>
             <div style="font-weight:600;color:var(--text);">{{ t.title }}</div>
             {% if t.description %}<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">{{ t.description[:80] }}{% if t.description|length > 80 %}…{% endif %}</div>{% endif %}
+            <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">By: {{ t.created_by_name or '—' }}</div>
           </td>
-          <td style="color:var(--text-muted);">{{ t.assigned_name or '—' }}</td>
-          <td style="color:var(--text-muted);font-size:12px;">{{ t.company_name or '—' }}</td>
           <td>
-            {% set p = t.priority %}
-            <span class="badge badge-{% if p=='urgent' %}urgent{% elif p=='high' %}high-p{% elif p=='low' %}low-p{% else %}normal{% endif %}">
-              {{ p.upper() if p else 'NORMAL' }}
+            <div style="color:var(--text-muted);">{{ t.assigned_name or '—' }}</div>
+            {% if t.assigned_mobile %}
+            <a href="https://wa.me/{{ t.assigned_mobile | replace('+','') | replace(' ','') | replace('-','') }}" target="_blank"
+               style="font-size:11px;color:var(--wa);text-decoration:none;">💬 WhatsApp</a>
+            {% endif %}
+          </td>
+          <td style="color:var(--text-muted);font-size:12px;">
+            {% if t.company_id %}
+            <a href="{{ url_for('company_detail', id=t.company_id) }}" style="color:var(--primary-light);text-decoration:none;">{{ t.ac_code }}</a>
+            <div style="font-size:11px;color:var(--text-dim);">{{ t.company_name }}</div>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <span class="badge badge-{% if t.priority=='urgent' %}urgent{% elif t.priority=='high' %}high-p{% elif t.priority=='low' %}low-p{% else %}normal{% endif %}">
+              {{ (t.priority or 'normal').upper() }}
             </span>
           </td>
           <td>
             {% if t.due_date %}
-              {% if t.is_overdue and t.status != 'done' %}
-              <span style="color:#f87171;font-weight:600;">{{ t.due_date[:10] }}</span>
-              <div style="font-size:11px;color:#f87171;">OVERDUE</div>
-              {% elif t.days_until_due is not none and t.days_until_due <= 3 and t.status != 'done' %}
-              <span style="color:#fbbf24;font-weight:600;">{{ t.due_date[:10] }}</span>
-              <div style="font-size:11px;color:#fbbf24;">{{ t.days_until_due }}d left</div>
+              {% if t.is_overdue and t.status not in ['done','pending_close'] %}
+              <span class="exp-expired" style="font-weight:600;">{{ t.due_date[:10] }}</span>
+              <div style="font-size:11px;" class="exp-expired">OVERDUE {{ t.days_until_due|abs }}d</div>
+              {% elif t.days_until_due is not none and t.days_until_due <= 3 and t.status not in ['done','pending_close'] %}
+              <span class="exp-critical" style="font-weight:600;">{{ t.due_date[:10] }}</span>
+              <div style="font-size:11px;" class="exp-critical">{{ t.days_until_due }}d left</div>
               {% else %}
               <span style="color:var(--text-muted);">{{ t.due_date[:10] }}</span>
               {% endif %}
             {% else %}—{% endif %}
           </td>
           <td>
-            <select class="status-select" onchange="updateStatus({{ t.id }}, this.value)"
-              style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;cursor:pointer;">
-              <option value="todo" {% if t.status=='todo' %}selected{% endif %}>📋 To Do</option>
-              <option value="inprogress" {% if t.status=='inprogress' %}selected{% endif %}>🔄 In Progress</option>
-              <option value="done" {% if t.status=='done' %}selected{% endif %}>✅ Done</option>
-            </select>
+            {% if t.status == 'pending_close' %}
+              {% if t.created_by == current_user_id or user_role == 'admin' %}
+              <span style="background:#78350f;color:#fcd34d;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:600;">⏳ Awaiting Your Close</span>
+              {% else %}
+              <span style="background:#1e3a5f;color:#93c5fd;padding:3px 8px;border-radius:5px;font-size:11px;">Pending Close</span>
+              {% endif %}
+            {% elif t.status == 'done' %}
+              <span class="badge badge-active">✅ Closed</span>
+            {% else %}
+              <select onchange="updateStatus({{ t.id }}, this.value, {{ t.created_by }}, {{ current_user_id }}, '{{ user_role }}')"
+                style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;cursor:pointer;">
+                <option value="todo" {% if t.status=='todo' %}selected{% endif %}>📋 To Do</option>
+                <option value="inprogress" {% if t.status=='inprogress' %}selected{% endif %}>🔄 In Progress</option>
+                <option value="pending_close" {% if t.status=='pending_close' %}selected{% endif %}>✋ Mark Done</option>
+              </select>
+            {% endif %}
           </td>
           <td>
-            <div style="display:flex;gap:6px;">
-              <button class="btn btn-ghost btn-sm btn-icon" onclick="editTask({{ t.id }}, '{{ t.title | replace("'","\\'")|replace('"','\\"') }}', '{{ t.description or "" | replace("'","\\'")|replace('"','\\"') }}', '{{ t.assigned_to or "" }}', '{{ t.priority or "normal" }}', '{{ t.due_date[:10] if t.due_date else "" }}', '{{ t.status or "todo" }}', '{{ t.company_id or "" }}')" title="Edit">✏️</button>
+            <div style="display:flex;gap:6px;align-items:center;">
+              {% if t.status == 'pending_close' and (t.created_by == current_user_id or user_role == 'admin') %}
+              <button class="btn btn-success btn-sm" onclick="closeTask({{ t.id }})">✅ Close</button>
+              <button class="btn btn-ghost btn-sm" onclick="rejectClose({{ t.id }})">↩️ Reopen</button>
+              {% elif t.status != 'done' %}
+                {% if user_role in ['admin','compliance'] or t.assigned_to == current_user_id %}
+                <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditTask({{ t.id }}, '{{ t.title|replace("'","\\'") }}', '{{ (t.description or '')|replace("'","\\'") }}', '{{ t.assigned_to or "" }}', '{{ t.priority or "normal" }}', '{{ t.due_date[:10] if t.due_date else "" }}', '{{ t.status or "todo" }}', '{{ t.company_id or "" }}')" title="Edit">✏️</button>
+                {% endif %}
+              {% endif %}
               {% if user_role == 'admin' or t.created_by == current_user_id %}
               <button class="btn btn-danger btn-sm btn-icon" onclick="deleteTask({{ t.id }})" title="Delete">🗑️</button>
               {% endif %}
@@ -120,7 +137,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-dim);">No tasks yet. Create one above.</td></tr>
+        <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-dim);">No tasks yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -129,24 +146,36 @@
 
 <!-- ===== MODAL: ADD TASK ===== -->
 <div class="modal-overlay" id="addTaskModal">
-  <div class="modal-box" style="max-width:560px;">
+  <div class="modal-box" style="max-width:580px;">
     <div class="modal-title">➕ New Task</div>
+
+    <!-- TEMPLATE PICKER -->
+    {% if task_templates %}
+    <div class="form-group" style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+      <label>Quick Template <span style="color:var(--text-dim);font-weight:400;">(optional — fills title & description)</span></label>
+      <select id="taskTemplate" onchange="applyTemplate()">
+        <option value="">— Start from scratch —</option>
+        {% for t in task_templates %}
+        <option value="{{ t.value }}" data-desc="{{ t.description or '' }}">{{ t.value }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+
     <div class="form-grid">
       <div class="form-group form-full">
         <label>Task Title *</label>
-        <input type="text" id="tTitle" placeholder="e.g. Collect updated trade license from Tariq Jewellers">
+        <input type="text" id="tTitle" placeholder="What needs to be done?">
       </div>
       <div class="form-group form-full">
-        <label>Description</label>
-        <textarea id="tDesc" rows="3" placeholder="Details, instructions, what needs to be done..."></textarea>
+        <label>Description / Notes</label>
+        <textarea id="tDesc" rows="3" placeholder="Additional details..."></textarea>
       </div>
       <div class="form-group">
         <label>Assign To *</label>
         <select id="tAssign">
-          <option value="">-- Select user --</option>
-          {% for u in all_users %}
-          <option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>
-          {% endfor %}
+          <option value="">— Select user —</option>
+          {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>{% endfor %}
         </select>
       </div>
       <div class="form-group">
@@ -165,10 +194,8 @@
       <div class="form-group">
         <label>Linked Company</label>
         <select id="tCompany">
-          <option value="">-- None --</option>
-          {% for c in all_companies %}
-          <option value="{{ c.id }}">{{ c.ac_code }} - {{ c.client_name }}</option>
-          {% endfor %}
+          <option value="">— None —</option>
+          {% for c in all_companies %}<option value="{{ c.id }}">{{ c.ac_code }} — {{ c.client_name }}</option>{% endfor %}
         </select>
       </div>
     </div>
@@ -181,69 +208,54 @@
 
 <!-- ===== MODAL: EDIT TASK ===== -->
 <div class="modal-overlay" id="editTaskModal">
-  <div class="modal-box" style="max-width:560px;">
+  <div class="modal-box" style="max-width:580px;">
     <div class="modal-title">✏️ Edit Task</div>
-    <input type="hidden" id="editTaskId">
+    <input type="hidden" id="etId">
     <div class="form-grid">
-      <div class="form-group form-full">
-        <label>Task Title *</label>
-        <input type="text" id="etTitle">
-      </div>
-      <div class="form-group form-full">
-        <label>Description</label>
-        <textarea id="etDesc" rows="3"></textarea>
-      </div>
+      <div class="form-group form-full"><label>Title *</label><input type="text" id="etTitle"></div>
+      <div class="form-group form-full"><label>Description</label><textarea id="etDesc" rows="3"></textarea></div>
       <div class="form-group">
         <label>Assign To</label>
         <select id="etAssign">
-          <option value="">-- None --</option>
-          {% for u in all_users %}
-          <option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>
-          {% endfor %}
+          <option value="">— None —</option>
+          {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>{% endfor %}
         </select>
       </div>
       <div class="form-group">
         <label>Priority</label>
         <select id="etPriority">
-          <option value="normal">Normal</option>
-          <option value="high">High</option>
-          <option value="urgent">Urgent</option>
-          <option value="low">Low</option>
+          <option value="normal">Normal</option><option value="high">High</option>
+          <option value="urgent">Urgent</option><option value="low">Low</option>
         </select>
       </div>
+      <div class="form-group"><label>Due Date</label><input type="date" id="etDue"></div>
       <div class="form-group">
-        <label>Due Date</label>
-        <input type="date" id="etDue">
-      </div>
-      <div class="form-group">
-        <label>Status</label>
-        <select id="etStatus">
-          <option value="todo">To Do</option>
-          <option value="inprogress">In Progress</option>
-          <option value="done">Done</option>
-        </select>
-      </div>
-      <div class="form-group form-full">
         <label>Linked Company</label>
         <select id="etCompany">
-          <option value="">-- None --</option>
-          {% for c in all_companies %}
-          <option value="{{ c.id }}">{{ c.ac_code }} - {{ c.client_name }}</option>
-          {% endfor %}
+          <option value="">— None —</option>
+          {% for c in all_companies %}<option value="{{ c.id }}">{{ c.ac_code }} — {{ c.client_name }}</option>{% endfor %}
         </select>
       </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('editTaskModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveEditTask()">Save Changes</button>
+      <button class="btn btn-primary" onclick="saveEditTask()">Save</button>
     </div>
   </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
+// Apply template
+function applyTemplate() {
+  const sel = document.getElementById('taskTemplate');
+  const opt = sel.options[sel.selectedIndex];
+  if (!sel.value) return;
+  document.getElementById('tTitle').value = sel.value;
+  document.getElementById('tDesc').value = opt.dataset.desc || '';
+}
+
 function saveTask() {
   const data = {
     title: document.getElementById('tTitle').value.trim(),
@@ -258,36 +270,46 @@ function saveTask() {
     .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
 }
 
-function editTask(id, title, desc, assignedTo, priority, due, status, companyId) {
-  document.getElementById('editTaskId').value = id;
-  document.getElementById('etTitle').value = title || '';
-  document.getElementById('etDesc').value = desc || '';
+function openEditTask(id, title, desc, assignedTo, priority, due, status, companyId) {
+  document.getElementById('etId').value = id;
+  document.getElementById('etTitle').value = title;
+  document.getElementById('etDesc').value = desc;
   document.getElementById('etAssign').value = assignedTo || '';
   document.getElementById('etPriority').value = priority || 'normal';
   document.getElementById('etDue').value = due || '';
-  document.getElementById('etStatus').value = status || 'todo';
   document.getElementById('etCompany').value = companyId || '';
   openModal('editTaskModal');
 }
 
 function saveEditTask() {
-  const id = document.getElementById('editTaskId').value;
+  const id = document.getElementById('etId').value;
   const data = {
     title: document.getElementById('etTitle').value.trim(),
     description: document.getElementById('etDesc').value.trim(),
     assigned_to: document.getElementById('etAssign').value || null,
     priority: document.getElementById('etPriority').value,
     due_date: document.getElementById('etDue').value || null,
-    status: document.getElementById('etStatus').value,
     company_id: document.getElementById('etCompany').value || null,
   };
   fetch(`/api/task/${id}/edit`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
     .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
 }
 
-function updateStatus(id, status) {
+function updateStatus(id, status, createdBy, currentUser, role) {
+  // If marking done, it goes to pending_close — creator must close
   fetch(`/api/task/${id}/status`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}) })
-    .then(r=>r.json()).then(d => { if(!d.success) alert('Error: '+d.error); });
+    .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
+}
+
+function closeTask(id) {
+  if (!confirm('Mark this task as Closed?')) return;
+  fetch(`/api/task/${id}/status`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'done'}) })
+    .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
+}
+
+function rejectClose(id) {
+  fetch(`/api/task/${id}/status`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'inprogress'}) })
+    .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
 }
 
 function deleteTask(id) {
