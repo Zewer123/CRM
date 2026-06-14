@@ -44,6 +44,15 @@
       {% endfor %}
     </select>
   </div>
+  <div class="form-group" style="min-width:140px;">
+    <label>Account Manager</label>
+    <select id="managerFilter" onchange="applyFilters()">
+      <option value="">All</option>
+      {% for m in managers %}
+      <option value="{{ m }}" {% if manager_filter==m %}selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+    </select>
+  </div>
   <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear</button>
 </div>
 
@@ -230,7 +239,8 @@ function saveFilters() {
     search: document.getElementById('searchInput').value,
     risk: document.getElementById('riskFilter').value,
     status: document.getElementById('statusFilter').value,
-    region: document.getElementById('regionFilter').value
+    region: document.getElementById('regionFilter').value,
+    manager: document.getElementById('managerFilter').value
   };
   sessionStorage.setItem(FILTER_KEY, JSON.stringify(f));
 }
@@ -242,7 +252,8 @@ function applyFilters() {
   const r = document.getElementById('riskFilter').value;
   const st = document.getElementById('statusFilter').value;
   const rg = document.getElementById('regionFilter').value;
-  if(s) p.set('search',s); if(r) p.set('risk',r); if(st) p.set('status',st); if(rg) p.set('region',rg);
+  const mg = document.getElementById('managerFilter').value;
+  if(s) p.set('search',s); if(r) p.set('risk',r); if(st) p.set('status',st); if(rg) p.set('region',rg); if(mg) p.set('manager',mg);
   window.location.href = '/companies?' + p.toString();
 }
 
@@ -266,6 +277,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if(f.risk) p.set('risk', f.risk);
           if(f.status) p.set('status', f.status);
           if(f.region) p.set('region', f.region);
+          if(f.manager) p.set('manager', f.manager);
           window.location.replace('/companies?' + p.toString());
         }
       } catch(e) {}
@@ -298,5 +310,6 @@ function importCompanies() {
 }
 </script>
 {% endblock %}
+
 
 
