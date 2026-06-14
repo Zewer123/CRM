@@ -232,7 +232,7 @@
                 {% elif u.p_status == 'warning' %}color:#fbbf24;
                 {% else %}color:#4ade80;{% endif %}">
                 {{ u.passport_expiry }}
-                {% if u.p_days is not none %}({% if u.p_days < 0 %}EXPIRED{{ else %}{{ u.p_days }}d{% endif %}){% endif %}
+                {% if u.p_days is not none %}({% if u.p_days < 0 %}EXPIRED{% else %}{{ u.p_days }}d{% endif %}){% endif %}
               </div>
               {% endif %}
             </td>
@@ -473,3 +473,4 @@ function confirmDelete(id) {
   }
 }
 </script>
+{% endblock %}

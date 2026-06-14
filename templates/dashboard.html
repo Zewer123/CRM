@@ -7,8 +7,11 @@
   <div style="color:var(--text-muted);font-size:13px;">{{ today }}</div>
 </div>
 
-<!-- TOP STATS -->
-<div class="stat-grid">
+<!-- COMPANIES SECTION -->
+<div style="margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+  <span style="font-size:16px;font-weight:700;color:var(--primary-light);">🏢 Companies</span>
+</div>
+<div class="stat-grid" style="margin-bottom:20px;">
   <div class="stat-card purple">
     <div class="stat-label">Total Companies</div>
     <div class="stat-value">{{ total_companies }}</div>
@@ -17,7 +20,7 @@
   <div class="stat-card danger">
     <div class="stat-label">Trade Lic. Expired</div>
     <div class="stat-value">{{ expired_tl }}</div>
-    <div class="stat-sub">Needs immediate action</div>
+    <div class="stat-sub">Immediate action needed</div>
   </div>
   <div class="stat-card warning">
     <div class="stat-label">Expiring in 30 Days</div>
@@ -30,20 +33,13 @@
     <div class="stat-sub">{{ expiring_30_ap }} expiring in 30d</div>
   </div>
   <div class="stat-card danger">
-    <div class="stat-label">Tasks Overdue</div>
-    <div class="stat-value">{{ overdue_tasks }}</div>
-    <div class="stat-sub">{{ open_tasks }} total open</div>
-  </div>
-  <div class="stat-card danger">
     <div class="stat-label">UBO Passports Exp.</div>
     <div class="stat-value">{{ expired_pass }}</div>
     <div class="stat-sub">{{ expiring_30_pass }} expiring in 30d</div>
   </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px;">
-
-  <!-- RISK BREAKDOWN -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:24px;">
   <div class="card">
     <div class="card-header"><div class="card-title">⚠️ Risk Distribution</div></div>
     {% set high = risk_breakdown.get('High', 0) %}
@@ -63,8 +59,6 @@
     </div>
     {% endfor %}
   </div>
-
-  <!-- DOC STATUS -->
   <div class="card">
     <div class="card-header"><div class="card-title">📄 Document Status</div></div>
     {% set completed = doc_breakdown.get('Completed', 0) %}
@@ -88,21 +82,17 @@
     <div style="text-align:center;font-size:11px;color:var(--text-dim);margin-top:6px;">{{ (completed/dtotal*100)|int }}% complete</div>
     {% endif %}
   </div>
-
 </div>
 
-<!-- URGENT EXPIRIES -->
 {% if urgent_companies %}
-<div class="card" style="margin-bottom:18px;">
+<div class="card" style="margin-bottom:28px;">
   <div class="card-header">
-    <div class="card-title">🔥 Urgent — Expiring Within 90 Days</div>
+    <div class="card-title">🔥 Expiring Within 90 Days</div>
     <a href="{{ url_for('alerts') }}" style="font-size:12px;color:var(--primary-light);text-decoration:none;">View all →</a>
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr>
-        <th>AC Code</th><th>Company</th><th>Risk</th><th>Trade Lic. Expiry</th><th>Addr. Proof Expiry</th><th>Action</th>
-      </tr></thead>
+      <thead><tr><th>AC Code</th><th>Company</th><th>Risk</th><th>Trade Lic. Expiry</th><th>Addr. Proof</th><th>WA</th></tr></thead>
       <tbody>
         {% for c in urgent_companies %}
         {% set tld = days_left(c.trade_license_expiry) %}
@@ -111,28 +101,9 @@
           <td><a href="{{ url_for('company_detail', id=c.id) }}" style="color:var(--primary-light);text-decoration:none;font-weight:600;">{{ c.ac_code }}</a></td>
           <td style="color:var(--text);">{{ c.client_name }}</td>
           <td><span class="badge badge-{{ (c.risk_status or 'Unspecified').lower() }}">{{ c.risk_status or '—' }}</span></td>
-          <td>
-            {% if c.trade_license_expiry %}
-            <span class="{% if tld is not none and tld < 0 %}exp-expired{% elif tld is not none and tld <= 30 %}exp-critical{% else %}exp-warning{% endif %}">
-              {{ c.trade_license_expiry[:10] }}
-              {% if tld is not none %}({% if tld < 0 %}EXPIRED {{ tld|abs }}d{% else %}{{ tld }}d{% endif %}){% endif %}
-            </span>
-            {% else %}—{% endif %}
-          </td>
-          <td>
-            {% if c.address_proof_expiry %}
-            <span class="{% if apd is not none and apd < 0 %}exp-expired{% elif apd is not none and apd <= 30 %}exp-critical{% else %}exp-warning{% endif %}">
-              {{ c.address_proof_expiry[:10] }}
-              {% if apd is not none %}({% if apd < 0 %}EXPIRED {{ apd|abs }}d{% else %}{{ apd }}d{% endif %}){% endif %}
-            </span>
-            {% else %}—{% endif %}
-          </td>
-          <td>
-            {% set wa = c.whatsapp_number or c.mobile %}
-            {% if wa %}
-            <a href="https://wa.me/{{ wa | replace('+','') | replace(' ','') | replace('-','') }}" target="_blank" class="btn btn-wa btn-sm">💬 WA</a>
-            {% endif %}
-          </td>
+          <td><span class="{% if tld is not none and tld < 0 %}exp-expired{% elif tld is not none and tld <= 30 %}exp-critical{% else %}exp-warning{% endif %}">{{ c.trade_license_expiry[:10] if c.trade_license_expiry else '—' }}{% if tld is not none %} ({% if tld < 0 %}EXP {% endif %}{{ tld|abs }}d){% endif %}</span></td>
+          <td><span class="{% if apd is not none and apd < 0 %}exp-expired{% elif apd is not none and apd <= 30 %}exp-critical{% else %}exp-warning{% endif %}">{{ c.address_proof_expiry[:10] if c.address_proof_expiry else '—' }}{% if apd is not none %} ({% if apd < 0 %}EXP {% endif %}{{ apd|abs }}d){% endif %}</span></td>
+          <td>{% set wa = c.whatsapp_number or c.mobile %}{% if wa %}<a href="https://wa.me/{{ wa|replace('+','')|replace(' ','')|replace('-','') }}" target="_blank" class="btn btn-wa btn-sm" style="padding:3px 10px;font-size:12px;">💬</a>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -141,15 +112,63 @@
 </div>
 {% endif %}
 
+<!-- TASKS SECTION -->
+<div style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+  <span style="font-size:16px;font-weight:700;color:var(--primary-light);">✅ Tasks</span>
+  <a href="{{ url_for('tasks') }}" style="font-size:12px;color:var(--primary-light);text-decoration:none;">View all →</a>
+</div>
+<div class="stat-grid" style="margin-bottom:20px;">
+  <div class="stat-card danger">
+    <div class="stat-label">Overdue</div>
+    <div class="stat-value">{{ overdue_tasks }}</div>
+    <div class="stat-sub">Past due date</div>
+  </div>
+  <div class="stat-card warning">
+    <div class="stat-label">Open Tasks</div>
+    <div class="stat-value">{{ open_tasks }}</div>
+    <div class="stat-sub">To do + In progress</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Due Today</div>
+    <div class="stat-value">{{ due_today }}</div>
+    <div class="stat-sub">Needs attention</div>
+  </div>
+  <div class="stat-card success">
+    <div class="stat-label">Awaiting Close</div>
+    <div class="stat-value">{{ pending_close }}</div>
+    <div class="stat-sub">Done, needs creator approval</div>
+  </div>
+</div>
 
-{% endblock %}
-
-{% block scripts %}
-<script>
-function days_left(dateStr) {
-  if (!dateStr) return null;
-  const diff = new Date(dateStr) - new Date();
-  return Math.ceil(diff / (1000*60*60*24));
-}
-</script>
+{% if urgent_tasks %}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">⚡ Urgent & Overdue Tasks</div>
+    <a href="{{ url_for('tasks') }}" style="font-size:12px;color:var(--primary-light);text-decoration:none;">All tasks →</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Task</th><th>Assigned To</th><th>Priority</th><th>Due</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for t in urgent_tasks %}
+        <tr>
+          <td style="color:var(--text);font-weight:500;">{{ t.title }}</td>
+          <td style="color:var(--text-muted);font-size:12px;">{{ t.assigned_name or '—' }}</td>
+          <td><span class="badge badge-{% if t.priority=='urgent' %}urgent{% elif t.priority=='high' %}high-p{% else %}normal{% endif %}">{{ (t.priority or 'normal').upper() }}</span></td>
+          <td>
+            {% if t.due_date %}
+            {% set d = days_left(t.due_date) %}
+            <span class="{% if d is not none and d < 0 %}exp-expired{% elif d is not none and d <= 1 %}exp-critical{% else %}exp-warning{% endif %}">
+              {{ t.due_date[:10] }}{% if d is not none %} ({% if d < 0 %}{{ d|abs }}d overdue{% elif d == 0 %}today{% else %}{{ d }}d{% endif %}){% endif %}
+            </span>
+            {% else %}—{% endif %}
+          </td>
+          <td><span class="badge badge-{% if t.status=='done' %}active{% elif t.status=='inprogress' %}compliance{% else %}todo{% endif %}">{{ t.status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

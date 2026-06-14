@@ -256,6 +256,23 @@ function applyTemplate() {
   document.getElementById('tDesc').value = opt.dataset.desc || '';
 }
 
+// Set tomorrow as default due date when modal opens
+document.getElementById('addTaskModal').addEventListener('transitionend', function(){});
+document.querySelector('button[onclick="openModal('addTaskModal')"]') && void 0;
+
+// Actually set it immediately
+(function() {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const yyyy = tomorrow.getFullYear();
+  const mm = String(tomorrow.getMonth()+1).padStart(2,'0');
+  const dd = String(tomorrow.getDate()).padStart(2,'0');
+  const tomorrowStr = `${yyyy}-${mm}-${dd}`;
+  // Set on page load
+  const tDue = document.getElementById('tDue');
+  if (tDue && !tDue.value) tDue.value = tomorrowStr;
+})();
+
 function saveTask() {
   const data = {
     title: document.getElementById('tTitle').value.trim(),

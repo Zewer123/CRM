@@ -7,6 +7,12 @@ from functools import wraps
 import csv
 import io
 try:
+    import openpyxl
+    OPENPYXL_AVAILABLE = True
+except ImportError:
+    OPENPYXL_AVAILABLE = False
+
+try:
     import cloudinary
     import cloudinary.uploader
     CLOUDINARY_AVAILABLE = True
@@ -340,8 +346,16 @@ def dashboard():
     urgent = conn.execute('''SELECT id,ac_code,client_name,trade_license_expiry,address_proof_expiry,risk_status,mobile,whatsapp_number
         FROM companies WHERE (trade_license_expiry BETWEEN ? AND ?) OR (address_proof_expiry BETWEEN ? AND ?)
         ORDER BY trade_license_expiry ASC LIMIT 10''', (today,today+timedelta(days=90),today,today+timedelta(days=90))).fetchall()
-    open_tasks = conn.execute('SELECT COUNT(*) FROM tasks WHERE status != "done"').fetchone()[0]
-    overdue_tasks = conn.execute('SELECT COUNT(*) FROM tasks WHERE status != "done" AND due_date < ?', (today,)).fetchone()[0]
+    open_tasks = conn.execute('SELECT COUNT(*) FROM tasks WHERE status NOT IN ("done")').fetchone()[0]
+    overdue_tasks = conn.execute('SELECT COUNT(*) FROM tasks WHERE status NOT IN ("done","pending_close") AND due_date < ?', (today,)).fetchone()[0]
+    due_today = conn.execute('SELECT COUNT(*) FROM tasks WHERE status NOT IN ("done") AND due_date = ?', (today,)).fetchone()[0]
+    pending_close = conn.execute('SELECT COUNT(*) FROM tasks WHERE status = "pending_close"').fetchone()[0]
+    urgent_tasks = conn.execute('''SELECT t.*, u.name as assigned_name FROM tasks t
+        LEFT JOIN users u ON t.assigned_to=u.id
+        WHERE t.status NOT IN ("done") AND (
+            t.priority IN ("urgent","high") OR t.due_date <= ?
+        ) ORDER BY CASE t.priority WHEN "urgent" THEN 1 WHEN "high" THEN 2 ELSE 3 END, t.due_date LIMIT 8''',
+        (today + timedelta(days=2),)).fetchall()
     conn.close()
     return render_template('dashboard.html',
         total_companies=total, active_companies=active,
@@ -351,7 +365,9 @@ def dashboard():
         expiring_30_eid=expiring_30_eid, expired_eid=expired_eid,
         risk_breakdown=risk_breakdown, doc_breakdown=doc_breakdown,
         kyc_data=kyc_data, urgent_companies=urgent,
-        open_tasks=open_tasks, overdue_tasks=overdue_tasks, today=str(today))
+        open_tasks=open_tasks, overdue_tasks=overdue_tasks,
+        due_today=due_today, pending_close=pending_close,
+        urgent_tasks=urgent_tasks, today=str(today), days_left=days_left)
 
 # ── COMPANIES ───────────────────────────────────────────────
 
@@ -383,6 +399,7 @@ def companies():
             type_of_client=c['type_of_client'],mode_of_ac=c['mode_of_ac'],mobile=c['mobile'],
             whatsapp_number=c['whatsapp_number'],risk_status=c['risk_status'],ac_status=c['ac_status'],
             doc_status=c['doc_status'],kyc_status=c['kyc_status'],
+            account_manager=c['account_manager'],contact_person_name=c['contact_person_name'],
             trade_license_expiry=c['trade_license_expiry'],tl_days=tl,tl_status=expiry_status(tl),
             address_proof_expiry=c['address_proof_expiry'],ap_days=ap,ap_status=expiry_status(ap)))
     return render_template('companies.html', companies=cl, search=search,
@@ -778,6 +795,98 @@ def api_delete_document(doc_id):
         conn.execute('DELETE FROM documents WHERE id=?', (doc_id,))
         conn.commit(); conn.close()
         return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/export/template')
+@compliance_required
+def export_template():
+    if not OPENPYXL_AVAILABLE:
+        return "openpyxl not installed", 500
+    import openpyxl
+    from io import BytesIO
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Companies"
+    headers = ['ac_code','client_name','ac_opening_date','ac_status','nature','type_of_client',
+               'name_of_freezone','mode_of_ac','country_of_incorporation','region','address',
+               'telephone','mobile','whatsapp_number','email_id','contact_person_name',
+               'contact_person_number','account_manager','address_proof_type','address_proof_expiry',
+               'trade_license_no','issuing_authority','legal_type','incorporation_date',
+               'trade_license_expiry','tax_no_trn','vat_cert','vat_declaration','num_beneficial_owners',
+               'moa','pep','undertaking','source_of_fund','doc_status','risk_status',
+               'kyc_status','verified_by','followup_details','zewer_comments']
+    ws.append(headers)
+    # Add a sample row
+    ws.append(['TJ5003','SAMPLE COMPANY LLC','2020-01-01','Active','Legal entity','MainLand',
+               'N/A','Supplier','United Arab Emirates','Dubai','Unit 101, Gold Souq, Dubai',
+               '+97142258019','+971506594165','+971506594165','info@sample.com',
+               'Ahmed Ali','+971501234567','Jaseel','Ejari','2025-12-31',
+               '534230','Dubai Economy & Tourism','Limited Liability Company(LLC)','2019-06-01',
+               '2025-12-31','100003063300003','Yes','Yes',2,
+               'Yes','Yes','Yes','Yes','Completed','Medium',
+               'Kyc 2025 Updated','Jaseel','',''])
+    out = BytesIO()
+    wb.save(out)
+    out.seek(0)
+    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True, download_name='zewer_company_template.xlsx')
+
+@app.route('/api/import/companies', methods=['POST'])
+@compliance_required
+def api_import_companies():
+    if not OPENPYXL_AVAILABLE:
+        return jsonify({'success': False, 'error': 'openpyxl not installed'}), 500
+    import openpyxl
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file'}), 400
+    file = request.files['file']
+    try:
+        wb = openpyxl.load_workbook(file)
+        ws = wb.active
+        headers = [str(c.value).strip() if c.value else '' for c in ws[1]]
+        imported = 0; skipped = 0
+        conn = get_db()
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if not any(row): continue
+            row_data = {headers[i]: (str(row[i]).strip() if row[i] is not None else '') for i in range(min(len(headers),len(row)))}
+            ac_code = row_data.get('ac_code','').strip()
+            client_name = row_data.get('client_name','').strip()
+            if not ac_code or not client_name: continue
+            existing = conn.execute('SELECT id FROM companies WHERE ac_code=?', (ac_code,)).fetchone()
+            if existing: skipped += 1; continue
+            try:
+                conn.execute('''INSERT INTO companies (ac_code,client_name,ac_opening_date,ac_status,nature,
+                    type_of_client,name_of_freezone,mode_of_ac,country_of_incorporation,region,address,
+                    telephone,mobile,whatsapp_number,email_id,contact_person_name,contact_person_number,
+                    account_manager,address_proof_type,address_proof_expiry,trade_license_no,issuing_authority,
+                    legal_type,incorporation_date,trade_license_expiry,tax_no_trn,vat_cert,vat_declaration,
+                    num_beneficial_owners,moa,pep,undertaking,source_of_fund,doc_status,risk_status,
+                    kyc_status,verified_by,followup_details,zewer_comments,created_by)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+                    (ac_code,client_name,
+                     row_data.get('ac_opening_date') or None, row_data.get('ac_status','Active'),
+                     row_data.get('nature'), row_data.get('type_of_client'), row_data.get('name_of_freezone'),
+                     row_data.get('mode_of_ac'), row_data.get('country_of_incorporation'), row_data.get('region'),
+                     row_data.get('address'), row_data.get('telephone'), row_data.get('mobile'),
+                     row_data.get('whatsapp_number'), row_data.get('email_id'),
+                     row_data.get('contact_person_name'), row_data.get('contact_person_number'),
+                     row_data.get('account_manager'),
+                     row_data.get('address_proof_type'), row_data.get('address_proof_expiry') or None,
+                     row_data.get('trade_license_no'), row_data.get('issuing_authority'),
+                     row_data.get('legal_type'), row_data.get('incorporation_date') or None,
+                     row_data.get('trade_license_expiry') or None, row_data.get('tax_no_trn'),
+                     row_data.get('vat_cert'), row_data.get('vat_declaration'),
+                     int(row_data.get('num_beneficial_owners') or 0),
+                     row_data.get('moa'), row_data.get('pep'), row_data.get('undertaking'),
+                     row_data.get('source_of_fund'), row_data.get('doc_status','Incompleted'),
+                     row_data.get('risk_status','Unspecified'), row_data.get('kyc_status'),
+                     row_data.get('verified_by'), row_data.get('followup_details'),
+                     row_data.get('zewer_comments'), session.get('user_id')))
+                imported += 1
+            except Exception: skipped += 1
+        conn.commit(); conn.close()
+        return jsonify({'success': True, 'imported': imported, 'skipped': skipped})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

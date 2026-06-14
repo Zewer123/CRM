@@ -2,160 +2,204 @@
 {% block title %}Companies - Zewer AML{% endblock %}
 
 {% block content %}
-<div style="padding:20px 0;">
-
-  <!-- HEADER -->
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-    <h1 style="margin:0;font-size:22px;color:#f1f5f9;">🏢 Companies</h1>
-    <a href="{{ url_for('company_new') }}" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;text-decoration:none;padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;">+ Add Company</a>
-  </div>
-
-  <!-- FILTERS -->
-  <form method="GET" style="background:#1e293b;border-radius:12px;padding:16px;margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
-    <div style="flex:2;min-width:200px;">
-      <label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px;">SEARCH</label>
-      <input type="text" name="search" value="{{ search }}" placeholder="Name, AC Code, Mobile, Trade License..."
-        style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#f1f5f9;padding:8px 12px;font-size:14px;box-sizing:border-box;">
-    </div>
-    <div style="min-width:130px;">
-      <label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px;">RISK</label>
-      <select name="risk" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#f1f5f9;padding:8px 12px;font-size:14px;">
-        <option value="">All Risk</option>
-        {% for r in ['High','Medium','Low','Unspecified'] %}
-        <option value="{{ r }}" {% if risk_filter == r %}selected{% endif %}>{{ r }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div style="min-width:130px;">
-      <label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px;">STATUS</label>
-      <select name="status" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#f1f5f9;padding:8px 12px;font-size:14px;">
-        <option value="">All Status</option>
-        <option value="Active" {% if status_filter == 'Active' %}selected{% endif %}>Active</option>
-        <option value="Inactive" {% if status_filter == 'Inactive' %}selected{% endif %}>Inactive</option>
-      </select>
-    </div>
-    <div style="min-width:130px;">
-      <label style="font-size:11px;color:#94a3b8;display:block;margin-bottom:4px;">REGION</label>
-      <select name="region" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#f1f5f9;padding:8px 12px;font-size:14px;">
-        <option value="">All Regions</option>
-        {% for r in regions %}
-        <option value="{{ r }}" {% if region_filter == r %}selected{% endif %}>{{ r }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <button type="submit" style="background:#7c3aed;color:#fff;border:none;padding:9px 20px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;">🔍 Filter</button>
-    <a href="{{ url_for('companies') }}" style="color:#94a3b8;text-decoration:none;padding:9px 16px;font-size:13px;">Clear</a>
-  </form>
-
-  <!-- COUNT + EXPORT -->
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-    <span style="color:#94a3b8;font-size:13px;">{{ companies|length }} companies found</span>
-    <a href="{{ url_for('export_companies') }}" style="color:#a78bfa;text-decoration:none;font-size:13px;">⬇️ Export CSV</a>
-  </div>
-
-  <!-- TABLE -->
-  <div style="overflow-x:auto;background:#1e293b;border-radius:12px;">
-    <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead>
-        <tr style="border-bottom:1px solid #334155;">
-          <th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;white-space:nowrap;">AC CODE</th>
-          <th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;">CLIENT NAME</th>
-          <th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;">REGION</th>
-          <th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;">TYPE / MODE</th>
-          <th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;">RISK</th>
-          <th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;white-space:nowrap;">TRADE LIC. EXPIRY</th>
-          <th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;white-space:nowrap;">ADDR PROOF EXP.</th>
-          <th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;">KYC</th>
-          <th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;">DOC</th>
-          <th style="padding:12px 16px;text-align:left;color:#64748b;font-weight:600;">ACTIONS</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for c in companies %}
-        <tr style="border-bottom:1px solid #1a2744;transition:background 0.15s;" onmouseover="this.style.background='#0f172a'" onmouseout="this.style.background=''">
-          <td style="padding:12px 16px;">
-            <a href="{{ url_for('company_detail', id=c.id) }}" style="color:#a78bfa;text-decoration:none;font-weight:600;">{{ c.ac_code }}</a>
-            {% if c.ac_status == 'Inactive' %}
-            <span style="font-size:10px;background:#374151;color:#9ca3af;padding:1px 6px;border-radius:4px;margin-left:4px;">INACTIVE</span>
-            {% endif %}
-          </td>
-          <td style="padding:12px 16px;color:#f1f5f9;font-weight:500;">{{ c.client_name }}</td>
-          <td style="padding:12px 16px;color:#94a3b8;">{{ c.region or '-' }}</td>
-          <td style="padding:12px 16px;color:#94a3b8;">
-            <div>{{ c.type_of_client or '-' }}</div>
-            <div style="font-size:11px;color:#64748b;">{{ c.mode_of_ac or '' }}</div>
-          </td>
-          <td style="padding:12px 16px;">
-            {% set risk = c.risk_status or 'Unspecified' %}
-            <span style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;
-              {% if risk == 'High' %}background:#7f1d1d;color:#fca5a5;
-              {% elif risk == 'Medium' %}background:#78350f;color:#fcd34d;
-              {% elif risk == 'Low' %}background:#14532d;color:#86efac;
-              {% else %}background:#1e293b;color:#64748b;{% endif %}">
-              {{ risk }}
-            </span>
-          </td>
-          <td style="padding:12px 16px;">
-            {% if c.trade_license_expiry %}
-              {% set tl_style = '' %}
-              {% if c.tl_status == 'expired' %}{% set tl_style = 'color:#f87171' %}
-              {% elif c.tl_status == 'critical' %}{% set tl_style = 'color:#fb923c' %}
-              {% elif c.tl_status == 'warning' %}{% set tl_style = 'color:#fbbf24' %}
-              {% else %}{% set tl_style = 'color:#4ade80' %}{% endif %}
-            <div style="{{ tl_style }};font-weight:500;">{{ c.trade_license_expiry[:10] }}</div>
-            <div style="font-size:11px;{{ tl_style }}">
-              {% if c.tl_days is not none %}
-                {% if c.tl_days < 0 %}EXPIRED {{ c.tl_days|abs }} days ago
-                {% else %}{{ c.tl_days }} days left{% endif %}
-              {% endif %}
-            </div>
-            {% else %}<span style="color:#475569;">—</span>{% endif %}
-          </td>
-          <td style="padding:12px 16px;">
-            {% if c.address_proof_expiry %}
-              {% set ap_style = '' %}
-              {% if c.ap_status == 'expired' %}{% set ap_style = 'color:#f87171' %}
-              {% elif c.ap_status == 'critical' %}{% set ap_style = 'color:#fb923c' %}
-              {% elif c.ap_status == 'warning' %}{% set ap_style = 'color:#fbbf24' %}
-              {% else %}{% set ap_style = 'color:#4ade80' %}{% endif %}
-            <div style="{{ ap_style }};font-weight:500;">{{ c.address_proof_expiry[:10] }}</div>
-            <div style="font-size:11px;{{ ap_style }}">
-              {% if c.ap_days is not none %}
-                {% if c.ap_days < 0 %}EXPIRED {{ c.ap_days|abs }} days ago
-                {% else %}{{ c.ap_days }} days left{% endif %}
-              {% endif %}
-            </div>
-            {% else %}<span style="color:#475569;">—</span>{% endif %}
-          </td>
-          <td style="padding:12px 16px;color:#94a3b8;font-size:12px;">{{ c.kyc_status or '—' }}</td>
-          <td style="padding:12px 16px;">
-            <span style="font-size:11px;padding:2px 8px;border-radius:5px;
-              {% if c.doc_status == 'Completed' %}background:#14532d;color:#86efac;
-              {% else %}background:#7f1d1d;color:#fca5a5;{% endif %}">
-              {{ c.doc_status or '—' }}
-            </span>
-          </td>
-          <td style="padding:12px 16px;">
-            <div style="display:flex;gap:8px;align-items:center;">
-              <a href="{{ url_for('company_detail', id=c.id) }}" style="color:#a78bfa;text-decoration:none;font-size:18px;" title="View">👁️</a>
-              <a href="{{ url_for('company_edit', id=c.id) }}" style="color:#60a5fa;text-decoration:none;font-size:18px;" title="Edit">✏️</a>
-              {% if c.whatsapp_number %}
-              <a href="https://wa.me/{{ c.whatsapp_number }}" target="_blank" style="text-decoration:none;font-size:18px;" title="WhatsApp">💬</a>
-              {% elif c.mobile %}
-              <a href="https://wa.me/{{ c.mobile | replace('+','') | replace(' ','') | replace('-','') }}" target="_blank" style="text-decoration:none;font-size:18px;" title="WhatsApp">💬</a>
-              {% endif %}
-            </div>
-          </td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="10" style="padding:40px;text-align:center;color:#475569;">
-            No companies found. <a href="{{ url_for('company_new') }}" style="color:#a78bfa;">Add one?</a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<div class="page-header">
+  <div class="page-title">🏢 Companies</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a href="{{ url_for('export_companies') }}" class="btn btn-ghost btn-sm">⬇️ Export CSV</a>
+    <button class="btn btn-ghost btn-sm" onclick="downloadTemplate()">📋 Template</button>
+    <button class="btn btn-ghost btn-sm" onclick="openModal('importModal')">⬆️ Import</button>
+    <a href="{{ url_for('company_new') }}" class="btn btn-primary btn-sm">+ Add Company</a>
   </div>
 </div>
+
+<!-- FILTERS -->
+<div class="search-bar" style="margin-bottom:16px;">
+  <div class="form-group search-input">
+    <label>SEARCH</label>
+    <input type="text" id="searchInput" value="{{ search }}" placeholder="Name, AC Code, Mobile, Trade License..."
+      onkeydown="if(event.key==='Enter') applyFilters()">
+  </div>
+  <div class="form-group" style="min-width:120px;">
+    <label>RISK</label>
+    <select id="riskFilter" onchange="applyFilters()">
+      <option value="">All</option>
+      {% for r in ['High','Medium','Low','Unspecified'] %}
+      <option value="{{ r }}" {% if risk_filter==r %}selected{% endif %}>{{ r }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-group" style="min-width:110px;">
+    <label>STATUS</label>
+    <select id="statusFilter" onchange="applyFilters()">
+      <option value="">All</option>
+      <option value="Active" {% if status_filter=='Active' %}selected{% endif %}>Active</option>
+      <option value="Inactive" {% if status_filter=='Inactive' %}selected{% endif %}>Inactive</option>
+    </select>
+  </div>
+  <div class="form-group" style="min-width:120px;">
+    <label>REGION</label>
+    <select id="regionFilter" onchange="applyFilters()">
+      <option value="">All</option>
+      {% for r in regions %}
+      <option value="{{ r }}" {% if region_filter==r %}selected{% endif %}>{{ r }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear</button>
+</div>
+
+<div style="color:var(--text-dim);font-size:12px;margin-bottom:10px;">{{ companies|length }} companies</div>
+
+<!-- COMPANY CARDS -->
+<div style="display:flex;flex-direction:column;gap:8px;">
+  {% for c in companies %}
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:16px;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+
+    <!-- AC CODE + STATUS -->
+    <div style="min-width:90px;text-align:center;">
+      <div style="font-size:12px;font-weight:700;color:var(--primary-light);">{{ c.ac_code }}</div>
+      <span class="badge {% if c.ac_status=='Active' %}badge-active{% else %}badge-inactive{% endif %}" style="font-size:10px;margin-top:3px;">{{ c.ac_status }}</span>
+    </div>
+
+    <!-- COMPANY NAME + ACCOUNT MANAGER -->
+    <div style="flex:2;min-width:160px;">
+      <div style="font-weight:600;color:var(--text);font-size:14px;">{{ c.client_name }}</div>
+      {% if c.account_manager %}
+      <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">👤 {{ c.account_manager }}</div>
+      {% endif %}
+      {% if c.contact_person_name %}
+      <div style="font-size:11px;color:var(--text-dim);">📞 {{ c.contact_person_name }}</div>
+      {% endif %}
+    </div>
+
+    <!-- DOC COMPLETION BAR -->
+    <div style="min-width:100px;text-align:center;">
+      {% set doc_pct = 100 if c.doc_status == 'Completed' else 40 %}
+      <div style="font-size:10px;color:var(--text-dim);margin-bottom:4px;">DOCS</div>
+      <div style="width:80px;height:8px;background:var(--bg);border-radius:10px;overflow:hidden;margin:0 auto;">
+        <div style="height:8px;border-radius:10px;width:{{ doc_pct }}%;background:{% if doc_pct==100 %}#4ade80{% else %}#f87171{% endif %};"></div>
+      </div>
+      <div style="font-size:10px;margin-top:3px;color:{% if doc_pct==100 %}#4ade80{% else %}#f87171{% endif %};">
+        {% if c.doc_status == 'Completed' %}✅ Done{% else %}⚠️ Pending{% endif %}
+      </div>
+    </div>
+
+    <!-- RISK -->
+    <div style="min-width:70px;text-align:center;">
+      {% set risk = c.risk_status or 'Unspecified' %}
+      <span class="badge badge-{{ risk.lower() }}">{{ risk }}</span>
+    </div>
+
+    <!-- TRADE LIC EXPIRY -->
+    <div style="min-width:110px;text-align:center;">
+      <div style="font-size:10px;color:var(--text-dim);margin-bottom:2px;">TRADE LIC</div>
+      {% if c.trade_license_expiry %}
+      <div style="font-size:12px;font-weight:600;
+        {% if c.tl_status=='expired' %}color:#f87171{% elif c.tl_status=='critical' %}color:#fb923c{% elif c.tl_status=='warning' %}color:#fbbf24{% else %}color:#4ade80{% endif %}">
+        {{ c.trade_license_expiry[:10] }}
+      </div>
+      <div style="font-size:10px;{% if c.tl_status=='expired' %}color:#f87171{% elif c.tl_status=='critical' %}color:#fb923c{% elif c.tl_status=='warning' %}color:#fbbf24{% else %}color:#4ade80{% endif %}">
+        {% if c.tl_days is not none %}{% if c.tl_days < 0 %}EXPIRED {{ c.tl_days|abs }}d{% else %}{{ c.tl_days }}d left{% endif %}{% endif %}
+      </div>
+      {% else %}<div style="font-size:12px;color:var(--text-dim);">—</div>{% endif %}
+    </div>
+
+    <!-- ACTIONS -->
+    <div style="display:flex;gap:6px;align-items:center;margin-left:auto;">
+      {% set wa = c.whatsapp_number or c.mobile %}
+      {% if wa %}
+      <a href="https://wa.me/{{ wa|replace('+','')|replace(' ','')|replace('-','') }}" target="_blank"
+         class="btn btn-wa btn-sm btn-icon" title="WhatsApp">💬</a>
+      {% endif %}
+      <a href="{{ url_for('company_detail', id=c.id) }}" class="btn btn-ghost btn-sm btn-icon" title="View">👁️</a>
+      <a href="{{ url_for('company_edit', id=c.id) }}" class="btn btn-ghost btn-sm btn-icon" title="Edit">✏️</a>
+      <button class="btn btn-danger btn-sm btn-icon" onclick="deleteCompany({{ c.id }}, '{{ c.client_name|replace("'","\\'") }}')" title="Delete">🗑️</button>
+    </div>
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:60px;color:var(--text-dim);">
+    No companies found. <a href="{{ url_for('company_new') }}" style="color:var(--primary-light);">Add one?</a>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal-box">
+    <div class="modal-title">⬆️ Import Companies from Excel</div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--text-muted);line-height:1.7;">
+      <strong style="color:var(--text);">Instructions:</strong><br>
+      1. Download the Excel template first<br>
+      2. Fill in company details (AC Code and Client Name are required)<br>
+      3. Upload the completed file below<br>
+      <span style="color:#fbbf24;">⚠️ Duplicate AC Codes will be skipped</span>
+    </div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label>Excel File (.xlsx)</label>
+      <input type="file" id="importFile" accept=".xlsx,.xls"
+        style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px;">
+    </div>
+    <div id="importStatus" style="display:none;font-size:13px;padding:10px;border-radius:6px;margin-bottom:12px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('importModal')">Cancel</button>
+      <button class="btn btn-ghost" onclick="downloadTemplate()">📋 Download Template</button>
+      <button class="btn btn-primary" onclick="importCompanies()">Import</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function applyFilters() {
+  const s = document.getElementById('searchInput').value;
+  const r = document.getElementById('riskFilter').value;
+  const st = document.getElementById('statusFilter').value;
+  const rg = document.getElementById('regionFilter').value;
+  const params = new URLSearchParams();
+  if (s) params.set('search', s);
+  if (r) params.set('risk', r);
+  if (st) params.set('status', st);
+  if (rg) params.set('region', rg);
+  window.location.href = '/companies?' + params.toString();
+}
+function clearFilters() { window.location.href = '/companies'; }
+
+function deleteCompany(id, name) {
+  if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+  fetch(`/api/company/${id}/delete`, {method:'POST'})
+    .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
+}
+
+function downloadTemplate() {
+  window.location.href = '/export/template';
+}
+
+function importCompanies() {
+  const file = document.getElementById('importFile').files[0];
+  if (!file) { alert('Please select an Excel file'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  const status = document.getElementById('importStatus');
+  status.style.display = 'block';
+  status.style.background = 'var(--surface2)';
+  status.style.color = 'var(--text-muted)';
+  status.textContent = '⏳ Importing...';
+  fetch('/api/import/companies', {method:'POST', body:fd})
+    .then(r=>r.json())
+    .then(d => {
+      if (d.success) {
+        status.style.background = 'var(--success-bg)';
+        status.style.color = '#86efac';
+        status.textContent = `✅ Imported ${d.imported} companies. ${d.skipped} skipped (duplicates).`;
+        setTimeout(() => { closeModal('importModal'); location.reload(); }, 2000);
+      } else {
+        status.style.background = 'var(--danger-bg)';
+        status.style.color = '#fca5a5';
+        status.textContent = '❌ Error: ' + d.error;
+      }
+    })
+    .catch(e => { status.style.color='#fca5a5'; status.textContent='Error: '+e; });
+}
+</script>
 {% endblock %}
