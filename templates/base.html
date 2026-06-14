@@ -26,7 +26,19 @@
       <a href="{{ url_for('tasks') }}" class="navbar-link {% if request.endpoint in ['tasks'] %}active{% endif %}">✅ Tasks</a>
     </div>
 
-    <div class="navbar-right">
+    <div class="navbar-right" style="display:flex;align-items:center;gap:12px;">
+      <!-- THEME SWITCHER -->
+      <div style="display:flex;gap:6px;align-items:center;" title="Change theme">
+        <button onclick="setTheme('')" id="theme-btn-gold"
+          style="width:18px;height:18px;border-radius:50%;background:#d97706;border:2px solid transparent;cursor:pointer;transition:all 0.2s;"
+          title="Gold theme"></button>
+        <button onclick="setTheme('theme-blue')" id="theme-btn-blue"
+          style="width:18px;height:18px;border-radius:50%;background:#3b82f6;border:2px solid transparent;cursor:pointer;transition:all 0.2s;"
+          title="Blue theme"></button>
+        <button onclick="setTheme('theme-green')" id="theme-btn-green"
+          style="width:18px;height:18px;border-radius:50%;background:#22c55e;border:2px solid transparent;cursor:pointer;transition:all 0.2s;"
+          title="Green theme"></button>
+      </div>
       <div class="user-dropdown">
         <button class="user-btn" onclick="toggleMenu()" type="button">
           <div class="user-info">
@@ -56,6 +68,29 @@
   </div>
 
   <script>
+    // ── THEME ──────────────────────────────────────────────
+    function setTheme(cls) {
+      document.body.className = cls;
+      localStorage.setItem('zewer-theme', cls);
+      document.querySelectorAll('[id^="theme-btn-"]').forEach(b => b.style.borderColor = 'transparent');
+      const map = {'':'theme-btn-gold','theme-blue':'theme-btn-blue','theme-green':'theme-btn-green'};
+      const btn = document.getElementById(map[cls]);
+      if (btn) btn.style.borderColor = '#fff';
+    }
+    (function() {
+      const t = localStorage.getItem('zewer-theme') || '';
+      setTheme(t);
+    })();
+
+    // ── BACK BUTTON ─────────────────────────────────────────
+    function goBack(fallback) {
+      if (document.referrer && document.referrer !== window.location.href) {
+        history.back();
+      } else {
+        window.location.href = fallback || '/companies';
+      }
+    }
+
     function toggleMenu() {
       const m = document.getElementById('userMenu');
       m.style.display = m.style.display === 'block' ? 'none' : 'block';
@@ -81,3 +116,4 @@
   {% block scripts %}{% endblock %}
 </body>
 </html>
+
