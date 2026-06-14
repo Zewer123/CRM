@@ -376,6 +376,30 @@ def logout(): session.clear(); return redirect(url_for('login'))
 @app.route('/dashboard')
 @login_required
 def dashboard():
+    # Staff get their own task dashboard
+    if session.get('user_role') == 'staff':
+        uid = session.get('user_id')
+        conn = get_db()
+        today = datetime.now().date()
+        my_tasks = all_(conn, '''SELECT t.*,c.client_name as company_name,c.ac_code
+            FROM tasks t LEFT JOIN companies c ON t.company_id=c.id
+            WHERE t.assigned_to=? AND t.status NOT IN ('done')
+            ORDER BY CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3 ELSE 4 END,t.due_date''', (uid,))
+        tl = []
+        for t in my_tasks:
+            d = days_left(t['due_date'])
+            tl.append({**t,'priority':t['priority'] or 'normal','status':t['status'] or 'todo',
+                       'due_date':str(t['due_date']) if t['due_date'] else None,
+                       'days_until_due':d,'is_overdue':(d is not None and d<0)})
+        todo_c = sum(1 for t in tl if t['status']=='todo')
+        inprog_c = sum(1 for t in tl if t['status']=='inprogress')
+        pending_c = sum(1 for t in tl if t['status']=='pending_close')
+        overdue_c = sum(1 for t in tl if t['is_overdue'])
+        conn.close()
+        return render_template('staff_dashboard.html', my_tasks=tl,
+            todo_count=todo_c, inprogress_count=inprog_c,
+            pending_count=pending_c, overdue_count=overdue_c, today=str(today))
+
     conn=get_db(); today=datetime.now().date()
     def c(sql,p=None): return cnt(conn,sql,p or [])
     total=c('SELECT COUNT(*) FROM companies')
@@ -754,7 +778,7 @@ def tasks():
         LEFT JOIN users cu ON t.created_by=cu.id
         LEFT JOIN companies c ON t.company_id=c.id'''
     order=" ORDER BY CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3 ELSE 4 END,t.due_date"
-    rows=all_(conn,base+(' WHERE t.assigned_to=?' if role=='staff' else '')+order,(uid,) if role=='staff' else None)
+    rows=all_(conn,base+order)  # all roles see all tasks; staff filter is in template UI
     users=all_(conn,'SELECT id,name,role,mobile FROM users WHERE is_active=1 ORDER BY name')
     cos=all_(conn,'SELECT id,ac_code,client_name FROM companies ORDER BY client_name')
     tmpls=all_(conn,"SELECT value,description FROM dropdowns WHERE field_name='TASK TEMPLATE' AND is_active=1 ORDER BY value")
@@ -804,6 +828,8 @@ def api_task_status(id):
 @app.route('/api/task/<int:id>/delete',methods=['POST'])
 @login_required
 def api_delete_task(id):
+    if session.get('user_role') == 'staff':
+        return jsonify({'success':False,'error':'Staff cannot delete tasks'}),403
     try:
         conn=get_db(); x(conn,'DELETE FROM tasks WHERE id=?',(id,))
         commit(conn); conn.close(); return jsonify({'success':True})
@@ -1310,3 +1336,4 @@ def api_export_company_docs(cid):
     fname = f"{co['ac_code']}_documents.xlsx"
     return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                      as_attachment=True, download_name=fname)
+
