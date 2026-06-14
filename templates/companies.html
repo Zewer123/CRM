@@ -52,7 +52,7 @@
 <!-- COLUMN HEADERS -->
 <div style="display:grid;grid-template-columns:90px 1fr 80px 80px 140px 130px;gap:0;padding:6px 16px;margin-bottom:4px;align-items:center;">
   <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">AC Code</div>
-  <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Company / Manager</div>
+  <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Company / Contact</div>
   <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;text-align:center;">Docs</div>
   <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;text-align:center;">Risk</div>
   <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;text-align:center;">Trade Lic. Expiry</div>
@@ -81,14 +81,16 @@
       </div>
     </div>
 
-    <!-- COMPANY / MANAGER -->
+    <!-- COMPANY / CONTACT -->
     <div style="padding-right:12px;">
       <div style="font-weight:600;color:var(--text);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.client_name }}</div>
-      {% if c.account_manager %}
-      <div style="font-size:11px;color:var(--primary);margin-top:2px;">👤 {{ c.account_manager }}</div>
+      {% if c.contact_person_name %}
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">👤 {{ c.contact_person_name }}{% if c.mobile %} · {{ c.mobile }}{% endif %}</div>
+      {% elif c.mobile %}
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">📱 {{ c.mobile }}</div>
       {% endif %}
-      {% if c.mobile %}
-      <div style="font-size:11px;color:var(--text-dim);">📱 {{ c.mobile }}</div>
+      {% if c.account_manager %}
+      <div style="font-size:11px;color:var(--primary);">🗂 Mgr: {{ c.account_manager }}</div>
       {% endif %}
       {% if c.email_id %}
       <div style="font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">✉️ {{ c.email_id }}</div>
@@ -284,4 +286,5 @@ function importCompanies() {
 }
 </script>
 {% endblock %}
+
 
