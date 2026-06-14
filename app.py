@@ -1029,7 +1029,7 @@ def api_import_companies():
     if 'file' not in request.files: return jsonify({'success':False,'error':'No file'}),400
     try:
         wb=openpyxl.load_workbook(request.files['file']); ws=wb.active
-        headers=[str(c.value).strip() if c.value else '' for c in ws[1]]
+        headers=[str(c.value).strip().lower().replace(' ','_') if c.value else '' for c in ws[1]]
         imported=0; skipped=0; conn=get_db()
         for row in ws.iter_rows(min_row=2,values_only=True):
             if not any(row): continue
