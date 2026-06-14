@@ -101,8 +101,8 @@
           <td><a href="{{ url_for('company_detail', id=c.id) }}" style="color:var(--primary-light);text-decoration:none;font-weight:600;">{{ c.ac_code }}</a></td>
           <td style="color:var(--text);">{{ c.client_name }}</td>
           <td><span class="badge badge-{{ (c.risk_status or 'Unspecified').lower() }}">{{ c.risk_status or '—' }}</span></td>
-          <td><span class="{% if tld is not none and tld < 0 %}exp-expired{% elif tld is not none and tld <= 30 %}exp-critical{% else %}exp-warning{% endif %}">{{ c.trade_license_expiry[:10] if c.trade_license_expiry else '—' }}{% if tld is not none %} ({% if tld < 0 %}EXP {% endif %}{{ tld|abs }}d){% endif %}</span></td>
-          <td><span class="{% if apd is not none and apd < 0 %}exp-expired{% elif apd is not none and apd <= 30 %}exp-critical{% else %}exp-warning{% endif %}">{{ c.address_proof_expiry[:10] if c.address_proof_expiry else '—' }}{% if apd is not none %} ({% if apd < 0 %}EXP {% endif %}{{ apd|abs }}d){% endif %}</span></td>
+          <td><span class="{% if tld is not none and tld < 0 %}exp-expired{% elif tld is not none and tld <= 30 %}exp-critical{% else %}exp-warning{% endif %}">{{ c.trade_license_expiry|string|truncate(10,True,'') if c.trade_license_expiry else '—' }}{% if tld is not none %} ({% if tld < 0 %}EXP {% endif %}{{ tld|abs }}d){% endif %}</span></td>
+          <td><span class="{% if apd is not none and apd < 0 %}exp-expired{% elif apd is not none and apd <= 30 %}exp-critical{% else %}exp-warning{% endif %}">{{ c.address_proof_expiry|string|truncate(10,True,'') if c.address_proof_expiry else '—' }}{% if apd is not none %} ({% if apd < 0 %}EXP {% endif %}{{ apd|abs }}d){% endif %}</span></td>
           <td>{% set wa = c.whatsapp_number or c.mobile %}{% if wa %}<a href="https://wa.me/{{ wa|replace('+','')|replace(' ','')|replace('-','') }}" target="_blank" class="btn btn-wa btn-sm" style="padding:3px 10px;font-size:12px;">💬</a>{% endif %}</td>
         </tr>
         {% endfor %}
@@ -159,7 +159,7 @@
             {% if t.due_date %}
             {% set d = days_left(t.due_date) %}
             <span class="{% if d is not none and d < 0 %}exp-expired{% elif d is not none and d <= 1 %}exp-critical{% else %}exp-warning{% endif %}">
-              {{ t.due_date[:10] }}{% if d is not none %} ({% if d < 0 %}{{ d|abs }}d overdue{% elif d == 0 %}today{% else %}{{ d }}d{% endif %}){% endif %}
+              {{ t.due_date|string|truncate(10,True,'') }}{% if d is not none %} ({% if d < 0 %}{{ d|abs }}d overdue{% elif d == 0 %}today{% else %}{{ d }}d{% endif %}){% endif %}
             </span>
             {% else %}—{% endif %}
           </td>

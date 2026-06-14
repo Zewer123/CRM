@@ -359,19 +359,32 @@ def dashboard():
     risk_bd={r['risk_status']:r['c'] for r in risk_rows}
     doc_rows=all_(conn,'SELECT doc_status,COUNT(*) as c FROM companies GROUP BY doc_status')
     doc_bd={r['doc_status']:r['c'] for r in doc_rows}
-    urgent=all_(conn,'''SELECT id,ac_code,client_name,trade_license_expiry,address_proof_expiry,
+    urgent_raw=all_(conn,'''SELECT id,ac_code,client_name,trade_license_expiry,address_proof_expiry,
         risk_status,mobile,whatsapp_number FROM companies
         WHERE (trade_license_expiry BETWEEN ? AND ?) OR (address_proof_expiry BETWEEN ? AND ?)
         ORDER BY trade_license_expiry LIMIT 10''',(today,today+timedelta(days=90),today,today+timedelta(days=90)))
+    # Convert date objects to strings for template compatibility
+    urgent = []
+    for r in urgent_raw:
+        row = dict(r)
+        row['trade_license_expiry'] = str(row['trade_license_expiry'])[:10] if row.get('trade_license_expiry') else None
+        row['address_proof_expiry'] = str(row['address_proof_expiry'])[:10] if row.get('address_proof_expiry') else None
+        urgent.append(row)
     otasks=c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done')")
     overtasks=c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done','pending_close') AND due_date<?", (today,))
     dtasks=c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done') AND due_date=?", (today,))
     ptasks=c("SELECT COUNT(*) FROM tasks WHERE status='pending_close'")
-    utasks=all_(conn,"""SELECT t.*,u.name as assigned_name FROM tasks t
-        LEFT JOIN users u ON t.assigned_to=u.id
+    utasks_raw=all_(conn,"""SELECT t.id,t.title,t.priority,t.status,t.due_date,u.name as assigned_name
+        FROM tasks t LEFT JOIN users u ON t.assigned_to=u.id
         WHERE t.status NOT IN ('done') AND (t.priority IN ('urgent','high') OR t.due_date<=?)
         ORDER BY CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 ELSE 3 END,t.due_date LIMIT 8""",
         (today+timedelta(days=2),))
+    # Convert date objects to strings
+    utasks = []
+    for t in utasks_raw:
+        row = dict(t)
+        row['due_date'] = str(row['due_date'])[:10] if row.get('due_date') else None
+        utasks.append(row)
     conn.close()
     return render_template('dashboard.html',total_companies=total,active_companies=active,
         expired_tl=etl,expiring_30_tl=e30tl,expiring_90_tl=e90tl,

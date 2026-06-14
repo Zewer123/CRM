@@ -101,7 +101,7 @@
       {% if c.trade_license_expiry %}
       <div style="font-size:12px;font-weight:600;
         {% if c.tl_status=='expired' %}color:#f87171{% elif c.tl_status=='critical' %}color:#fb923c{% elif c.tl_status=='warning' %}color:#fbbf24{% else %}color:#4ade80{% endif %}">
-        {{ c.trade_license_expiry[:10] }}
+        {{ c.trade_license_expiry|string|truncate(10,True,"") }}
       </div>
       <div style="font-size:10px;{% if c.tl_status=='expired' %}color:#f87171{% elif c.tl_status=='critical' %}color:#fb923c{% elif c.tl_status=='warning' %}color:#fbbf24{% else %}color:#4ade80{% endif %}">
         {% if c.tl_days is not none %}{% if c.tl_days < 0 %}EXPIRED {{ c.tl_days|abs }}d{% else %}{{ c.tl_days }}d left{% endif %}{% endif %}
