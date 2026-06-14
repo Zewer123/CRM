@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}Tasks - Zewer AML{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title">🔁 Regular Tasks</div>
+  {% if user_role in ['admin','compliance'] %}
+  <button class="btn btn-primary btn-sm" onclick="openModal('addTemplateModal')">+ Add Task</button>
+  {% endif %}
+</div>
+
+<!-- FREQUENCY TABS -->
+<div class="tab-bar" style="margin-bottom:20px;">
+  <button class="tab-btn active" onclick="filterFreq('all',this)">All</button>
+  <button class="tab-btn" onclick="filterFreq('daily',this)">📅 Daily</button>
+  <button class="tab-btn" onclick="filterFreq('weekly',this)">📆 Weekly</button>
+  <button class="tab-btn" onclick="filterFreq('monthly',this)">🗓️ Monthly</button>
+</div>
+
+<!-- TASK TEMPLATES -->
+<div id="taskGrid" style="display:flex;flex-direction:column;gap:10px;margin-bottom:32px;">
+  {% for t in templates %}
+  <div class="task-card" data-freq="{{ t.frequency }}"
+    style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;">
+    <div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+        <span style="font-weight:700;font-size:15px;color:var(--text);">{{ t.title }}</span>
+        <span style="font-size:11px;padding:2px 10px;border-radius:20px;font-weight:600;
+          {% if t.frequency=='daily' %}background:rgba(59,130,246,0.12);color:#93c5fd;
+          {% elif t.frequency=='weekly' %}background:rgba(168,85,247,0.12);color:#c4b5fd;
+          {% else %}background:rgba(245,158,11,0.12);color:#fcd34d;{% endif %}">
+          {{ t.frequency|upper }}
+        </span>
+        {% if t.assigned_role and t.assigned_role != 'all' %}
+        <span style="font-size:11px;color:var(--text-dim);">Role: {{ t.assigned_role }}</span>
+        {% endif %}
+      </div>
+      {% if t.description %}
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">{{ t.description }}</div>
+      {% endif %}
+      <div style="font-size:11px;color:var(--text-dim);">
+        Last logged by you:
+        {% if last_logged.get(t.id) %}
+        <span style="color:#86efac;">{{ last_logged[t.id]|string|truncate(16,True,'') }}</span>
+        {% else %}
+        <span style="color:#fca5a5;">Never</span>
+        {% endif %}
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <button class="btn btn-primary btn-sm" onclick="openLogModal({{ t.id }},'{{ t.title|replace("'","\\'") }}')">✅ Log Update</button>
+      {% if user_role in ['admin','compliance'] %}
+      <button class="btn btn-danger btn-sm btn-icon" onclick="deleteTemplate({{ t.id }})">🗑️</button>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:60px;color:var(--text-dim);background:var(--surface);border-radius:10px;border:1px solid var(--border);">
+    No regular tasks yet.{% if user_role in ['admin','compliance'] %} <a href="#" onclick="openModal('addTemplateModal');return false;" style="color:var(--primary);">Add one?</a>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<!-- UPDATE LOG -->
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div class="card-title">📝 Update Log</div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Task</th>
+          <th>Frequency</th>
+          <th>Staff</th>
+          <th>Notes</th>
+          <th>Logged At</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in logs %}
+        <tr>
+          <td style="font-weight:500;color:var(--text);">{{ l.task_title }}</td>
+          <td><span style="font-size:11px;color:var(--text-dim);">{{ (l.frequency or '').upper() }}</span></td>
+          <td style="color:var(--text-muted);">{{ l.staff_name }}</td>
+          <td style="font-size:12px;color:var(--text-dim);">{{ l.notes or '—' }}</td>
+          <td style="font-size:12px;color:var(--text-muted);">{{ l.logged_at|string|truncate(16,True,'') }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-dim);">No logs yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ADD TEMPLATE MODAL -->
+<div class="modal-overlay" id="addTemplateModal">
+  <div class="modal-box" style="max-width:500px;">
+    <div class="modal-title">➕ Add Regular Task</div>
+    <div class="form-group">
+      <label>Task Title *</label>
+      <input type="text" id="tmplTitle" placeholder="e.g. Check email alerts">
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="tmplDesc" rows="2" placeholder="What needs to be done..."></textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group">
+        <label>Frequency</label>
+        <select id="tmplFreq">
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Assigned To</label>
+        <select id="tmplRole">
+          <option value="all">All Staff</option>
+          <option value="compliance">Compliance Only</option>
+          <option value="staff">Staff Only</option>
+          {% for u in all_users %}
+          <option value="user_{{ u.id }}">{{ u.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('addTemplateModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addTemplate()">Add Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOG UPDATE MODAL -->
+<div class="modal-overlay" id="logModal">
+  <div class="modal-box" style="max-width:440px;">
+    <div class="modal-title">✅ Log Update</div>
+    <div id="logTaskTitle" style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:16px;"></div>
+    <div class="form-group">
+      <label>Status</label>
+      <select id="logStatus">
+        <option value="done">✅ Done</option>
+        <option value="partial">⚠️ Partially Done</option>
+        <option value="skipped">⏭️ Skipped</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Notes / Update</label>
+      <textarea id="logNotes" rows="3" placeholder="What was done, any issues..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('logModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitLog()">💾 Save Log</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _logTemplateId = null;
+
+function filterFreq(freq, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.task-card').forEach(c => {
+    c.style.display = (freq === 'all' || c.dataset.freq === freq) ? '' : 'none';
+  });
+}
+
+function openLogModal(id, title) {
+  _logTemplateId = id;
+  document.getElementById('logTaskTitle').textContent = title;
+  document.getElementById('logNotes').value = '';
+  document.getElementById('logStatus').value = 'done';
+  openModal('logModal');
+}
+
+function submitLog() {
+  if (!_logTemplateId) return;
+  const notes = document.getElementById('logNotes').value.trim();
+  const status = document.getElementById('logStatus').value;
+  fetch(`/api/regular-task/${_logTemplateId}/log`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({notes, status})
+  }).then(r => r.json()).then(d => {
+    if (d.success) { closeModal('logModal'); location.reload(); }
+    else alert('Error: ' + d.error);
+  });
+}
+
+function addTemplate() {
+  const title = document.getElementById('tmplTitle').value.trim();
+  if (!title) { alert('Title is required'); return; }
+  const roleVal = document.getElementById('tmplRole').value;
+  let assigned_role = roleVal, assigned_user_id = null;
+  if (roleVal.startsWith('user_')) {
+    assigned_user_id = parseInt(roleVal.split('_')[1]);
+    assigned_role = 'user';
+  }
+  fetch('/api/regular-task/add', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      title,
+      description: document.getElementById('tmplDesc').value,
+      frequency: document.getElementById('tmplFreq').value,
+      assigned_role, assigned_user_id
+    })
+  }).then(r => r.json()).then(d => {
+    if (d.success) { closeModal('addTemplateModal'); location.reload(); }
+    else alert('Error: ' + d.error);
+  });
+}
+
+function deleteTemplate(id) {
+  if (!confirm('Delete this task and all its logs?')) return;
+  fetch(`/api/regular-task/${id}/delete`, {method:'POST'})
+    .then(r => r.json()).then(d => {
+      if (d.success) location.reload();
+      else alert('Error: ' + d.error);
+    });
+}
+</script>
+{% endblock %}
