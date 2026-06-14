@@ -104,24 +104,11 @@
             {% if t.status == 'done' %}
               <span class="badge badge-active">✅ Closed</span>
             {% elif t.status == 'pending_close' %}
-              {% if t.created_by == current_user_id or user_role == 'admin' %}
-              <div style="display:flex;flex-direction:column;gap:4px;">
-                <span style="font-size:11px;color:#fcd34d;font-weight:600;">⏳ Mark Done — Close it?</span>
-                <div style="display:flex;gap:4px;">
-                  <button class="btn btn-success btn-sm" onclick="setStatus({{ t.id }},'done')">✅ Close</button>
-                  <button class="btn btn-ghost btn-sm" onclick="setStatus({{ t.id }},'inprogress')">↩️</button>
-                </div>
-              </div>
-              {% else %}
-              <span class="badge badge-compliance">⏳ Pending Close</span>
-              {% endif %}
+              <span style="font-size:11px;color:#fcd34d;font-weight:600;">⏳ Awaiting Close</span>
+            {% elif t.status == 'inprogress' %}
+              <span class="badge badge-compliance">🔄 In Progress</span>
             {% else %}
-            <select onchange="setStatus({{ t.id }}, this.value)"
-              style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;cursor:pointer;width:100%;">
-              <option value="todo" {% if t.status=='todo' %}selected{% endif %}>📋 To Do</option>
-              <option value="inprogress" {% if t.status=='inprogress' %}selected{% endif %}>🔄 In Progress</option>
-              <option value="pending_close">✋ Mark as Done</option>
-            </select>
+              <span class="badge" style="background:var(--surface3);color:var(--text-muted);">📋 To Do</span>
             {% endif %}
           </td>
           <td>
@@ -499,3 +486,4 @@ function filterTasks() {
 }
 </script>
 {% endblock %}
+
