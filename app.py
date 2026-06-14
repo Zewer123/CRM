@@ -1135,16 +1135,18 @@ def regular_tasks():
     # Admin/compliance see all, staff see only assigned to them
     try:
         if role in ['admin', 'compliance']:
-            templates = all_(conn, '''SELECT rt.*,u.name as created_by_name
+            templates = all_(conn, '''SELECT rt.*,u.name as created_by_name,au.name as assigned_user_name
                 FROM regular_task_templates rt LEFT JOIN users u ON rt.created_by=u.id
+                LEFT JOIN users au ON rt.assigned_user_id=au.id
                 ORDER BY rt.frequency, rt.title''')
             logs = all_(conn, '''SELECT l.*,u.name as staff_name,rt.title as task_title,rt.frequency
                 FROM regular_task_logs l JOIN users u ON l.user_id=u.id
                 JOIN regular_task_templates rt ON l.template_id=rt.id
                 ORDER BY l.logged_at DESC LIMIT 200''')
         else:
-            templates = all_(conn, '''SELECT rt.*,u.name as created_by_name
+            templates = all_(conn, '''SELECT rt.*,u.name as created_by_name,au.name as assigned_user_name
                 FROM regular_task_templates rt LEFT JOIN users u ON rt.created_by=u.id
+                LEFT JOIN users au ON rt.assigned_user_id=au.id
                 WHERE rt.assigned_role='all' OR rt.assigned_user_id=? OR rt.assigned_role=?
                 ORDER BY rt.frequency, rt.title''', (uid, role))
             logs = all_(conn, '''SELECT l.*,u.name as staff_name,rt.title as task_title,rt.frequency
