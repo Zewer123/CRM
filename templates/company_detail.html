@@ -8,7 +8,7 @@
   <div class="card" style="margin-bottom:20px;border-left:3px solid var(--primary);">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;">
       <div>
-        <div class="page-breadcrumb"><a href="{{ url_for('companies') }}">← Companies</a></div>
+        <div class="page-breadcrumb"><a href="#" onclick="goBack('/companies');return false;">← Back</a></div>
         <h1 style="font-size:24px;font-weight:700;color:var(--text);margin:6px 0 4px;">{{ company.client_name }}</h1>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <span style="font-size:13px;font-weight:600;color:var(--text-muted);background:var(--surface2);padding:2px 10px;border-radius:20px;border:1px solid var(--border);">{{ company.ac_code }}</span>
@@ -351,3 +351,4 @@ function deleteDoc(id) {
 loadDocs();
 </script>
 {% endblock %}
+
