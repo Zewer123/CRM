@@ -29,7 +29,7 @@ app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'zewer-aml-crm-secret-2026')
 
 # SQLite database path - /app always exists in Railway container
-DB = os.getenv('DB_PATH', os.path.join(os.path.dirname(__file__), 'aml_crm.db'))
+DB = os.getenv('DB_PATH', '/tmp/aml_crm.db')
 
 @app.context_processor
 def inject_user():
