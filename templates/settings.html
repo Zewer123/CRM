@@ -80,7 +80,7 @@
         </thead>
         <tbody>
           {% set rows = [
-            ('Dashboard', '✅ Full', '✅ Full', '❌ No access'),
+            ('Dashboard', '✅ Full company stats', '✅ Full company stats', '✅ Own task summary'),
             ('Companies — View', '✅ Yes', '✅ Yes', '❌ No'),
             ('Companies — Add / Edit', '✅ Yes', '✅ Yes', '❌ No'),
             ('Companies — Delete', '✅ Yes', '❌ No', '❌ No'),
@@ -88,9 +88,10 @@
             ('Company Documents — Export', '✅ Yes', '✅ Yes', '❌ No'),
             ('Alerts', '✅ Full', '✅ Full', '❌ No access'),
             ('Reports — View & Export', '✅ Yes', '✅ Yes', '❌ No'),
-            ('Temp Tasks — View All', '✅ Yes', '✅ Yes', '🔶 Own tasks only'),
-            ('Temp Tasks — Create', '✅ Yes', '✅ Yes', '❌ No'),
-            ('Temp Tasks — Delete', '✅ Yes', '🔶 Own only', '❌ No'),
+            ('Temp Tasks — View All', '✅ Yes', '✅ Yes', '✅ Yes'),
+            ('Temp Tasks — Create', '✅ Yes', '✅ Yes', '✅ Yes'),
+            ('Temp Tasks — Edit / Reassign', '✅ Yes', '✅ Yes', '✅ Yes'),
+            ('Temp Tasks — Delete', '✅ Yes', '✅ Yes', '❌ No'),
             ('Regular Tasks — View', '✅ Yes', '✅ Yes', '✅ Assigned to them'),
             ('Regular Tasks — Log Update', '✅ Yes', '✅ Yes', '✅ Yes'),
             ('Regular Tasks — Add/Delete Templates', '✅ Yes', '✅ Yes', '❌ No'),
@@ -343,4 +344,5 @@ function deleteDropdown(id, val) {
 }
 </script>
 {% endblock %}
+
 
