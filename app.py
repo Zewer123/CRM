@@ -6,6 +6,21 @@ from datetime import datetime, timedelta
 from functools import wraps
 import csv
 import io
+try:
+    import cloudinary
+    import cloudinary.uploader
+    CLOUDINARY_AVAILABLE = True
+except ImportError:
+    CLOUDINARY_AVAILABLE = False
+
+# Configure Cloudinary from env vars
+import os as _os
+if CLOUDINARY_AVAILABLE:
+    cloudinary.config(
+        cloud_name=_os.getenv('CLOUDINARY_CLOUD_NAME', ''),
+        api_key=_os.getenv('CLOUDINARY_API_KEY', ''),
+        api_secret=_os.getenv('CLOUDINARY_API_SECRET', ''),
+    )
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'zewer-aml-crm-secret-2026')
@@ -145,6 +160,19 @@ def setup_db():
             is_active INTEGER DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(field_name, value)
+        );
+        CREATE TABLE IF NOT EXISTS documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_id INTEGER NOT NULL,
+            doc_type TEXT NOT NULL,
+            file_name TEXT NOT NULL,
+            file_url TEXT NOT NULL,
+            public_id TEXT,
+            uploaded_by INTEGER,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE,
+            FOREIGN KEY(uploaded_by) REFERENCES users(id)
         );
         CREATE TABLE IF NOT EXISTS tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -682,6 +710,67 @@ def api_delete_task(id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # ── EXPORT ──────────────────────────────────────────────────
+
+# ── DOCUMENTS ──────────────────────────────────────────────
+
+@app.route('/api/company/<int:company_id>/documents')
+@compliance_required
+def api_get_documents(company_id):
+    conn = get_db()
+    docs = conn.execute('''SELECT d.*, u.name as uploader_name FROM documents d
+        LEFT JOIN users u ON d.uploaded_by=u.id
+        WHERE d.company_id=? ORDER BY d.created_at DESC''', (company_id,)).fetchall()
+    conn.close()
+    return jsonify([dict(d) for d in docs])
+
+@app.route('/api/company/<int:company_id>/upload', methods=['POST'])
+@compliance_required
+def api_upload_document(company_id):
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
+    file = request.files['file']
+    doc_type = request.form.get('doc_type', 'General')
+    notes = request.form.get('notes', '')
+    if not file.filename:
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    try:
+        if CLOUDINARY_AVAILABLE and _os.getenv('CLOUDINARY_CLOUD_NAME'):
+            result = cloudinary.uploader.upload(
+                file,
+                folder=f'zewer_crm/company_{company_id}',
+                resource_type='auto',
+                use_filename=True,
+                unique_filename=True,
+            )
+            file_url = result['secure_url']
+            public_id = result['public_id']
+        else:
+            return jsonify({'success': False, 'error': 'Cloudinary not configured. Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET to Railway environment variables.'}), 500
+
+        conn = get_db()
+        conn.execute('''INSERT INTO documents (company_id, doc_type, file_name, file_url, public_id, uploaded_by, notes)
+            VALUES (?,?,?,?,?,?,?)''',
+            (company_id, doc_type, file.filename, file_url, public_id, session.get('user_id'), notes))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'url': file_url, 'name': file.filename})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/document/<int:doc_id>/delete', methods=['POST'])
+@compliance_required
+def api_delete_document(doc_id):
+    try:
+        conn = get_db()
+        doc = conn.execute('SELECT public_id FROM documents WHERE id=?', (doc_id,)).fetchone()
+        if doc and doc['public_id'] and CLOUDINARY_AVAILABLE and _os.getenv('CLOUDINARY_CLOUD_NAME'):
+            try: cloudinary.uploader.destroy(doc['public_id'], resource_type='raw')
+            except: pass
+        conn.execute('DELETE FROM documents WHERE id=?', (doc_id,))
+        conn.commit(); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/export/companies')
 @compliance_required

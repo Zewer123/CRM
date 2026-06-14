@@ -291,6 +291,58 @@
 
 </div>
 
+  <!-- DOCUMENTS -->
+  <div style="margin-top:20px;background:#1e293b;border-radius:12px;padding:20px;" id="docsSection">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;color:#a78bfa;font-size:13px;text-transform:uppercase;letter-spacing:1px;">📎 Documents</h3>
+      {% if user_role in ['admin','compliance'] %}
+      <button class="btn btn-ghost btn-sm" onclick="openModal('uploadModal')">⬆️ Upload Document</button>
+      {% endif %}
+    </div>
+    <div id="docsList" style="min-height:40px;">
+      <div style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px;" id="docsLoading">Loading documents...</div>
+    </div>
+  </div>
+
+<!-- UPLOAD MODAL -->
+<div class="modal-overlay" id="uploadModal">
+  <div class="modal-box">
+    <div class="modal-title">⬆️ Upload Document</div>
+    <div class="form-grid">
+      <div class="form-group form-full">
+        <label>Document Type *</label>
+        <select id="uploadDocType">
+          <option value="Trade License">Trade License</option>
+          <option value="Address Proof (Ejari/Tenancy)">Address Proof (Ejari/Tenancy)</option>
+          <option value="Passport">Passport</option>
+          <option value="Emirates ID">Emirates ID</option>
+          <option value="MOA">MOA</option>
+          <option value="VAT Certificate">VAT Certificate</option>
+          <option value="Undertaking">Undertaking</option>
+          <option value="Source of Funds">Source of Funds</option>
+          <option value="KYC Form">KYC Form</option>
+          <option value="Screening Report">Screening Report</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group form-full">
+        <label>File * <small style="color:var(--text-dim);">(PDF, JPG, PNG, DOCX — max 10MB)</small></label>
+        <input type="file" id="uploadFile" accept=".pdf,.jpg,.jpeg,.png,.docx,.doc,.xlsx"
+          style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px;">
+      </div>
+      <div class="form-group form-full">
+        <label>Notes</label>
+        <input type="text" id="uploadNotes" placeholder="Optional note about this document">
+      </div>
+    </div>
+    <div id="uploadProgress" style="display:none;margin-top:12px;color:var(--primary-light);font-size:13px;">⏳ Uploading...</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('uploadModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="uploadDoc()">Upload</button>
+    </div>
+  </div>
+</div>
+
 <!-- WHATSAPP MODAL -->
 <div id="waModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;">
   <div style="background:#1e293b;border-radius:16px;padding:28px;max-width:520px;width:90%;margin:20px;">
@@ -349,6 +401,69 @@ function openWA() {
   window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
   closeWA();
 }
+
+// DOCUMENTS
+const COMPANY_ID_FOR_DOCS = {{ company.id }};
+
+function loadDocs() {
+  fetch(`/api/company/${COMPANY_ID_FOR_DOCS}/documents`)
+    .then(r => r.json())
+    .then(docs => {
+      const el = document.getElementById('docsList');
+      if (!docs.length) {
+        el.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px;">No documents uploaded yet.</div>';
+        return;
+      }
+      el.innerHTML = docs.map(d => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div>
+            <span style="background:var(--bg);color:var(--primary-light);padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600;margin-right:8px;">${d.doc_type}</span>
+            <a href="${d.file_url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:13px;">${d.file_name}</a>
+            ${d.notes ? `<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${d.notes}</div>` : ''}
+            <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">By ${d.uploader_name || '—'} · ${d.created_at ? d.created_at.substr(0,10) : ''}</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <a href="${d.file_url}" target="_blank" class="btn btn-ghost btn-sm">👁️ View</a>
+            {% if user_role in ['admin','compliance'] %}
+            <button class="btn btn-danger btn-sm btn-icon" onclick="deleteDoc(${d.id})">🗑️</button>
+            {% endif %}
+          </div>
+        </div>
+      `).join('');
+    })
+    .catch(() => {
+      document.getElementById('docsList').innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:10px;">Could not load documents.</div>';
+    });
+}
+
+function uploadDoc() {
+  const file = document.getElementById('uploadFile').files[0];
+  const docType = document.getElementById('uploadDocType').value;
+  const notes = document.getElementById('uploadNotes').value;
+  if (!file) { alert('Please select a file'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('doc_type', docType);
+  fd.append('notes', notes);
+  document.getElementById('uploadProgress').style.display = 'block';
+  fetch(`/api/company/${COMPANY_ID_FOR_DOCS}/upload`, { method:'POST', body: fd })
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('uploadProgress').style.display = 'none';
+      if (d.success) { closeModal('uploadModal'); loadDocs(); }
+      else alert('Upload failed: ' + d.error);
+    })
+    .catch(e => { document.getElementById('uploadProgress').style.display = 'none'; alert('Error: '+e); });
+}
+
+function deleteDoc(id) {
+  if (!confirm('Delete this document?')) return;
+  fetch(`/api/document/${id}/delete`, { method:'POST' })
+    .then(r => r.json())
+    .then(d => { if(d.success) loadDocs(); else alert('Error: '+d.error); });
+}
+
+loadDocs();
 
 function confirmDelete(id) {
   if (confirm('Delete this company? This cannot be undone.')) {

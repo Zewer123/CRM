@@ -141,15 +141,7 @@
 </div>
 {% endif %}
 
-<!-- QUICK LINKS -->
-{% if user_role in ['admin','compliance'] %}
-<div style="display:flex;gap:12px;flex-wrap:wrap;">
-  <a href="{{ url_for('company_new') }}" class="btn btn-primary">➕ Add Company</a>
-  <a href="{{ url_for('alerts') }}" class="btn btn-ghost">⚠️ View All Alerts</a>
-  <a href="{{ url_for('reports') }}" class="btn btn-ghost">📈 Reports</a>
-  <a href="{{ url_for('export_companies') }}" class="btn btn-ghost">⬇️ Export CSV</a>
-</div>
-{% endif %}
+
 {% endblock %}
 
 {% block scripts %}

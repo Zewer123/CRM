@@ -2,35 +2,33 @@
 {% block title %}{% if edit %}Edit{% else %}Add{% endif %} Company - Zewer AML{% endblock %}
 
 {% block content %}
-<div style="max-width:1000px;margin:0 auto;padding:20px 0;">
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
-    <a href="{{ url_for('companies') }}" style="color:#a78bfa;text-decoration:none;font-size:14px;">← Companies</a>
-    <h1 style="margin:0;font-size:22px;color:#f1f5f9;">
-      {% if edit %}✏️ Edit: {{ company.client_name }}{% else %}➕ Add New Company{% endif %}
-    </h1>
+<div style="max-width:960px;margin:0 auto;">
+  <div class="page-header">
+    <div>
+      <div class="page-breadcrumb"><a href="{{ url_for('companies') }}">← Companies</a></div>
+      <div class="page-title">{% if edit %}✏️ Edit: {{ company.client_name }}{% else %}➕ Add New Company{% endif %}</div>
+    </div>
   </div>
 
-  <!-- TABS -->
-  <div style="display:flex;gap:4px;margin-bottom:0;border-bottom:2px solid #334155;">
-    <button class="tab-btn active" onclick="showTab('tab-basic', this)">📋 Basic Info</button>
-    <button class="tab-btn" onclick="showTab('tab-docs', this)">📄 Documents & License</button>
-    <button class="tab-btn" onclick="showTab('tab-compliance', this)">🛡️ Compliance</button>
-    <button class="tab-btn" onclick="showTab('tab-ubo', this)">👤 UBO / Auth Persons</button>
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('basic',this)">📋 Basic Info</button>
+    <button class="tab-btn" onclick="switchTab('docs',this)">📄 Documents & License</button>
+    <button class="tab-btn" onclick="switchTab('compliance',this)">🛡️ Compliance</button>
+    <button class="tab-btn" onclick="switchTab('ubo',this)">👤 UBO / Auth Persons</button>
   </div>
 
-  <form id="companyForm" style="background:#1e293b;border-radius:0 0 12px 12px;padding:28px;">
+  <form id="cForm">
 
-    <!-- TAB 1: BASIC INFO -->
-    <div id="tab-basic" class="tab-content">
-      <div class="form-grid-2">
+    <!-- TAB 1: BASIC -->
+    <div id="tab-basic" class="tab-panel">
+      <div class="form-grid">
         <div class="form-group">
           <label>AC Code *</label>
-          <input type="text" name="ac_code" required value="{{ company.ac_code if company else '' }}"
-            {% if edit %}readonly style="opacity:0.6"{% endif %}>
+          <input type="text" name="ac_code" value="{{ company.ac_code if company else '' }}" {% if edit %}readonly{% endif %} required>
         </div>
         <div class="form-group">
           <label>Client Name *</label>
-          <input type="text" name="client_name" required value="{{ company.client_name if company else '' }}">
+          <input type="text" name="client_name" value="{{ company.client_name if company else '' }}" required>
         </div>
         <div class="form-group">
           <label>AC Opening Date</label>
@@ -81,7 +79,7 @@
           </select>
         </div>
         <div class="form-group">
-          <label>Country of Incorporation / Nationality</label>
+          <label>Country of Incorporation</label>
           <select name="country_of_incorporation">
             <option value="">-- Select --</option>
             {% for v in dropdown_data.get('COUNTRY', []) %}
@@ -98,7 +96,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="form-group" style="grid-column:1/-1;">
+        <div class="form-group form-full">
           <label>Address</label>
           <textarea name="address" rows="2">{{ company.address if company else '' }}</textarea>
         </div>
@@ -111,9 +109,8 @@
           <input type="text" name="mobile" value="{{ company.mobile if company else '' }}">
         </div>
         <div class="form-group">
-          <label>WhatsApp Number <small style="color:#94a3b8;">(e.g. 971501234567)</small></label>
-          <input type="text" name="whatsapp_number" value="{{ company.whatsapp_number if company else '' }}"
-            placeholder="971501234567">
+          <label>WhatsApp Number <small style="color:var(--text-dim);">e.g. 971501234567</small></label>
+          <input type="text" name="whatsapp_number" value="{{ company.whatsapp_number if company else '' }}" placeholder="971501234567">
         </div>
         <div class="form-group">
           <label>Email</label>
@@ -124,15 +121,15 @@
           <input type="text" name="active_till_year" value="{{ company.active_till_year if company else '' }}" placeholder="e.g. 2026">
         </div>
       </div>
-      <div style="text-align:right;margin-top:20px;">
-        <button type="button" class="btn-next" onclick="showTab('tab-docs', document.querySelectorAll('.tab-btn')[1])">Next: Documents →</button>
+      <div style="display:flex;justify-content:flex-end;margin-top:20px;">
+        <button type="button" class="btn btn-primary" onclick="switchTab('docs', document.querySelectorAll('.tab-btn')[1])">Next: Documents →</button>
       </div>
     </div>
 
-    <!-- TAB 2: DOCUMENTS & LICENSE -->
-    <div id="tab-docs" class="tab-content" style="display:none;">
-      <h3 style="color:#a78bfa;margin-bottom:16px;font-size:15px;text-transform:uppercase;letter-spacing:1px;">📍 Address Proof</h3>
-      <div class="form-grid-2">
+    <!-- TAB 2: DOCUMENTS -->
+    <div id="tab-docs" class="tab-panel" style="display:none;">
+      <div class="section-title">📍 Address Proof</div>
+      <div class="form-grid">
         <div class="form-group">
           <label>Address Proof Type</label>
           <select name="address_proof_type">
@@ -143,13 +140,13 @@
           </select>
         </div>
         <div class="form-group">
-          <label>Address Proof Expiry Date</label>
+          <label>Address Proof Expiry</label>
           <input type="date" name="address_proof_expiry" value="{{ company.address_proof_expiry if company else '' }}">
         </div>
       </div>
 
-      <h3 style="color:#a78bfa;margin:24px 0 16px;font-size:15px;text-transform:uppercase;letter-spacing:1px;">🏢 Trade License</h3>
-      <div class="form-grid-2">
+      <div class="section-title" style="margin-top:20px;">🏢 Trade License</div>
+      <div class="form-grid">
         <div class="form-group">
           <label>Trade License No</label>
           <input type="text" name="trade_license_no" value="{{ company.trade_license_no if company else '' }}">
@@ -177,20 +174,19 @@
           <input type="date" name="incorporation_date" value="{{ company.incorporation_date if company else '' }}">
         </div>
         <div class="form-group">
-          <label>Trade License Expiry Date ⚠️</label>
+          <label>Trade License Expiry ⚠️</label>
           <input type="date" name="trade_license_expiry" value="{{ company.trade_license_expiry if company else '' }}">
         </div>
       </div>
-
       <div style="display:flex;justify-content:space-between;margin-top:20px;">
-        <button type="button" class="btn-back" onclick="showTab('tab-basic', document.querySelectorAll('.tab-btn')[0])">← Back</button>
-        <button type="button" class="btn-next" onclick="showTab('tab-compliance', document.querySelectorAll('.tab-btn')[2])">Next: Compliance →</button>
+        <button type="button" class="btn btn-ghost" onclick="switchTab('basic', document.querySelectorAll('.tab-btn')[0])">← Back</button>
+        <button type="button" class="btn btn-primary" onclick="switchTab('compliance', document.querySelectorAll('.tab-btn')[2])">Next: Compliance →</button>
       </div>
     </div>
 
     <!-- TAB 3: COMPLIANCE -->
-    <div id="tab-compliance" class="tab-content" style="display:none;">
-      <div class="form-grid-2">
+    <div id="tab-compliance" class="tab-panel" style="display:none;">
+      <div class="form-grid">
         <div class="form-group">
           <label>KYC Status</label>
           <select name="kyc_status">
@@ -231,7 +227,7 @@
           </select>
         </div>
         <div class="form-group">
-          <label>Deal Started After VAT 01/06/2018</label>
+          <label>Deal After VAT (01/06/2018)</label>
           <input type="date" name="deal_after_vat" value="{{ company.deal_after_vat if company else '' }}">
         </div>
         <div class="form-group">
@@ -302,104 +298,114 @@
           <label>Verified Date</label>
           <input type="date" name="verified_date" value="{{ company.verified_date if company else '' }}">
         </div>
-        <div class="form-group" style="grid-column:1/-1;">
+        <div class="form-group form-full">
           <label>Followup Details</label>
           <textarea name="followup_details" rows="2">{{ company.followup_details if company else '' }}</textarea>
         </div>
-        <div class="form-group" style="grid-column:1/-1;">
+        <div class="form-group form-full">
           <label>Crowe Feedback / Missing Documents</label>
           <textarea name="crowe_feedback" rows="2">{{ company.crowe_feedback if company else '' }}</textarea>
         </div>
-        <div class="form-group" style="grid-column:1/-1;">
+        <div class="form-group form-full">
           <label>Zewer Comments</label>
           <textarea name="zewer_comments" rows="2">{{ company.zewer_comments if company else '' }}</textarea>
         </div>
       </div>
-
       <div style="display:flex;justify-content:space-between;margin-top:20px;">
-        <button type="button" class="btn-back" onclick="showTab('tab-docs', document.querySelectorAll('.tab-btn')[1])">← Back</button>
-        <button type="button" class="btn-next" onclick="showTab('tab-ubo', document.querySelectorAll('.tab-btn')[3])">Next: UBO →</button>
+        <button type="button" class="btn btn-ghost" onclick="switchTab('docs', document.querySelectorAll('.tab-btn')[1])">← Back</button>
+        <button type="button" class="btn btn-primary" onclick="switchTab('ubo', document.querySelectorAll('.tab-btn')[3])">Next: UBO →</button>
       </div>
     </div>
 
-    <!-- TAB 4: UBOs -->
-    <div id="tab-ubo" class="tab-content" style="display:none;">
+    <!-- TAB 4: UBO -->
+    <div id="tab-ubo" class="tab-panel" style="display:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h3 style="margin:0;color:#f1f5f9;font-size:15px;">Beneficial Owners / Authorized Persons</h3>
-        <button type="button" onclick="addUBO()" style="background:#7c3aed;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;">+ Add Person</button>
+        <div class="section-title" style="margin:0;">Beneficial Owners / Authorized Persons</div>
+        <button type="button" class="btn btn-ghost" onclick="addUBO()">+ Add Person</button>
       </div>
       <div id="uboList">
         {% if edit and ubos %}
-          {% for u in ubos %}
-          <div class="ubo-card" data-index="{{ loop.index0 }}">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-              <strong style="color:#a78bfa;">Person {{ loop.index }}</strong>
-              <button type="button" onclick="removeUBO(this)" style="background:#dc2626;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;">Remove</button>
+        {% for u in ubos %}
+        <div class="ubo-card">
+          <div class="ubo-card-header">
+            <strong style="color:var(--primary-light);">Person {{ loop.index }}</strong>
+            <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.ubo-card').remove()">Remove</button>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Position</label>
+              <select name="ubo_position[]">
+                {% for v in dropdown_data.get('POSITION', ['UBO','Authorized Person','Director','Manager','Partner']) %}
+                <option value="{{ v }}" {% if u.position == v %}selected{% endif %}>{{ v }}</option>
+                {% endfor %}
+              </select>
             </div>
-            <div class="form-grid-2">
-              <div class="form-group"><label>Position</label>
-                <select name="ubo_position[]">
-                  {% for v in dropdown_data.get('POSITION', ['UBO','Authorized Person','Director','Manager','Partner']) %}
-                  <option value="{{ v }}" {% if u.position == v %}selected{% endif %}>{{ v }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div class="form-group"><label>% Share</label>
-                <input type="number" name="ubo_share[]" min="0" max="100" step="0.01" value="{{ u.share_percentage or '' }}">
-              </div>
-              <div class="form-group" style="grid-column:1/-1;"><label>Full Name *</label>
-                <input type="text" name="ubo_name[]" required value="{{ u.person_name }}">
-              </div>
-              <div class="form-group"><label>Nationality</label>
-                <select name="ubo_nationality[]">
-                  <option value="">-- Select --</option>
-                  {% for v in dropdown_data.get('COUNTRY', []) %}
-                  <option value="{{ v }}" {% if u.nationality == v %}selected{% endif %}>{{ v }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div class="form-group"><label>Residential Status</label>
-                <select name="ubo_residential[]">
-                  <option value="">-- Select --</option>
-                  {% for v in dropdown_data.get('RESIDENTIAL STATUS', ['Resident','Non Resident']) %}
-                  <option value="{{ v }}" {% if u.residential_status == v %}selected{% endif %}>{{ v }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div class="form-group"><label>Passport No</label>
-                <input type="text" name="ubo_passport[]" value="{{ u.passport_no or '' }}">
-              </div>
-              <div class="form-group"><label>Passport Expiry</label>
-                <input type="date" name="ubo_passport_expiry[]" value="{{ u.passport_expiry or '' }}">
-              </div>
-              <div class="form-group"><label>Emirates ID / Other ID</label>
-                <input type="text" name="ubo_eid[]" value="{{ u.emirates_id or '' }}">
-              </div>
-              <div class="form-group"><label>ID Expiry Date</label>
-                <input type="date" name="ubo_eid_expiry[]" value="{{ u.emirates_id_expiry or '' }}">
-              </div>
-              <div class="form-group"><label>Doc Status</label>
-                <select name="ubo_doc_status[]">
-                  {% for v in ['Completed','Incompleted'] %}
-                  <option value="{{ v }}" {% if u.doc_status == v %}selected{% endif %}>{{ v }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div class="form-group"><label>Verified By</label>
-                <input type="text" name="ubo_verified_by[]" value="{{ u.verified_by or '' }}">
-              </div>
-              <div class="form-group" style="grid-column:1/-1;"><label>Followup Details</label>
-                <textarea name="ubo_followup[]" rows="2">{{ u.followup_details or '' }}</textarea>
-              </div>
+            <div class="form-group">
+              <label>% Share</label>
+              <input type="number" name="ubo_share[]" min="0" max="100" step="0.01" value="{{ u.share_percentage or '' }}">
+            </div>
+            <div class="form-group form-full">
+              <label>Full Name *</label>
+              <input type="text" name="ubo_name[]" value="{{ u.person_name }}">
+            </div>
+            <div class="form-group">
+              <label>Nationality</label>
+              <select name="ubo_nationality[]">
+                <option value="">-- Select --</option>
+                {% for v in dropdown_data.get('COUNTRY', []) %}
+                <option value="{{ v }}" {% if u.nationality == v %}selected{% endif %}>{{ v }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Residential Status</label>
+              <select name="ubo_residential[]">
+                <option value="">-- Select --</option>
+                {% for v in dropdown_data.get('RESIDENTIAL STATUS', ['Resident','Non Resident']) %}
+                <option value="{{ v }}" {% if u.residential_status == v %}selected{% endif %}>{{ v }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Passport No</label>
+              <input type="text" name="ubo_passport[]" value="{{ u.passport_no or '' }}">
+            </div>
+            <div class="form-group">
+              <label>Passport Expiry</label>
+              <input type="date" name="ubo_passport_expiry[]" value="{{ u.passport_expiry or '' }}">
+            </div>
+            <div class="form-group">
+              <label>Emirates ID</label>
+              <input type="text" name="ubo_eid[]" value="{{ u.emirates_id or '' }}">
+            </div>
+            <div class="form-group">
+              <label>ID Expiry</label>
+              <input type="date" name="ubo_eid_expiry[]" value="{{ u.emirates_id_expiry or '' }}">
+            </div>
+            <div class="form-group">
+              <label>Doc Status</label>
+              <select name="ubo_doc_status[]">
+                <option value="Incompleted" {% if u.doc_status == 'Incompleted' %}selected{% endif %}>Incompleted</option>
+                <option value="Completed" {% if u.doc_status == 'Completed' %}selected{% endif %}>Completed</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Verified By</label>
+              <input type="text" name="ubo_verified_by[]" value="{{ u.verified_by or '' }}">
+            </div>
+            <div class="form-group form-full">
+              <label>Followup</label>
+              <textarea name="ubo_followup[]" rows="2">{{ u.followup_details or '' }}</textarea>
             </div>
           </div>
-          {% endfor %}
+        </div>
+        {% endfor %}
         {% endif %}
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:24px;">
-        <button type="button" class="btn-back" onclick="showTab('tab-compliance', document.querySelectorAll('.tab-btn')[2])">← Back</button>
-        <button type="button" onclick="submitForm()" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;border:none;padding:12px 32px;border-radius:10px;cursor:pointer;font-size:15px;font-weight:600;">
+        <button type="button" class="btn btn-ghost" onclick="switchTab('compliance', document.querySelectorAll('.tab-btn')[2])">← Back</button>
+        <button type="button" class="btn btn-primary" style="padding:12px 36px;font-size:15px;" onclick="submitForm()">
           {% if edit %}💾 Save Changes{% else %}✅ Add Company{% endif %}
         </button>
       </div>
@@ -408,28 +414,32 @@
   </form>
 </div>
 
-<!-- UBO TEMPLATE (hidden) -->
-<template id="uboTemplate">
+<!-- UBO TEMPLATE -->
+<template id="uboTpl">
   <div class="ubo-card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <strong style="color:#a78bfa;">Person #</strong>
-      <button type="button" onclick="removeUBO(this)" style="background:#dc2626;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;">Remove</button>
+    <div class="ubo-card-header">
+      <strong style="color:var(--primary-light);">New Person</strong>
+      <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.ubo-card').remove()">Remove</button>
     </div>
-    <div class="form-grid-2">
-      <div class="form-group"><label>Position</label>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Position</label>
         <select name="ubo_position[]">
           {% for v in dropdown_data.get('POSITION', ['UBO','Authorized Person','Director','Manager','Partner']) %}
           <option value="{{ v }}">{{ v }}</option>
           {% endfor %}
         </select>
       </div>
-      <div class="form-group"><label>% Share</label>
+      <div class="form-group">
+        <label>% Share</label>
         <input type="number" name="ubo_share[]" min="0" max="100" step="0.01" placeholder="e.g. 51">
       </div>
-      <div class="form-group" style="grid-column:1/-1;"><label>Full Name *</label>
-        <input type="text" name="ubo_name[]" required placeholder="Full legal name">
+      <div class="form-group form-full">
+        <label>Full Name *</label>
+        <input type="text" name="ubo_name[]" placeholder="Full legal name">
       </div>
-      <div class="form-group"><label>Nationality</label>
+      <div class="form-group">
+        <label>Nationality</label>
         <select name="ubo_nationality[]">
           <option value="">-- Select --</option>
           {% for v in dropdown_data.get('COUNTRY', []) %}
@@ -437,7 +447,8 @@
           {% endfor %}
         </select>
       </div>
-      <div class="form-group"><label>Residential Status</label>
+      <div class="form-group">
+        <label>Residential Status</label>
         <select name="ubo_residential[]">
           <option value="">-- Select --</option>
           {% for v in dropdown_data.get('RESIDENTIAL STATUS', ['Resident','Non Resident']) %}
@@ -445,123 +456,79 @@
           {% endfor %}
         </select>
       </div>
-      <div class="form-group"><label>Passport No</label>
-        <input type="text" name="ubo_passport[]" placeholder="Passport number">
+      <div class="form-group">
+        <label>Passport No</label>
+        <input type="text" name="ubo_passport[]">
       </div>
-      <div class="form-group"><label>Passport Expiry</label>
+      <div class="form-group">
+        <label>Passport Expiry</label>
         <input type="date" name="ubo_passport_expiry[]">
       </div>
-      <div class="form-group"><label>Emirates ID / Other ID</label>
+      <div class="form-group">
+        <label>Emirates ID</label>
         <input type="text" name="ubo_eid[]" placeholder="784-XXXX-XXXXXXX-X">
       </div>
-      <div class="form-group"><label>ID Expiry Date</label>
+      <div class="form-group">
+        <label>ID Expiry</label>
         <input type="date" name="ubo_eid_expiry[]">
       </div>
-      <div class="form-group"><label>Doc Status</label>
+      <div class="form-group">
+        <label>Doc Status</label>
         <select name="ubo_doc_status[]">
           <option value="Incompleted">Incompleted</option>
           <option value="Completed">Completed</option>
         </select>
       </div>
-      <div class="form-group"><label>Verified By</label>
-        <input type="text" name="ubo_verified_by[]" placeholder="Staff name">
+      <div class="form-group">
+        <label>Verified By</label>
+        <input type="text" name="ubo_verified_by[]">
       </div>
-      <div class="form-group" style="grid-column:1/-1;"><label>Followup Details</label>
-        <textarea name="ubo_followup[]" rows="2" placeholder="Pending items..."></textarea>
+      <div class="form-group form-full">
+        <label>Followup</label>
+        <textarea name="ubo_followup[]" rows="2"></textarea>
       </div>
     </div>
   </div>
 </template>
 
-<style>
-.tab-btn {
-  background: #1e293b;
-  color: #94a3b8;
-  border: none;
-  padding: 10px 20px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s;
-}
-.tab-btn.active {
-  color: #a78bfa;
-  border-bottom: 2px solid #a78bfa;
-  background: #1e293b;
-}
-.tab-btn:hover { color: #c4b5fd; }
-.form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.form-group { display: flex; flex-direction: column; gap: 6px; }
-.form-group label { font-size: 12px; color: #94a3b8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
-.form-group input, .form-group select, .form-group textarea {
-  background: #0f172a; border: 1px solid #334155; border-radius: 8px;
-  color: #f1f5f9; padding: 9px 12px; font-size: 14px; outline: none;
-}
-.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #7c3aed; }
-.form-group input[readonly] { cursor: not-allowed; }
-.ubo-card { background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-.btn-next { background: #7c3aed; color: #fff; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; }
-.btn-back { background: #334155; color: #94a3b8; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; }
-@media(max-width:600px){ .form-grid-2{grid-template-columns:1fr;} }
-</style>
+{% endblock %}
 
+{% block scripts %}
 <script>
 const IS_EDIT = {{ 'true' if edit else 'false' }};
 const COMPANY_ID = {{ company.id if edit and company else 'null' }};
 
-function showTab(id, btn) {
-  document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById(id).style.display = 'block';
+  document.getElementById('tab-' + name).style.display = 'block';
   btn.classList.add('active');
 }
 
-let uboCount = {{ ubos|length if edit and ubos else 0 }};
-
 function addUBO() {
-  uboCount++;
-  const tpl = document.getElementById('uboTemplate');
-  const clone = tpl.content.cloneNode(true);
-  const card = clone.querySelector('.ubo-card');
-  card.querySelector('strong').textContent = `Person ${uboCount}`;
-  document.getElementById('uboList').appendChild(clone);
-}
-
-function removeUBO(btn) {
-  btn.closest('.ubo-card').remove();
+  const tpl = document.getElementById('uboTpl').content.cloneNode(true);
+  document.getElementById('uboList').appendChild(tpl);
 }
 
 function submitForm() {
-  const form = document.getElementById('companyForm');
+  const form = document.getElementById('cForm');
+  const get = n => { const el = form.querySelector(`[name="${n}"]`); return el ? el.value.trim() : ''; };
 
-  // Gather scalar fields
   const data = {};
-  ['ac_code','client_name','ac_opening_date','ac_status','active_till_year',
-   'nature','type_of_client','name_of_freezone','mode_of_ac',
-   'country_of_incorporation','region','address','telephone','mobile',
-   'whatsapp_number','email_id',
-   'address_proof_type','address_proof_expiry',
-   'kyc_status','trade_license_no','issuing_authority','legal_type',
-   'incorporation_date','trade_license_expiry',
-   'tax_no_trn','vat_cert','vat_declaration','deal_after_vat',
-   'num_beneficial_owners','moa','pep','undertaking','source_of_fund',
-   'software_updation','doc_status','screening_date',
-   'registration_screening_tool','risk_status',
-   'verified_by','verified_date','followup_details',
-   'crowe_feedback','zewer_comments'
-  ].forEach(k => {
-    const el = form.querySelector(`[name="${k}"]`);
-    data[k] = el ? el.value.trim() : '';
-  });
+  ['ac_code','client_name','ac_opening_date','ac_status','active_till_year','nature','type_of_client',
+   'name_of_freezone','mode_of_ac','country_of_incorporation','region','address','telephone','mobile',
+   'whatsapp_number','email_id','address_proof_type','address_proof_expiry','kyc_status',
+   'trade_license_no','issuing_authority','legal_type','incorporation_date','trade_license_expiry',
+   'tax_no_trn','vat_cert','vat_declaration','deal_after_vat','num_beneficial_owners','moa','pep',
+   'undertaking','source_of_fund','doc_status','screening_date','registration_screening_tool',
+   'risk_status','verified_by','verified_date','followup_details','crowe_feedback','zewer_comments'
+  ].forEach(k => data[k] = get(k));
 
-  if (!data.ac_code) { alert('AC Code is required'); return; }
-  if (!data.client_name) { alert('Client Name is required'); return; }
+  if (!data.ac_code) { alert('AC Code is required'); switchTab('basic', document.querySelectorAll('.tab-btn')[0]); return; }
+  if (!data.client_name) { alert('Client Name is required'); switchTab('basic', document.querySelectorAll('.tab-btn')[0]); return; }
 
-  // Gather UBOs
-  const names = [...form.querySelectorAll('[name="ubo_name[]"]')];
-  data.ubos = names.map((n, i) => ({
-    person_name: n.value.trim(),
+  data.ubos = [...form.querySelectorAll('[name="ubo_name[]"]')].map((el, i) => ({
+    person_name: el.value.trim(),
     position: form.querySelectorAll('[name="ubo_position[]"]')[i]?.value || '',
     share_percentage: form.querySelectorAll('[name="ubo_share[]"]')[i]?.value || null,
     nationality: form.querySelectorAll('[name="ubo_nationality[]"]')[i]?.value || '',
@@ -576,21 +543,13 @@ function submitForm() {
   })).filter(u => u.person_name);
 
   const url = IS_EDIT ? `/api/company/${COMPANY_ID}/edit` : '/api/company/add';
-
-  fetch(url, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(data)
-  })
-  .then(r => r.json())
-  .then(res => {
-    if (res.success) {
-      window.location.href = IS_EDIT ? `/company/${COMPANY_ID}` : `/company/${res.id}`;
-    } else {
-      alert('Error: ' + res.error);
-    }
-  })
-  .catch(e => alert('Error: ' + e));
+  fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) window.location.href = IS_EDIT ? `/company/${COMPANY_ID}` : `/company/${d.id}`;
+      else alert('Error: ' + d.error);
+    })
+    .catch(e => alert('Error: ' + e));
 }
 </script>
 {% endblock %}
