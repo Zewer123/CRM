@@ -1201,8 +1201,9 @@ def internal_docs():
             'days_left': dl,
             'exp_status': exp_status(dl),
             'expiry_date': str(d['expiry_date']) if d['expiry_date'] else None})
+    users = all_(conn, 'SELECT id,name FROM users WHERE is_active=1 ORDER BY name')
     conn.close()
-    return render_template('internal_docs.html', docs=doc_list, today=str(today))
+    return render_template('internal_docs.html', docs=doc_list, today=str(today), all_users=users)
 
 @app.route('/api/internal-doc/add', methods=['POST'])
 @compliance_required
