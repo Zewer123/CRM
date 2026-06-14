@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <h1>{{ company.client_name }}</h1>
+    <p>AC Code: <strong>{{ company.ac_code }}</strong> | Status: {{ company.ac_status }}</p>
+</div>
+
+<div style="background: white; padding: 25px; border-radius: 8px; margin-bottom: 20px;">
+    <h3 style="color: #2D5F5F; margin-bottom: 15px;">Company Information</h3>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; font-size: 14px;">
+        <div><strong>Customer Name:</strong> {{ company.customer_name or '—' }}</div>
+        <div><strong>Type:</strong> {{ company.type_of_client or '—' }}</div>
+        <div><strong>Mode:</strong> {{ company.mode_of_ac or '—' }}</div>
+        <div><strong>Country:</strong> {{ company.country_of_incorporation or '—' }}</div>
+        <div><strong>Region:</strong> {{ company.region or '—' }}</div>
+        <div><strong>Email:</strong> {{ company.email_id or '—' }}</div>
+        <div><strong>Phone:</strong> {{ company.telephone or '—' }}</div>
+        <div><strong>Mobile:</strong> {{ company.mobile or '—' }}</div>
+        <div><strong>WhatsApp:</strong> {{ company.whatsapp_link or '—' }}</div>
+    </div>
+</div>
+
+<div style="background: white; padding: 25px; border-radius: 8px; margin-bottom: 20px;">
+    <h3 style="color: #2D5F5F; margin-bottom: 15px;">Documents & Compliance</h3>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; font-size: 14px;">
+        <div><strong>Trade License Expiry:</strong> {{ company.trade_license_expiry or '—' }}</div>
+        <div><strong>Address Proof Expiry:</strong> {{ company.address_proof_expiry or '—' }}</div>
+        <div><strong>KYC Status:</strong> {{ company.kyc_status or '—' }}</div>
+        <div><strong>Risk Level:</strong> {{ company.risk_status or '—' }}</div>
+        <div><strong>Doc Status:</strong> {{ company.doc_status or '—' }}</div>
+        <div><strong>Verified By:</strong> {{ company.verified_by or '—' }}</div>
+    </div>
+</div>
+
+<div style="background: white; padding: 25px; border-radius: 8px; margin-bottom: 20px;">
+    <h3 style="color: #2D5F5F; margin-bottom: 15px;">UBOs & Beneficial Owners</h3>
+    <button class="btn btn-primary" onclick="addUBO()">➕ Add UBO</button>
+    <table style="margin-top: 15px; width: 100%;">
+        <thead>
+            <tr style="background: #2D5F5F; color: white;">
+                <th>Name</th>
+                <th>Position</th>
+                <th>Share %</th>
+                <th>Passport Expiry</th>
+                <th>Emirates ID Expiry</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ubo in ubos %}
+            <tr>
+                <td>{{ ubo.person_name }}</td>
+                <td>{{ ubo.position }}</td>
+                <td>{{ ubo.share_percentage }}%</td>
+                <td>{{ ubo.passport_expiry or '—' }}</td>
+                <td>{{ ubo.emirates_id_expiry or '—' }}</td>
+                <td>
+                    <button class="btn btn-danger btn-small" onclick="deleteUBO({{ ubo.id }})">Delete</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    function addUBO() {
+        const name = prompt('UBO Name:');
+        if (!name) return;
+        const position = prompt('Position:');
+        fetch('{{ url_for("api_add_ubo", company_id=company.id) }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ person_name: name, position: position })
+        }).then(r => r.json()).then(d => d.success ? location.reload() : alert('Error'));
+    }
+    
+    function deleteUBO(id) {
+        if (confirm('Delete this UBO?')) {
+            fetch(`/api/ubo/${id}/delete`, { method: 'POST' })
+                .then(r => r.json())
+                .then(d => d.success ? location.reload() : alert('Error'));
+        }
+    }
+</script>
+{% endblock %}
