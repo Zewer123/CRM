@@ -813,24 +813,143 @@ def api_delete_document(did):
 @compliance_required
 def export_template():
     if not HAS_XL: return "openpyxl not installed",500
-    wb=openpyxl.Workbook(); ws=wb.active; ws.title="Companies"
-    ws.append(['ac_code','client_name','ac_opening_date','ac_status','nature','type_of_client',
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    wb = openpyxl.Workbook()
+
+    # ── SHEET 1: DATA ENTRY ──────────────────────────────────
+    ws = wb.active
+    ws.title = "Companies"
+
+    headers = ['ac_code','client_name','ac_opening_date','ac_status','nature','type_of_client',
                'name_of_freezone','mode_of_ac','country_of_incorporation','region','address',
                'telephone','mobile','whatsapp_number','email_id','contact_person_name',
                'contact_person_number','account_manager','address_proof_type','address_proof_expiry',
                'trade_license_no','issuing_authority','legal_type','incorporation_date',
                'trade_license_expiry','tax_no_trn','vat_cert','vat_declaration','num_beneficial_owners',
                'moa','pep','undertaking','source_of_fund','doc_status','risk_status','kyc_status',
-               'verified_by','followup_details','zewer_comments'])
-    ws.append(['TJ5003','SAMPLE COMPANY LLC','2020-01-01','Active','Legal entity','MainLand','N/A',
-               'Supplier','United Arab Emirates','Dubai','Unit 101, Gold Souq, Dubai','+97142258019',
-               '+971506594165','+971506594165','info@sample.com','Ahmed Ali','+971501234567','Jaseel',
-               'Ejari','2025-12-31','534230','Dubai Economy & Tourism','Limited Liability Company(LLC)',
-               '2019-06-01','2025-12-31','100003063300003','Yes','Yes',2,'Yes','Yes','Yes','Yes',
-               'Completed','Medium','Kyc 2025 Updated','Jaseel','',''])
-    out=io.BytesIO(); wb.save(out); out.seek(0)
-    return send_file(out,mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        as_attachment=True,download_name='zewer_company_template.xlsx')
+               'verified_by','followup_details','zewer_comments']
+
+    # Style header row
+    header_fill = PatternFill(start_color="1C1917", end_color="1C1917", fill_type="solid")
+    header_font = Font(color="D97706", bold=True, size=11)
+    header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h.replace('_',' ').title())
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+
+    ws.row_dimensions[1].height = 30
+
+    # Sample row
+    sample = ['TJ5003','SAMPLE COMPANY LLC','2020-01-01','Active','Legal entity','MainLand','N/A',
+              'Supplier','United Arab Emirates','Dubai','Unit 101, Gold Souq, Dubai','+97142258019',
+              '+971506594165','+971506594165','info@sample.com','Ahmed Ali','+971501234567','Jaseel',
+              'Ejari','2025-12-31','534230','Dubai Economy & Tourism','Limited Liability Company(LLC)',
+              '2019-06-01','2025-12-31','100003063300003','Yes','Yes',2,'Yes','Yes','Yes','Yes',
+              'Completed','Medium','Kyc 2025 Updated','Jaseel','','']
+    ws.append(sample)
+
+    # Style sample row
+    sample_fill = PatternFill(start_color="292524", end_color="292524", fill_type="solid")
+    sample_font = Font(color="A8A29E", size=10, italic=True)
+    for col in range(1, len(headers)+1):
+        cell = ws.cell(row=2, column=col)
+        cell.fill = sample_fill
+        cell.font = sample_font
+        cell.alignment = Alignment(horizontal="center")
+
+    # Column widths
+    col_widths = {'ac_code':12,'client_name':30,'ac_opening_date':16,'ac_status':12,'nature':16,
+                  'type_of_client':18,'name_of_freezone':20,'mode_of_ac':16,'country_of_incorporation':22,
+                  'region':16,'address':30,'telephone':18,'mobile':18,'whatsapp_number':18,
+                  'email_id':25,'contact_person_name':22,'contact_person_number':20,'account_manager':18,
+                  'address_proof_type':22,'address_proof_expiry':18,'trade_license_no':18,
+                  'issuing_authority':28,'legal_type':30,'incorporation_date':18,'trade_license_expiry':18,
+                  'tax_no_trn':16,'vat_cert':12,'vat_declaration':16,'num_beneficial_owners':12,
+                  'moa':8,'pep':8,'undertaking':14,'source_of_fund':16,'doc_status':14,
+                  'risk_status':12,'kyc_status':22,'verified_by':16,'followup_details':30,'zewer_comments':30}
+    for col, h in enumerate(headers, 1):
+        ws.column_dimensions[get_column_letter(col)].width = col_widths.get(h, 16)
+
+    # Freeze header row
+    ws.freeze_panes = 'A2'
+
+    # ── SHEET 2: DROPDOWN VALUES ─────────────────────────────
+    ws2 = wb.create_sheet("Dropdown Values")
+
+    # Get all dropdown data from DB
+    conn = get_db()
+    dd_rows = all_(conn, "SELECT field_name, value FROM dropdowns WHERE is_active=1 ORDER BY field_name, value")
+    conn.close()
+
+    dd = {}
+    for r in dd_rows:
+        dd.setdefault(r['field_name'], []).append(r['value'])
+
+    # Header
+    ws2.cell(row=1, column=1, value="Field Name").font = Font(bold=True, color="D97706", size=11)
+    ws2.cell(row=1, column=2, value="Allowed Values").font = Font(bold=True, color="D97706", size=11)
+    ws2.cell(row=1, column=1).fill = PatternFill(start_color="1C1917", end_color="1C1917", fill_type="solid")
+    ws2.cell(row=1, column=2).fill = PatternFill(start_color="1C1917", end_color="1C1917", fill_type="solid")
+
+    row = 2
+    for field, values in sorted(dd.items()):
+        if field == 'TASK TEMPLATE': continue  # skip task templates
+        # Field name spanning multiple rows
+        ws2.cell(row=row, column=1, value=field).font = Font(bold=True, size=10)
+        ws2.cell(row=row, column=1).fill = PatternFill(start_color="292524", end_color="292524", fill_type="solid")
+        ws2.cell(row=row, column=1).font = Font(bold=True, color="F5F5F4", size=10)
+        for i, val in enumerate(values):
+            ws2.cell(row=row+i, column=2, value=val).font = Font(size=10)
+            ws2.cell(row=row+i, column=2).alignment = Alignment(horizontal="left")
+        row += max(len(values), 1) + 1  # gap between sections
+
+    ws2.column_dimensions['A'].width = 28
+    ws2.column_dimensions['B'].width = 50
+    ws2.freeze_panes = 'A2'
+
+    # ── SHEET 3: INSTRUCTIONS ───────────────────────────────
+    ws3 = wb.create_sheet("Instructions")
+    instructions = [
+        ["ZEWER AML CRM — Company Import Template"],
+        [""],
+        ["HOW TO USE:"],
+        ["1. Fill in company data in the 'Companies' sheet starting from Row 3"],
+        ["2. Row 2 is a sample — you can delete it before importing"],
+        ["3. AC Code and Client Name are REQUIRED — all others are optional"],
+        ["4. For dropdown fields, use exact values from the 'Dropdown Values' sheet"],
+        ["5. Dates must be in YYYY-MM-DD format (e.g. 2025-12-31)"],
+        ["6. Phone numbers should include country code (e.g. +97142258019)"],
+        ["7. Duplicate AC Codes will be skipped on import"],
+        [""],
+        ["REQUIRED FIELDS:"],
+        ["  • ac_code — Unique account code (e.g. TJ5003)"],
+        ["  • client_name — Full legal company name"],
+        [""],
+        ["DATE FORMAT:"],
+        ["  • ac_opening_date, address_proof_expiry, incorporation_date,"],
+        ["    trade_license_expiry — all use YYYY-MM-DD"],
+    ]
+    for r, row_data in enumerate(instructions, 1):
+        cell = ws3.cell(row=r, column=1, value=row_data[0] if row_data else '')
+        if r == 1:
+            cell.font = Font(bold=True, size=14, color="D97706")
+        elif row_data and row_data[0].startswith(('HOW','REQUIRED','DATE')):
+            cell.font = Font(bold=True, size=11, color="F5F5F4")
+        else:
+            cell.font = Font(size=10, color="A8A29E")
+    ws3.column_dimensions['A'].width = 70
+    ws3.sheet_view.showGridLines = False
+
+    out = io.BytesIO()
+    wb.save(out)
+    out.seek(0)
+    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True, download_name='zewer_company_template.xlsx')
 
 @app.route('/export/companies')
 @compliance_required
