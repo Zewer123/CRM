@@ -1,4 +1,4 @@
-{% extends "base_enhanced.html" %}
+{% extends "base.html" %}
 
 {% block title %}Companies - Zewer AML CRM{% endblock %}
 
@@ -19,7 +19,7 @@
 <div class="companies-grid">
     {% if companies %}
         {% for company in companies %}
-        <div class="company-card {% if company.trade_license_expiry and company.trade_license_expiry|string < now|string %}expired{% elif company.trade_license_expiry and company.trade_license_expiry|string <= (now + timedelta(days=90))|string %}expiring{% endif %}">
+        <div class="company-card">
             
             <!-- Row 1: Company Name, Customer, Badges -->
             <div class="card-row-1">
@@ -47,12 +47,7 @@
             <div class="card-row-2">
                 <div class="card-field">
                     <span class="card-field-label">Trade License</span>
-                    {% if company.trade_license_expiry %}
-                        {% set days_left = (company.trade_license_expiry|string ~ 'T00:00:00'|string - now|string).days %}
-                        <span class="card-field-value {% if days_left < 0 %}expired{% elif days_left < 90 %}expiring{% endif %}">{{ days_left }}d</span>
-                    {% else %}
-                        <span class="card-field-value">—</span>
-                    {% endif %}
+                    <span class="card-field-value">{{ company.trade_license_expiry or '—' }}</span>
                 </div>
                 <div class="card-field">
                     <span class="card-field-label">Ejari</span>
