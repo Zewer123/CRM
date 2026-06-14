@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+{% block title %}Zewer Docs - Zewer AML{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title">🗂️ Zewer Internal Documents</div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-primary btn-sm" onclick="openModal('addDocModal')">+ Add Document</button>
+  </div>
+</div>
+
+<!-- FILTERS -->
+<div class="search-bar" style="margin-bottom:16px;">
+  <div class="form-group search-input">
+    <label>Search</label>
+    <input type="text" id="searchInput" placeholder="Name, person, authority..." oninput="filterDocs()">
+  </div>
+  <div class="form-group" style="min-width:130px;">
+    <label>Category</label>
+    <select id="catFilter" onchange="filterDocs()">
+      <option value="">All</option>
+      <option value="Staff">Staff</option>
+      <option value="Company">Company</option>
+      <option value="License">License</option>
+      <option value="Other">Other</option>
+    </select>
+  </div>
+  <div class="form-group" style="min-width:120px;">
+    <label>Expiry</label>
+    <select id="expiryFilter" onchange="filterDocs()">
+      <option value="">All</option>
+      <option value="expired">Expired</option>
+      <option value="30">Within 30 days</option>
+      <option value="90">Within 90 days</option>
+      <option value="ok">OK</option>
+    </select>
+  </div>
+  <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear</button>
+</div>
+
+<!-- STATS ROW -->
+{% set expired_count = docs|selectattr('exp_status','eq','expired')|list|length %}
+{% set critical_count = docs|selectattr('exp_status','eq','critical')|list|length %}
+{% set warning_count = docs|selectattr('exp_status','eq','warning')|list|length %}
+{% set ok_count = docs|selectattr('exp_status','eq','ok')|list|length %}
+<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+  <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px 18px;text-align:center;">
+    <div style="font-size:20px;font-weight:700;color:#fca5a5;">{{ expired_count }}</div>
+    <div style="font-size:11px;color:#fca5a5;">Expired</div>
+  </div>
+  <div style="background:rgba(251,146,60,0.1);border:1px solid rgba(251,146,60,0.3);border-radius:8px;padding:10px 18px;text-align:center;">
+    <div style="font-size:20px;font-weight:700;color:#fb923c;">{{ critical_count }}</div>
+    <div style="font-size:11px;color:#fb923c;">Critical (&lt;30d)</div>
+  </div>
+  <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 18px;text-align:center;">
+    <div style="font-size:20px;font-weight:700;color:#fcd34d;">{{ warning_count }}</div>
+    <div style="font-size:11px;color:#fcd34d;">Warning (&lt;90d)</div>
+  </div>
+  <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:10px 18px;text-align:center;">
+    <div style="font-size:20px;font-weight:700;color:#86efac;">{{ ok_count }}</div>
+    <div style="font-size:11px;color:#86efac;">OK</div>
+  </div>
+</div>
+
+<!-- COLUMN HEADERS -->
+<div style="display:grid;grid-template-columns:140px 1fr 150px 160px 110px 120px;gap:0;padding:6px 16px;margin-bottom:4px;">
+  {% for h in ['Category','Document Name / Person','Authority','Expiry Date','Days Left','Actions'] %}
+  <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;{% if loop.last %}text-align:right;{% endif %}">{{ h }}</div>
+  {% endfor %}
+</div>
+
+<!-- DOC LIST -->
+<div id="docList" style="display:flex;flex-direction:column;gap:6px;">
+  {% for d in docs %}
+  <div class="doc-row" data-cat="{{ d.doc_category }}" data-expst="{{ d.exp_status }}" data-days="{{ d.days_left if d.days_left is not none else 9999 }}"
+    style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;
+    display:grid;grid-template-columns:140px 1fr 150px 160px 110px 120px;gap:0;align-items:center;
+    {% if d.exp_status=='expired' %}border-left:3px solid #ef4444;{% elif d.exp_status=='critical' %}border-left:3px solid #fb923c;{% elif d.exp_status=='warning' %}border-left:3px solid #fcd34d;{% endif %}"
+    data-search="{{ (d.doc_name ~ ' ' ~ (d.person_name or '') ~ ' ' ~ (d.issuing_authority or ''))|lower }}">
+
+    <!-- CATEGORY -->
+    <div>
+      <span style="font-size:11px;padding:2px 10px;border-radius:20px;font-weight:600;
+        {% if d.doc_category=='Staff' %}background:rgba(59,130,246,0.12);color:#93c5fd;
+        {% elif d.doc_category=='Company' %}background:rgba(168,85,247,0.12);color:#c4b5fd;
+        {% elif d.doc_category=='License' %}background:rgba(245,158,11,0.12);color:#fcd34d;
+        {% else %}background:var(--surface3);color:var(--text-dim);{% endif %}">
+        {{ d.doc_category }}
+      </span>
+    </div>
+
+    <!-- NAME / PERSON -->
+    <div>
+      <div style="font-weight:600;color:var(--text);font-size:14px;">{{ d.doc_name }}</div>
+      {% if d.person_name %}
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">👤 {{ d.person_name }}</div>
+      {% endif %}
+      {% if d.notes %}
+      <div style="font-size:11px;color:var(--text-dim);">{{ d.notes }}</div>
+      {% endif %}
+    </div>
+
+    <!-- AUTHORITY -->
+    <div style="font-size:12px;color:var(--text-muted);">{{ d.issuing_authority or '—' }}</div>
+
+    <!-- EXPIRY -->
+    <div>
+      {% if d.expiry_date %}
+      <div style="font-size:13px;font-weight:600;
+        {% if d.exp_status=='expired' %}color:#fca5a5;
+        {% elif d.exp_status=='critical' %}color:#fb923c;
+        {% elif d.exp_status=='warning' %}color:#fcd34d;
+        {% else %}color:#86efac;{% endif %}">
+        {{ d.expiry_date }}
+      </div>
+      {% else %}
+      <span style="color:var(--text-dim);">No expiry</span>
+      {% endif %}
+    </div>
+
+    <!-- DAYS LEFT -->
+    <div>
+      {% if d.days_left is not none %}
+      <span style="font-size:12px;font-weight:600;
+        {% if d.days_left < 0 %}color:#fca5a5;{% elif d.days_left <= 30 %}color:#fb923c;{% elif d.days_left <= 90 %}color:#fcd34d;{% else %}color:#86efac;{% endif %}">
+        {% if d.days_left < 0 %}{{ d.days_left|abs }}d ago{% else %}{{ d.days_left }}d left{% endif %}
+      </span>
+      {% else %}—{% endif %}
+    </div>
+
+    <!-- ACTIONS -->
+    <div style="display:flex;gap:5px;justify-content:flex-end;">
+      <button class="btn btn-ghost btn-sm btn-icon" title="Edit"
+        onclick="editDoc({{ d.id }},'{{ d.doc_name|replace("'","\\'") }}','{{ d.doc_category }}','{{ (d.person_name or '')|replace("'","\\'") }}','{{ (d.issuing_authority or '')|replace("'","\\'") }}','{{ d.issue_date or "" }}','{{ d.expiry_date or "" }}','{{ (d.notes or '')|replace("'","\\'") }}')">✏️</button>
+      <button class="btn btn-danger btn-sm btn-icon" title="Delete" onclick="deleteDoc({{ d.id }})">🗑️</button>
+    </div>
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:60px;color:var(--text-dim);background:var(--surface);border-radius:10px;border:1px solid var(--border);">
+    No documents yet. <a href="#" onclick="openModal('addDocModal');return false;" style="color:var(--primary);">Add one?</a>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ADD DOCUMENT MODAL -->
+<div class="modal-overlay" id="addDocModal">
+  <div class="modal-box" style="max-width:540px;">
+    <div class="modal-title">➕ Add Document</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group form-full">
+        <label>Document Name *</label>
+        <input type="text" id="addName" placeholder="e.g. Staff Visa — Ahmed Ali">
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="addCat">
+          <option value="Staff">Staff</option>
+          <option value="Company">Company</option>
+          <option value="License">License</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Person Name</label>
+        <input type="text" id="addPerson" placeholder="Name of person (if applicable)">
+      </div>
+      <div class="form-group form-full">
+        <label>Issuing Authority</label>
+        <input type="text" id="addAuth" placeholder="e.g. GDRFA, Dubai Economy">
+      </div>
+      <div class="form-group">
+        <label>Issue Date</label>
+        <input type="date" id="addIssue">
+      </div>
+      <div class="form-group">
+        <label>Expiry Date</label>
+        <input type="date" id="addExpiry">
+      </div>
+      <div class="form-group form-full">
+        <label>Notes</label>
+        <textarea id="addNotes" rows="2" placeholder="Any additional notes..."></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('addDocModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAdd()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT DOCUMENT MODAL -->
+<div class="modal-overlay" id="editDocModal">
+  <div class="modal-box" style="max-width:540px;">
+    <div class="modal-title">✏️ Edit Document</div>
+    <input type="hidden" id="editId">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group form-full">
+        <label>Document Name *</label>
+        <input type="text" id="editName">
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="editCat">
+          <option value="Staff">Staff</option>
+          <option value="Company">Company</option>
+          <option value="License">License</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Person Name</label>
+        <input type="text" id="editPerson">
+      </div>
+      <div class="form-group form-full">
+        <label>Issuing Authority</label>
+        <input type="text" id="editAuth">
+      </div>
+      <div class="form-group">
+        <label>Issue Date</label>
+        <input type="date" id="editIssue">
+      </div>
+      <div class="form-group">
+        <label>Expiry Date</label>
+        <input type="date" id="editExpiry">
+      </div>
+      <div class="form-group form-full">
+        <label>Notes</label>
+        <textarea id="editNotes" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('editDocModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitEdit()">💾 Save</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterDocs() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const cat = document.getElementById('catFilter').value;
+  const exp = document.getElementById('expiryFilter').value;
+  document.querySelectorAll('.doc-row').forEach(row => {
+    const matchSearch = !search || row.dataset.search.includes(search);
+    const matchCat = !cat || row.dataset.cat === cat;
+    let matchExp = true;
+    if (exp) {
+      const days = parseInt(row.dataset.days);
+      const expst = row.dataset.expst;
+      if (exp === 'expired') matchExp = expst === 'expired';
+      else if (exp === '30') matchExp = days >= 0 && days <= 30;
+      else if (exp === '90') matchExp = days >= 0 && days <= 90;
+      else if (exp === 'ok') matchExp = expst === 'ok';
+    }
+    row.style.display = (matchSearch && matchCat && matchExp) ? '' : 'none';
+  });
+}
+function clearFilters() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('catFilter').value = '';
+  document.getElementById('expiryFilter').value = '';
+  filterDocs();
+}
+function submitAdd() {
+  const name = document.getElementById('addName').value.trim();
+  if (!name) { alert('Document name is required'); return; }
+  fetch('/api/internal-doc/add', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      doc_name: name,
+      doc_category: document.getElementById('addCat').value,
+      person_name: document.getElementById('addPerson').value,
+      issuing_authority: document.getElementById('addAuth').value,
+      issue_date: document.getElementById('addIssue').value,
+      expiry_date: document.getElementById('addExpiry').value,
+      notes: document.getElementById('addNotes').value
+    })
+  }).then(r => r.json()).then(d => {
+    if (d.success) { closeModal('addDocModal'); location.reload(); }
+    else alert('Error: ' + d.error);
+  });
+}
+function editDoc(id, name, cat, person, auth, issue, expiry, notes) {
+  document.getElementById('editId').value = id;
+  document.getElementById('editName').value = name;
+  document.getElementById('editCat').value = cat;
+  document.getElementById('editPerson').value = person;
+  document.getElementById('editAuth').value = auth;
+  document.getElementById('editIssue').value = issue;
+  document.getElementById('editExpiry').value = expiry;
+  document.getElementById('editNotes').value = notes;
+  openModal('editDocModal');
+}
+function submitEdit() {
+  const id = document.getElementById('editId').value;
+  const name = document.getElementById('editName').value.trim();
+  if (!name) { alert('Document name is required'); return; }
+  fetch(`/api/internal-doc/${id}/edit`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      doc_name: name,
+      doc_category: document.getElementById('editCat').value,
+      person_name: document.getElementById('editPerson').value,
+      issuing_authority: document.getElementById('editAuth').value,
+      issue_date: document.getElementById('editIssue').value,
+      expiry_date: document.getElementById('editExpiry').value,
+      notes: document.getElementById('editNotes').value
+    })
+  }).then(r => r.json()).then(d => {
+    if (d.success) { closeModal('editDocModal'); location.reload(); }
+    else alert('Error: ' + d.error);
+  });
+}
+function deleteDoc(id) {
+  if (!confirm('Delete this document?')) return;
+  fetch(`/api/internal-doc/${id}/delete`, {method:'POST'})
+    .then(r => r.json()).then(d => {
+      if (d.success) location.reload();
+      else alert('Error: ' + d.error);
+    });
+}
+</script>
+{% endblock %}
