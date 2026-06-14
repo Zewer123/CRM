@@ -151,6 +151,22 @@ def _pg_schema(conn):
             doc_type TEXT NOT NULL, file_name TEXT NOT NULL,
             file_url TEXT NOT NULL, public_id TEXT, uploaded_by INTEGER,
             notes TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS regular_task_templates (
+            id SERIAL PRIMARY KEY, title TEXT NOT NULL, description TEXT,
+            frequency TEXT DEFAULT 'daily', assigned_role TEXT DEFAULT 'all',
+            assigned_user_id INTEGER, created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS regular_task_logs (
+            id SERIAL PRIMARY KEY, template_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL, notes TEXT, status TEXT DEFAULT 'done',
+            logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS internal_documents (
+            id SERIAL PRIMARY KEY, doc_name TEXT NOT NULL,
+            doc_category TEXT DEFAULT 'Staff', person_name TEXT,
+            issuing_authority TEXT, issue_date DATE, expiry_date DATE,
+            notes TEXT, added_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
     ]
     for s in stmts:
         x(conn, s)
@@ -214,6 +230,22 @@ def _sqlite_schema(conn):
             doc_type TEXT NOT NULL, file_name TEXT NOT NULL, file_url TEXT NOT NULL,
             public_id TEXT, uploaded_by INTEGER, notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS regular_task_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, description TEXT,
+            frequency TEXT DEFAULT 'daily', assigned_role TEXT DEFAULT 'all',
+            assigned_user_id INTEGER, created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS regular_task_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, template_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL, notes TEXT, status TEXT DEFAULT 'done',
+            logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS internal_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, doc_name TEXT NOT NULL,
+            doc_category TEXT DEFAULT 'Staff', person_name TEXT,
+            issuing_authority TEXT, issue_date DATE, expiry_date DATE,
+            notes TEXT, added_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
     ''')
     for col in ['contact_number','mobile']:
         try: conn.execute(f'ALTER TABLE users ADD COLUMN {col} TEXT')
@@ -384,20 +416,21 @@ def dashboard():
         row = dict(t)
         row['due_date'] = str(row['due_date'])[:10] if row.get('due_date') else None
         utasks.append(row)
+    staff_task_counts=all_(conn,"SELECT u.name,u.id,COUNT(t.id) as pending FROM users u LEFT JOIN tasks t ON t.assigned_to=u.id AND t.status NOT IN ('done') WHERE u.is_active=1 GROUP BY u.id,u.name ORDER BY pending DESC")
     conn.close()
     return render_template('dashboard.html',total_companies=total,active_companies=active,
         expired_tl=etl,expiring_30_tl=e30tl,
         expired_ap=eap,expiring_30_ap=e30ap,expired_pass=epass,expiring_30_pass=e30p,
         risk_breakdown=risk_bd,doc_breakdown=doc_bd,urgent_companies=urgent,
         open_tasks=otasks,overdue_tasks=overtasks,due_today=dtasks,pending_close=ptasks,
-        urgent_tasks=utasks,today=str(today),days_left=days_left)
+        urgent_tasks=utasks,today=str(today),days_left=days_left,staff_task_counts=staff_task_counts)
 
 @app.route('/companies')
 @compliance_required
 def companies():
     conn=get_db()
     s=request.args.get('search',''); rf=request.args.get('risk','')
-    sf=request.args.get('status',''); rgf=request.args.get('region','')
+    sf=request.args.get('status',''); rgf=request.args.get('region',''); amf=request.args.get('manager','')
     q='SELECT * FROM companies WHERE 1=1'; p=[]
     if s:
         q+=' AND (client_name LIKE ? OR ac_code LIKE ? OR mobile LIKE ? OR trade_license_no LIKE ?)'
@@ -405,6 +438,7 @@ def companies():
     if rf: q+=' AND risk_status=?'; p.append(rf)
     if sf: q+=' AND ac_status=?'; p.append(sf)
     if rgf: q+=' AND region=?'; p.append(rgf)
+    if amf: q+=' AND account_manager=?'; p.append(amf)
     rows=all_(conn,q+' ORDER BY created_at DESC',p or None)
     dd=dropdowns(); conn.close()
     cl=[]
@@ -413,8 +447,9 @@ def companies():
         cl.append({**c,'tl_days':tl,'tl_status':exp_status(tl),'ap_days':ap,'ap_status':exp_status(ap),
                    'trade_license_expiry':str(c['trade_license_expiry']) if c['trade_license_expiry'] else None,
                    'address_proof_expiry':str(c['address_proof_expiry']) if c['address_proof_expiry'] else None})
+    managers=sorted(set(c['account_manager'] for c in cl if c.get('account_manager')))
     return render_template('companies.html',companies=cl,search=s,risk_filter=rf,
-        status_filter=sf,region_filter=rgf,regions=dd.get('REGION',[]))
+        status_filter=sf,region_filter=rgf,manager_filter=amf,regions=dd.get('REGION',[]),managers=managers)
 
 @app.route('/company/new')
 @compliance_required
@@ -1057,3 +1092,211 @@ def api_import_companies():
 if __name__=='__main__':
     app.run(debug=False,host='0.0.0.0',port=int(os.getenv('PORT',8000)))
 
+
+# ════════════════════════════════════════════════════════════════
+# NEW FEATURES BLOCK
+# ════════════════════════════════════════════════════════════════
+
+# ── REGULAR TASKS ─────────────────────────────────────────────
+@app.route('/regular-tasks')
+@login_required
+def regular_tasks():
+    conn = get_db()
+    uid = session.get('user_id')
+    role = session.get('user_role')
+    # Admin/compliance see all, staff see only assigned to them
+    if role in ['admin', 'compliance']:
+        templates = all_(conn, '''SELECT rt.*,u.name as created_by_name
+            FROM regular_task_templates rt LEFT JOIN users u ON rt.created_by=u.id
+            ORDER BY rt.frequency, rt.title''')
+        logs = all_(conn, '''SELECT l.*,u.name as staff_name,rt.title as task_title,rt.frequency
+            FROM regular_task_logs l JOIN users u ON l.user_id=u.id
+            JOIN regular_task_templates rt ON l.template_id=rt.id
+            ORDER BY l.logged_at DESC LIMIT 200''')
+    else:
+        templates = all_(conn, '''SELECT rt.*,u.name as created_by_name
+            FROM regular_task_templates rt LEFT JOIN users u ON rt.created_by=u.id
+            WHERE rt.assigned_role='all' OR rt.assigned_user_id=? OR rt.assigned_role=?
+            ORDER BY rt.frequency, rt.title''', (uid, role))
+        logs = all_(conn, '''SELECT l.*,u.name as staff_name,rt.title as task_title,rt.frequency
+            FROM regular_task_logs l JOIN users u ON l.user_id=u.id
+            JOIN regular_task_templates rt ON l.template_id=rt.id
+            WHERE l.user_id=? ORDER BY l.logged_at DESC LIMIT 100''', (uid,))
+    users = all_(conn, 'SELECT id,name,role FROM users WHERE is_active=1 ORDER BY name')
+    # Pending count per template for current user
+    pending = {}
+    for t in templates:
+        last = one(conn, 'SELECT logged_at FROM regular_task_logs WHERE template_id=? AND user_id=? ORDER BY logged_at DESC LIMIT 1',
+                   (t['id'], uid))
+        pending[t['id']] = last['logged_at'] if last else None
+    conn.close()
+    return render_template('regular_tasks.html', templates=templates, logs=logs,
+                           all_users=users, last_logged=pending)
+
+@app.route('/api/regular-task/add', methods=['POST'])
+@compliance_required
+def api_add_regular_task():
+    d = request.get_json()
+    try:
+        conn = get_db()
+        x(conn, '''INSERT INTO regular_task_templates
+            (title, description, frequency, assigned_role, assigned_user_id, created_by)
+            VALUES (?,?,?,?,?,?)''',
+          (d.get('title'), d.get('description'), d.get('frequency', 'daily'),
+           d.get('assigned_role', 'all'), d.get('assigned_user_id') or None,
+           session.get('user_id')))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/regular-task/<int:id>/delete', methods=['POST'])
+@compliance_required
+def api_delete_regular_task(id):
+    try:
+        conn = get_db()
+        x(conn, 'DELETE FROM regular_task_logs WHERE template_id=?', (id,))
+        x(conn, 'DELETE FROM regular_task_templates WHERE id=?', (id,))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/regular-task/<int:id>/log', methods=['POST'])
+@login_required
+def api_log_regular_task(id):
+    d = request.get_json()
+    try:
+        conn = get_db()
+        x(conn, '''INSERT INTO regular_task_logs (template_id, user_id, notes, status)
+            VALUES (?,?,?,?)''',
+          (id, session.get('user_id'), d.get('notes', ''), d.get('status', 'done')))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ── INTERNAL DOCUMENTS (ZEWER STAFF / COMPANY DOCS) ──────────
+@app.route('/internal-docs')
+@compliance_required
+def internal_docs():
+    conn = get_db()
+    docs = all_(conn, '''SELECT d.*,u.name as added_by_name
+        FROM internal_documents d LEFT JOIN users u ON d.added_by=u.id
+        ORDER BY d.expiry_date ASC NULLS LAST, d.doc_category, d.doc_name''')
+    today = datetime.now().date()
+    doc_list = []
+    for d in docs:
+        dl = days_left(d['expiry_date'])
+        doc_list.append({**d,
+            'days_left': dl,
+            'exp_status': exp_status(dl),
+            'expiry_date': str(d['expiry_date']) if d['expiry_date'] else None})
+    conn.close()
+    return render_template('internal_docs.html', docs=doc_list, today=str(today))
+
+@app.route('/api/internal-doc/add', methods=['POST'])
+@compliance_required
+def api_add_internal_doc():
+    d = request.get_json()
+    try:
+        conn = get_db()
+        x(conn, '''INSERT INTO internal_documents
+            (doc_name, doc_category, person_name, issuing_authority, issue_date, expiry_date, notes, added_by)
+            VALUES (?,?,?,?,?,?,?,?)''',
+          (d.get('doc_name'), d.get('doc_category'), d.get('person_name'),
+           d.get('issuing_authority'), d.get('issue_date') or None,
+           d.get('expiry_date') or None, d.get('notes'), session.get('user_id')))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/internal-doc/<int:id>/edit', methods=['POST'])
+@compliance_required
+def api_edit_internal_doc(id):
+    d = request.get_json()
+    try:
+        conn = get_db()
+        x(conn, '''UPDATE internal_documents SET doc_name=?,doc_category=?,person_name=?,
+            issuing_authority=?,issue_date=?,expiry_date=?,notes=?,updated_at=CURRENT_TIMESTAMP
+            WHERE id=?''',
+          (d.get('doc_name'), d.get('doc_category'), d.get('person_name'),
+           d.get('issuing_authority'), d.get('issue_date') or None,
+           d.get('expiry_date') or None, d.get('notes'), id))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/internal-doc/<int:id>/delete', methods=['POST'])
+@compliance_required
+def api_delete_internal_doc(id):
+    try:
+        conn = get_db()
+        x(conn, 'DELETE FROM internal_documents WHERE id=?', (id,))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/company/<int:cid>/docs-export')
+@compliance_required
+def api_export_company_docs(cid):
+    if not HAS_XL:
+        return "openpyxl not installed", 500
+    from openpyxl.styles import Font, PatternFill, Alignment
+    conn = get_db()
+    co = one(conn, 'SELECT * FROM companies WHERE id=?', (cid,))
+    ubos = all_(conn, 'SELECT * FROM ubos WHERE company_id=?', (cid,))
+    conn.close()
+    if not co:
+        return "Company not found", 404
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Documents"
+    hf = PatternFill(start_color="1C1917", end_color="1C1917", fill_type="solid")
+    hfont = Font(color="D97706", bold=True, size=11)
+    headers = ['Document Type', 'Reference / Number', 'Issuing Authority', 'Expiry Date', 'Status']
+    for i, h in enumerate(headers, 1):
+        c = ws.cell(row=1, column=i, value=h)
+        c.font = hfont; c.fill = hf; c.alignment = Alignment(horizontal='center')
+    today = datetime.now().date()
+    def status(exp):
+        if not exp: return '—'
+        try:
+            d = datetime.strptime(str(exp)[:10], '%Y-%m-%d').date()
+            diff = (d - today).days
+            if diff < 0: return 'EXPIRED'
+            elif diff <= 30: return f'{diff}d - CRITICAL'
+            elif diff <= 90: return f'{diff}d - WARNING'
+            else: return f'{diff}d - OK'
+        except: return '—'
+    rows = [
+        ['Trade License', co['trade_license_no'], co['issuing_authority'], co['trade_license_expiry'], status(co['trade_license_expiry'])],
+        ['Address Proof', co['address_proof_type'], '—', co['address_proof_expiry'], status(co['address_proof_expiry'])],
+        ['VAT Certificate', co['tax_no_trn'], '—', '—', co['vat_cert'] or '—'],
+    ]
+    for ubo in ubos:
+        rows.append([f"Passport ({ubo['person_name']})", ubo['passport_no'], ubo['nationality'], ubo['passport_expiry'], status(ubo['passport_expiry'])])
+        rows.append([f"Emirates ID ({ubo['person_name']})", ubo['emirates_id'], '—', ubo['emirates_id_expiry'], status(ubo['emirates_id_expiry'])])
+    for i, row in enumerate(rows, 2):
+        for j, val in enumerate(row, 1):
+            c = ws.cell(row=i, column=j, value=str(val) if val else '—')
+            c.font = Font(size=10)
+            c.alignment = Alignment(horizontal='left')
+    for col, width in zip(['A','B','C','D','E'], [28, 22, 24, 16, 18]):
+        ws.column_dimensions[col].width = width
+    ws2 = wb.create_sheet("Company Info")
+    info = [('AC Code', co['ac_code']), ('Company Name', co['client_name']),
+            ('Status', co['ac_status']), ('Risk', co['risk_status']),
+            ('Doc Status', co['doc_status']), ('Account Manager', co['account_manager']),
+            ('KYC Status', co['kyc_status']), ('Region', co['region'])]
+    for i, (k, v) in enumerate(info, 1):
+        ws2.cell(row=i, column=1, value=k).font = Font(bold=True, color="D97706")
+        ws2.cell(row=i, column=2, value=str(v) if v else '—')
+    ws2.column_dimensions['A'].width = 22; ws2.column_dimensions['B'].width = 35
+    out = io.BytesIO(); wb.save(out); out.seek(0)
+    fname = f"{co['ac_code']}_documents.xlsx"
+    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name=fname)
