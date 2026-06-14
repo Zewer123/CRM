@@ -31,8 +31,15 @@
           {% else %}background:rgba(245,158,11,0.12);color:#fcd34d;{% endif %}">
           {{ t.frequency|upper }}
         </span>
-        {% if t.assigned_role and t.assigned_role != 'all' %}
-        <span style="font-size:11px;color:var(--text-dim);">Role: {{ t.assigned_role }}</span>
+        <!-- ASSIGNED TO -->
+        {% if t.assigned_user_name %}
+        <span style="font-size:11px;background:rgba(217,119,6,0.12);color:var(--primary);padding:2px 10px;border-radius:20px;font-weight:600;">
+          👤 {{ t.assigned_user_name }}
+        </span>
+        {% elif t.assigned_role == 'all' or not t.assigned_role %}
+        <span style="font-size:11px;color:var(--text-dim);padding:2px 8px;">👥 All Staff</span>
+        {% else %}
+        <span style="font-size:11px;color:var(--text-dim);padding:2px 8px;">👥 {{ t.assigned_role|title }} only</span>
         {% endif %}
       </div>
       {% if t.description %}
@@ -227,3 +234,4 @@ function deleteTemplate(id) {
 }
 </script>
 {% endblock %}
+
