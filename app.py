@@ -196,7 +196,8 @@ def setup_db():
     for col in ['contact_number','mobile']:
         try: c.execute(f'ALTER TABLE users ADD COLUMN {col} TEXT')
         except: pass
-    for col in ['whatsapp_number','deal_after_vat','registration_screening_tool']:
+    for col in ['whatsapp_number','deal_after_vat','registration_screening_tool',
+                'contact_person_name','contact_person_number','account_manager']:
         try: c.execute(f'ALTER TABLE companies ADD COLUMN {col} TEXT')
         except: pass
     # Add description column to dropdowns for task templates
@@ -391,7 +392,10 @@ def companies():
 @app.route('/company/new')
 @compliance_required
 def company_new():
-    return render_template('company_form.html', dropdown_data=get_dropdowns(), company=None, ubos=[], edit=False)
+    conn = get_db()
+    staff_users = conn.execute("SELECT id, name FROM users WHERE is_active=1 ORDER BY name").fetchall()
+    conn.close()
+    return render_template('company_form.html', dropdown_data=get_dropdowns(), company=None, ubos=[], edit=False, staff_users=staff_users)
 
 @app.route('/company/<int:id>')
 @compliance_required
@@ -419,9 +423,10 @@ def company_edit(id):
     conn = get_db()
     company = conn.execute('SELECT * FROM companies WHERE id=?', (id,)).fetchone()
     ubos = conn.execute('SELECT * FROM ubos WHERE company_id=? ORDER BY share_percentage DESC', (id,)).fetchall()
+    staff_users = conn.execute("SELECT id, name FROM users WHERE is_active=1 ORDER BY name").fetchall()
     conn.close()
     if not company: return redirect(url_for('companies'))
-    return render_template('company_form.html', dropdown_data=get_dropdowns(), company=company, ubos=ubos, edit=True)
+    return render_template('company_form.html', dropdown_data=get_dropdowns(), company=company, ubos=ubos, edit=True, staff_users=staff_users)
 
 def _ubo_rows(data, company_id, conn):
     conn.execute('DELETE FROM ubos WHERE company_id=?', (company_id,))
@@ -440,6 +445,8 @@ def _company_fields(data):
         data.get('nature'), data.get('type_of_client'), data.get('name_of_freezone'), data.get('mode_of_ac'),
         data.get('country_of_incorporation'), data.get('region'), data.get('address'),
         data.get('telephone'), data.get('mobile'), data.get('whatsapp_number'), data.get('email_id'),
+        data.get('contact_person_name'), data.get('contact_person_number'),
+        data.get('account_manager'),
         data.get('address_proof_type'), data.get('address_proof_expiry') or None,
         data.get('kyc_status'), data.get('trade_license_no'), data.get('issuing_authority'),
         data.get('legal_type'), data.get('incorporation_date') or None, data.get('trade_license_expiry') or None,
@@ -458,12 +465,13 @@ def api_add_company():
         conn = get_db()
         conn.execute('''INSERT INTO companies (client_name,ac_code,ac_opening_date,ac_status,active_till_year,
             nature,type_of_client,name_of_freezone,mode_of_ac,country_of_incorporation,region,address,
-            telephone,mobile,whatsapp_number,email_id,address_proof_type,address_proof_expiry,
+            telephone,mobile,whatsapp_number,email_id,contact_person_name,contact_person_number,account_manager,
+            address_proof_type,address_proof_expiry,
             kyc_status,trade_license_no,issuing_authority,legal_type,incorporation_date,trade_license_expiry,
             tax_no_trn,vat_cert,vat_declaration,deal_after_vat,num_beneficial_owners,moa,pep,undertaking,
             source_of_fund,software_updation,doc_status,screening_date,registration_screening_tool,
             risk_status,verified_by,verified_date,followup_details,crowe_feedback,zewer_comments,created_by)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
             (data.get('client_name'), data.get('ac_code')) + _company_fields(data) + (session.get('user_id'),))
         cid = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
         _ubo_rows(data, cid, conn)
@@ -480,7 +488,8 @@ def api_edit_company(id):
         conn = get_db()
         conn.execute('''UPDATE companies SET client_name=?,ac_opening_date=?,ac_status=?,active_till_year=?,
             nature=?,type_of_client=?,name_of_freezone=?,mode_of_ac=?,country_of_incorporation=?,region=?,
-            address=?,telephone=?,mobile=?,whatsapp_number=?,email_id=?,address_proof_type=?,address_proof_expiry=?,
+            address=?,telephone=?,mobile=?,whatsapp_number=?,email_id=?,contact_person_name=?,contact_person_number=?,
+            account_manager=?,address_proof_type=?,address_proof_expiry=?,
             kyc_status=?,trade_license_no=?,issuing_authority=?,legal_type=?,incorporation_date=?,trade_license_expiry=?,
             tax_no_trn=?,vat_cert=?,vat_declaration=?,deal_after_vat=?,num_beneficial_owners=?,moa=?,pep=?,
             undertaking=?,source_of_fund=?,software_updation=?,doc_status=?,screening_date=?,

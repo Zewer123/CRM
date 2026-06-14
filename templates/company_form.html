@@ -19,26 +19,27 @@
 
   <form id="cForm">
 
-    <!-- TAB 1: BASIC -->
+    <!-- TAB 1: BASIC INFO -->
     <div id="tab-basic" class="tab-panel">
       <div class="form-grid">
+
         <div class="form-group">
           <label>AC Code *</label>
-          <input type="text" name="ac_code" value="{{ company.ac_code if company else '' }}" {% if edit %}readonly{% endif %} required>
+          <input type="text" name="ac_code" value="{{ company.ac_code if company else '' }}" {% if edit %}readonly{% endif %} required placeholder="e.g. TJ5003">
         </div>
         <div class="form-group">
           <label>Client Name *</label>
-          <input type="text" name="client_name" value="{{ company.client_name if company else '' }}" required>
+          <input type="text" name="client_name" value="{{ company.client_name if company else '' }}" required placeholder="Full legal name">
         </div>
         <div class="form-group">
           <label>AC Opening Date</label>
-          <input type="date" name="ac_opening_date" value="{{ company.ac_opening_date if company else '' }}">
+          <input type="date" name="ac_opening_date" value="{{ company.ac_opening_date if company else '' }}" onclick="this.showPicker()">
         </div>
         <div class="form-group">
           <label>AC Status</label>
           <select name="ac_status">
             {% for v in dropdown_data.get('AC STATUS', ['Active','Inactive']) %}
-            <option value="{{ v }}" {% if company and company.ac_status == v %}selected{% endif %}>{{ v }}</option>
+            <option value="{{ v }}" {% if company and company.ac_status == v %}selected{% elif not company and v == 'Active' %}selected{% endif %}>{{ v }}</option>
             {% endfor %}
           </select>
         </div>
@@ -98,28 +99,82 @@
         </div>
         <div class="form-group form-full">
           <label>Address</label>
-          <textarea name="address" rows="2">{{ company.address if company else '' }}</textarea>
+          <textarea name="address" rows="2" placeholder="Full address">{{ company.address if company else '' }}</textarea>
         </div>
+
+        <!-- TELEPHONE -->
         <div class="form-group">
           <label>Telephone</label>
-          <input type="text" name="telephone" value="{{ company.telephone if company else '' }}">
+          <div class="phone-row">
+            <span class="phone-prefix">+971</span>
+            <input type="text" name="telephone" id="telephoneInput" placeholder="4 225 8019"
+              value="{{ company.telephone | replace('+971','') | replace('+','') if company and company.telephone else '' }}"
+              oninput="formatPhone(this)">
+          </div>
         </div>
+
+        <!-- MOBILE -->
         <div class="form-group">
           <label>Mobile</label>
-          <input type="text" name="mobile" value="{{ company.mobile if company else '' }}">
+          <div class="phone-row">
+            <span class="phone-prefix">+9715</span>
+            <input type="text" name="mobile" id="mobileInput" placeholder="0 659 4165"
+              value="{{ company.mobile | replace('+9715','') | replace('+971','') | replace('+','') if company and company.mobile else '' }}"
+              oninput="formatPhone(this)">
+          </div>
         </div>
+
+        <!-- WHATSAPP -->
         <div class="form-group">
-          <label>WhatsApp Number <small style="color:var(--text-dim);">e.g. 971501234567</small></label>
-          <input type="text" name="whatsapp_number" value="{{ company.whatsapp_number if company else '' }}" placeholder="971501234567">
+          <label>WhatsApp</label>
+          <div class="phone-row">
+            <span class="phone-prefix">+9715</span>
+            <input type="text" name="whatsapp_number" id="whatsappInput" placeholder="0 659 4165"
+              value="{{ company.whatsapp_number | replace('+9715','') | replace('+971','') | replace('+','') if company and company.whatsapp_number else '' }}"
+              oninput="formatPhone(this)">
+            <button type="button" class="wa-copy-btn" onclick="copyMobileToWA()" title="Same as Mobile">
+              <span id="waCopyIcon">📋</span>
+            </button>
+          </div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:3px;">Click 📋 to copy from Mobile</div>
         </div>
+
         <div class="form-group">
           <label>Email</label>
-          <input type="email" name="email_id" value="{{ company.email_id if company else '' }}">
+          <input type="email" name="email_id" value="{{ company.email_id if company else '' }}" placeholder="info@company.com">
         </div>
+
+        <!-- CONTACT PERSON -->
+        <div class="form-group">
+          <label>Contact Person Name</label>
+          <input type="text" name="contact_person_name" value="{{ company.contact_person_name if company else '' }}" placeholder="Primary contact (not owner)">
+        </div>
+        <div class="form-group">
+          <label>Contact Person Number</label>
+          <div class="phone-row">
+            <span class="phone-prefix">+9715</span>
+            <input type="text" name="contact_person_number" placeholder="0 123 4567"
+              value="{{ company.contact_person_number | replace('+9715','') | replace('+971','') | replace('+','') if company and company.contact_person_number else '' }}"
+              oninput="formatPhone(this)">
+          </div>
+        </div>
+
+        <!-- ACCOUNT MANAGER -->
+        <div class="form-group">
+          <label>Account Manager <small style="color:var(--text-dim);">(Zewer Staff)</small></label>
+          <select name="account_manager">
+            <option value="">-- Select Staff --</option>
+            {% for u in staff_users %}
+            <option value="{{ u.name }}" {% if company and company.account_manager == u.name %}selected{% endif %}>{{ u.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
         <div class="form-group">
           <label>Active Till Year</label>
           <input type="text" name="active_till_year" value="{{ company.active_till_year if company else '' }}" placeholder="e.g. 2026">
         </div>
+
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:20px;">
         <button type="button" class="btn btn-primary" onclick="switchTab('docs', document.querySelectorAll('.tab-btn')[1])">Next: Documents →</button>
@@ -141,7 +196,7 @@
         </div>
         <div class="form-group">
           <label>Address Proof Expiry</label>
-          <input type="date" name="address_proof_expiry" value="{{ company.address_proof_expiry if company else '' }}">
+          <input type="date" name="address_proof_expiry" value="{{ company.address_proof_expiry if company else '' }}" onclick="this.showPicker()">
         </div>
       </div>
 
@@ -149,7 +204,7 @@
       <div class="form-grid">
         <div class="form-group">
           <label>Trade License No</label>
-          <input type="text" name="trade_license_no" value="{{ company.trade_license_no if company else '' }}">
+          <input type="text" name="trade_license_no" value="{{ company.trade_license_no if company else '' }}" placeholder="License number">
         </div>
         <div class="form-group">
           <label>Issuing Authority</label>
@@ -171,11 +226,11 @@
         </div>
         <div class="form-group">
           <label>Incorporation Date</label>
-          <input type="date" name="incorporation_date" value="{{ company.incorporation_date if company else '' }}">
+          <input type="date" name="incorporation_date" value="{{ company.incorporation_date if company else '' }}" onclick="this.showPicker()">
         </div>
         <div class="form-group">
           <label>Trade License Expiry ⚠️</label>
-          <input type="date" name="trade_license_expiry" value="{{ company.trade_license_expiry if company else '' }}">
+          <input type="date" name="trade_license_expiry" value="{{ company.trade_license_expiry if company else '' }}" onclick="this.showPicker()">
         </div>
       </div>
       <div style="display:flex;justify-content:space-between;margin-top:20px;">
@@ -200,13 +255,13 @@
           <label>Risk Status</label>
           <select name="risk_status">
             {% for v in dropdown_data.get('RISK STATUS', ['High','Medium','Low','Unspecified']) %}
-            <option value="{{ v }}" {% if company and company.risk_status == v %}selected{% endif %}>{{ v }}</option>
+            <option value="{{ v }}" {% if company and company.risk_status == v %}selected{% elif not company and v == 'Unspecified' %}selected{% endif %}>{{ v }}</option>
             {% endfor %}
           </select>
         </div>
         <div class="form-group">
           <label>Tax No / TRN</label>
-          <input type="text" name="tax_no_trn" value="{{ company.tax_no_trn if company else '' }}">
+          <input type="text" name="tax_no_trn" value="{{ company.tax_no_trn if company else '' }}" placeholder="TRN number">
         </div>
         <div class="form-group">
           <label>VAT Certificate</label>
@@ -228,7 +283,7 @@
         </div>
         <div class="form-group">
           <label>Deal After VAT (01/06/2018)</label>
-          <input type="date" name="deal_after_vat" value="{{ company.deal_after_vat if company else '' }}">
+          <input type="date" name="deal_after_vat" value="{{ company.deal_after_vat if company else '' }}" onclick="this.showPicker()">
         </div>
         <div class="form-group">
           <label>No. of Beneficial Owners (25%+)</label>
@@ -274,13 +329,13 @@
           <label>Doc Status</label>
           <select name="doc_status">
             {% for v in dropdown_data.get('DOC STATUS', ['Completed','Incompleted']) %}
-            <option value="{{ v }}" {% if company and company.doc_status == v %}selected{% endif %}>{{ v }}</option>
+            <option value="{{ v }}" {% if company and company.doc_status == v %}selected{% elif not company and v == 'Incompleted' %}selected{% endif %}>{{ v }}</option>
             {% endfor %}
           </select>
         </div>
         <div class="form-group">
           <label>Screening Date</label>
-          <input type="date" name="screening_date" value="{{ company.screening_date if company else '' }}">
+          <input type="date" name="screening_date" value="{{ company.screening_date if company else '' }}" onclick="this.showPicker()">
         </div>
         <div class="form-group">
           <label>Registration All Screening Tool</label>
@@ -292,23 +347,23 @@
         </div>
         <div class="form-group">
           <label>Verified By</label>
-          <input type="text" name="verified_by" value="{{ company.verified_by if company else '' }}">
+          <input type="text" name="verified_by" value="{{ company.verified_by if company else '' }}" placeholder="Staff name">
         </div>
         <div class="form-group">
           <label>Verified Date</label>
-          <input type="date" name="verified_date" value="{{ company.verified_date if company else '' }}">
+          <input type="date" name="verified_date" value="{{ company.verified_date if company else '' }}" onclick="this.showPicker()">
         </div>
         <div class="form-group form-full">
           <label>Followup Details</label>
-          <textarea name="followup_details" rows="2">{{ company.followup_details if company else '' }}</textarea>
+          <textarea name="followup_details" rows="2" placeholder="Follow-up notes...">{{ company.followup_details if company else '' }}</textarea>
         </div>
         <div class="form-group form-full">
           <label>Crowe Feedback / Missing Documents</label>
-          <textarea name="crowe_feedback" rows="2">{{ company.crowe_feedback if company else '' }}</textarea>
+          <textarea name="crowe_feedback" rows="2" placeholder="Feedback from Crowe...">{{ company.crowe_feedback if company else '' }}</textarea>
         </div>
         <div class="form-group form-full">
           <label>Zewer Comments</label>
-          <textarea name="zewer_comments" rows="2">{{ company.zewer_comments if company else '' }}</textarea>
+          <textarea name="zewer_comments" rows="2" placeholder="Internal comments...">{{ company.zewer_comments if company else '' }}</textarea>
         </div>
       </div>
       <div style="display:flex;justify-content:space-between;margin-top:20px;">
@@ -372,15 +427,15 @@
             </div>
             <div class="form-group">
               <label>Passport Expiry</label>
-              <input type="date" name="ubo_passport_expiry[]" value="{{ u.passport_expiry or '' }}">
+              <input type="date" name="ubo_passport_expiry[]" value="{{ u.passport_expiry or '' }}" onclick="this.showPicker()">
             </div>
             <div class="form-group">
               <label>Emirates ID</label>
-              <input type="text" name="ubo_eid[]" value="{{ u.emirates_id or '' }}">
+              <input type="text" name="ubo_eid[]" value="{{ u.emirates_id or '' }}" placeholder="784-XXXX-XXXXXXX-X">
             </div>
             <div class="form-group">
               <label>ID Expiry</label>
-              <input type="date" name="ubo_eid_expiry[]" value="{{ u.emirates_id_expiry or '' }}">
+              <input type="date" name="ubo_eid_expiry[]" value="{{ u.emirates_id_expiry or '' }}" onclick="this.showPicker()">
             </div>
             <div class="form-group">
               <label>Doc Status</label>
@@ -458,11 +513,11 @@
       </div>
       <div class="form-group">
         <label>Passport No</label>
-        <input type="text" name="ubo_passport[]">
+        <input type="text" name="ubo_passport[]" placeholder="Passport number">
       </div>
       <div class="form-group">
         <label>Passport Expiry</label>
-        <input type="date" name="ubo_passport_expiry[]">
+        <input type="date" name="ubo_passport_expiry[]" onclick="this.showPicker()">
       </div>
       <div class="form-group">
         <label>Emirates ID</label>
@@ -470,7 +525,7 @@
       </div>
       <div class="form-group">
         <label>ID Expiry</label>
-        <input type="date" name="ubo_eid_expiry[]">
+        <input type="date" name="ubo_eid_expiry[]" onclick="this.showPicker()">
       </div>
       <div class="form-group">
         <label>Doc Status</label>
@@ -481,16 +536,70 @@
       </div>
       <div class="form-group">
         <label>Verified By</label>
-        <input type="text" name="ubo_verified_by[]">
+        <input type="text" name="ubo_verified_by[]" placeholder="Staff name">
       </div>
       <div class="form-group form-full">
         <label>Followup</label>
-        <textarea name="ubo_followup[]" rows="2"></textarea>
+        <textarea name="ubo_followup[]" rows="2" placeholder="Pending items..."></textarea>
       </div>
     </div>
   </div>
 </template>
 
+<style>
+/* Phone input row */
+.phone-row {
+  display: flex;
+  align-items: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.phone-row:focus-within { border-color: var(--primary); }
+.phone-prefix {
+  background: var(--surface2);
+  color: var(--text-muted);
+  padding: 9px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  border-right: 1px solid var(--border);
+  user-select: none;
+}
+.phone-row input {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  flex: 1;
+  min-width: 0;
+}
+.phone-row input:focus { outline: none; box-shadow: none; }
+.wa-copy-btn {
+  background: var(--surface2);
+  border: none;
+  border-left: 1px solid var(--border);
+  padding: 9px 12px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.2s;
+}
+.wa-copy-btn:hover { background: rgba(37,211,102,0.2); }
+
+/* White calendar icon for date inputs */
+input[type="date"] {
+  color-scheme: dark;
+  cursor: pointer;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+  opacity: 0.8;
+  padding: 2px;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+</style>
 {% endblock %}
 
 {% block scripts %}
@@ -505,8 +614,31 @@ function switchTab(name, btn) {
   btn.classList.add('active');
 }
 
+function formatPhone(input) {
+  // Allow only digits and spaces
+  input.value = input.value.replace(/[^\d\s]/g, '');
+}
+
+function copyMobileToWA() {
+  const mobile = document.getElementById('mobileInput').value;
+  document.getElementById('whatsappInput').value = mobile;
+  const icon = document.getElementById('waCopyIcon');
+  icon.textContent = '✅';
+  setTimeout(() => icon.textContent = '📋', 1500);
+}
+
+function getPhoneVal(name, prefix) {
+  const el = document.querySelector(`[name="${name}"]`);
+  if (!el || !el.value.trim()) return '';
+  return prefix + el.value.replace(/\s/g, '');
+}
+
 function addUBO() {
   const tpl = document.getElementById('uboTpl').content.cloneNode(true);
+  // Add onclick to date inputs in cloned template
+  tpl.querySelectorAll('input[type="date"]').forEach(el => {
+    el.addEventListener('click', function() { try { this.showPicker(); } catch(e) {} });
+  });
   document.getElementById('uboList').appendChild(tpl);
 }
 
@@ -516,13 +648,20 @@ function submitForm() {
 
   const data = {};
   ['ac_code','client_name','ac_opening_date','ac_status','active_till_year','nature','type_of_client',
-   'name_of_freezone','mode_of_ac','country_of_incorporation','region','address','telephone','mobile',
-   'whatsapp_number','email_id','address_proof_type','address_proof_expiry','kyc_status',
+   'name_of_freezone','mode_of_ac','country_of_incorporation','region','address',
+   'email_id','contact_person_name','account_manager',
+   'address_proof_type','address_proof_expiry','kyc_status',
    'trade_license_no','issuing_authority','legal_type','incorporation_date','trade_license_expiry',
    'tax_no_trn','vat_cert','vat_declaration','deal_after_vat','num_beneficial_owners','moa','pep',
    'undertaking','source_of_fund','doc_status','screening_date','registration_screening_tool',
    'risk_status','verified_by','verified_date','followup_details','crowe_feedback','zewer_comments'
   ].forEach(k => data[k] = get(k));
+
+  // Phone fields with prefix
+  data.telephone = getPhoneVal('telephone', '+971');
+  data.mobile = getPhoneVal('mobile', '+9715');
+  data.whatsapp_number = getPhoneVal('whatsapp_number', '+9715');
+  data.contact_person_number = getPhoneVal('contact_person_number', '+9715');
 
   if (!data.ac_code) { alert('AC Code is required'); switchTab('basic', document.querySelectorAll('.tab-btn')[0]); return; }
   if (!data.client_name) { alert('Client Name is required'); switchTab('basic', document.querySelectorAll('.tab-btn')[0]); return; }
@@ -542,14 +681,27 @@ function submitForm() {
     followup_details: form.querySelectorAll('[name="ubo_followup[]"]')[i]?.value || '',
   })).filter(u => u.person_name);
 
+  const btn = document.querySelector('button[onclick="submitForm()"]');
+  btn.disabled = true;
+  btn.textContent = '⏳ Saving...';
+
   const url = IS_EDIT ? `/api/company/${COMPANY_ID}/edit` : '/api/company/add';
   fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
     .then(r => r.json())
     .then(d => {
-      if (d.success) window.location.href = IS_EDIT ? `/company/${COMPANY_ID}` : `/company/${d.id}`;
-      else alert('Error: ' + d.error);
+      if (d.success) {
+        window.location.href = IS_EDIT ? `/company/${COMPANY_ID}` : `/company/${d.id}`;
+      } else {
+        btn.disabled = false;
+        btn.textContent = IS_EDIT ? '💾 Save Changes' : '✅ Add Company';
+        alert('Error saving: ' + d.error);
+      }
     })
-    .catch(e => alert('Error: ' + e));
+    .catch(e => {
+      btn.disabled = false;
+      btn.textContent = IS_EDIT ? '💾 Save Changes' : '✅ Add Company';
+      alert('Network error: ' + e);
+    });
 }
 </script>
 {% endblock %}
