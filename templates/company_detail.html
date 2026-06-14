@@ -5,13 +5,13 @@
 <div style="max-width:1100px;margin:0 auto;">
 
   <!-- HEADER CARD -->
-  <div class="card" style="margin-bottom:20px;border-left:4px solid var(--primary);">
+  <div class="card" style="margin-bottom:20px;border-left:3px solid var(--primary);">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;">
       <div>
         <div class="page-breadcrumb"><a href="{{ url_for('companies') }}">← Companies</a></div>
         <h1 style="font-size:24px;font-weight:700;color:var(--text);margin:6px 0 4px;">{{ company.client_name }}</h1>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <span style="font-size:13px;font-weight:600;color:var(--text-muted);background:var(--bg);padding:2px 10px;border-radius:20px;border:1px solid var(--border);">{{ company.ac_code }}</span>
+          <span style="font-size:13px;font-weight:600;color:var(--text-muted);background:var(--surface2);padding:2px 10px;border-radius:20px;border:1px solid var(--border);">{{ company.ac_code }}</span>
           <span class="badge {% if company.ac_status=='Active' %}badge-active{% else %}badge-inactive{% endif %}">{{ company.ac_status }}</span>
           {% set risk = company.risk_status or 'Unspecified' %}
           <span class="badge badge-{{ risk.lower() }}">{{ risk }} Risk</span>
@@ -200,19 +200,19 @@
     {% if company.followup_details %}
     <div style="margin-bottom:12px;">
       <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Followup Details</div>
-      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:13px;color:var(--text-muted);line-height:1.6;">{{ company.followup_details }}</div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:13px;color:var(--text-muted);line-height:1.6;">{{ company.followup_details }}</div>
     </div>
     {% endif %}
     {% if company.crowe_feedback %}
     <div style="margin-bottom:12px;">
       <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Crowe Feedback</div>
-      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:13px;color:var(--text-muted);line-height:1.6;">{{ company.crowe_feedback }}</div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:13px;color:var(--text-muted);line-height:1.6;">{{ company.crowe_feedback }}</div>
     </div>
     {% endif %}
     {% if company.zewer_comments %}
     <div>
       <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:4px;">Zewer Comments</div>
-      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:13px;color:var(--text-muted);line-height:1.6;">{{ company.zewer_comments }}</div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:13px;color:var(--text-muted);line-height:1.6;">{{ company.zewer_comments }}</div>
     </div>
     {% endif %}
   </div>
@@ -264,7 +264,7 @@
 <div class="modal-overlay" id="waModal">
   <div class="modal-box">
     <div class="modal-title">💬 WhatsApp Message</div>
-    <textarea id="waMessage" rows="10" class="form-group" style="width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;color:var(--text);padding:12px;font-size:13px;line-height:1.6;resize:vertical;"></textarea>
+    <textarea id="waMessage" rows="10" class="form-group" style="width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:6px;color:var(--text);padding:12px;font-size:13px;line-height:1.6;resize:vertical;"></textarea>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('waModal')">Cancel</button>
       <button class="btn btn-wa" onclick="openWA()">Open WhatsApp</button>

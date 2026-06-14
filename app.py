@@ -74,10 +74,13 @@ def all_(conn, sql, p=None):
     return [dict(r) for r in rows]
 
 def cnt(conn, sql, p=None):
-    r = x(conn, sql, p).fetchone()
-    if r is None: return 0
-    v = dict(r) if is_pg(conn) else r
-    return list(v.values())[0] if isinstance(v, dict) else v[0]
+    try:
+        r = x(conn, sql, p).fetchone()
+        if r is None: return 0
+        if isinstance(r, dict): return list(r.values())[0]
+        try: return r[0]
+        except: return 0
+    except: return 0
 
 def lastid(conn):
     if is_pg(conn):
