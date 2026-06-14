@@ -148,37 +148,6 @@
   </div>
 </div>
 
-{% if urgent_tasks %}
-<div class="card">
-  <div class="card-header">
-    <div class="card-title">⚡ Urgent & Overdue Tasks</div>
-    <a href="{{ url_for('tasks') }}" style="font-size:12px;color:var(--primary-light);text-decoration:none;">All tasks →</a>
-  </div>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Task</th><th>Assigned To</th><th>Priority</th><th>Due</th><th>Status</th></tr></thead>
-      <tbody>
-        {% for t in urgent_tasks %}
-        <tr>
-          <td style="color:var(--text);font-weight:500;">{{ t.title }}</td>
-          <td style="color:var(--text-muted);font-size:12px;">{{ t.assigned_name or '—' }}</td>
-          <td><span class="badge badge-{% if t.priority=='urgent' %}urgent{% elif t.priority=='high' %}high-p{% else %}normal{% endif %}">{{ (t.priority or 'normal').upper() }}</span></td>
-          <td>
-            {% if t.due_date %}
-            {% set d = days_left(t.due_date) %}
-            <span class="{% if d is not none and d < 0 %}exp-expired{% elif d is not none and d <= 1 %}exp-critical{% else %}exp-warning{% endif %}">
-              {{ t.due_date|string|truncate(10,True,'') }}{% if d is not none %} ({% if d < 0 %}{{ d|abs }}d overdue{% elif d == 0 %}today{% else %}{{ d }}d{% endif %}){% endif %}
-            </span>
-            {% else %}—{% endif %}
-          </td>
-          <td><span class="badge badge-{% if t.status=='done' %}active{% elif t.status=='inprogress' %}compliance{% else %}todo{% endif %}">{{ t.status }}</span></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
 
 {% if user_role in ['admin','compliance'] and staff_task_counts %}
 <div class="card" style="margin-top:20px;">
@@ -198,4 +167,5 @@
 </div>
 {% endif %}
 {% endblock %}
+
 
