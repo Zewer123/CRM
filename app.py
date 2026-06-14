@@ -41,6 +41,8 @@ def get_db():
                                  cursor_factory=psycopg2.extras.RealDictCursor)
             c.autocommit = False
             return c
+        except ImportError:
+            print("psycopg2 not installed, using SQLite")
         except Exception as e:
             print(f"PG failed: {e}, using SQLite")
     c = sqlite3.connect('/tmp/aml_crm.db')
