@@ -128,10 +128,10 @@
           <td>
             <div style="display:flex;gap:5px;align-items:center;">
               <a href="{{ url_for('company_detail', id=row.company_id) }}" class="btn btn-ghost btn-sm btn-icon" title="View">👁️</a>
-              {% set wa = row.whatsapp_number or row.mobile %}
-              {% if wa %}
-              <a href="https://wa.me/{{ wa|replace('+','')|replace(' ','')|replace('-','') }}" target="_blank"
-                 class="btn btn-wa btn-sm btn-icon" title="WhatsApp">💬</a>
+              {% set wa_contact = row.contact_person_number or row.whatsapp_number or row.mobile %}
+              {% if wa_contact %}
+              <a href="https://wa.me/{{ wa_contact|replace('+','')|replace(' ','')|replace('-','') }}" target="_blank"
+                 class="btn btn-wa btn-sm btn-icon" title="WhatsApp {{ row.contact_person_name or 'Contact' }}">💬</a>
               {% endif %}
               <button class="btn btn-ghost btn-sm btn-icon" title="Create Task"
                 onclick="createTask('{{ row.ac_code }}', {{ row.company_id }}, '{{ row.client_name|replace("'","\\'") }}', '{{ row.doc_type }}', '{{ row.expiry_date }}', '{{ row.account_manager or "" }}')">
@@ -299,3 +299,4 @@ function exportAlerts() {
 }
 </script>
 {% endblock %}
+
