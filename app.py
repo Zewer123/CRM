@@ -50,22 +50,56 @@ def inject_user():
 
 def get_db():
     if DATABASE_URL and DB_TYPE == 'postgres':
-        url = DATABASE_URL
-        # Railway uses postgres:// but psycopg2 needs postgresql://
-        if url.startswith('postgres://'):
-            url = url.replace('postgres://', 'postgresql://', 1)
-        conn = psycopg2.connect(url, cursor_factory=psycopg2.extras.RealDictCursor)
-        return conn
-    else:
-        import sqlite3
-        DB = os.getenv('DB_PATH', 'aml_crm.db')
-        conn = sqlite3.connect(DB)
-        conn.row_factory = sqlite3.Row
-        conn.execute('PRAGMA foreign_keys = ON')
-        return conn
+        try:
+            url = DATABASE_URL
+            if url.startswith('postgres://'):
+                url = url.replace('postgres://', 'postgresql://', 1)
+            conn = psycopg2.connect(url, cursor_factory=psycopg2.extras.RealDictCursor)
+            return conn
+        except Exception as e:
+            print(f"PostgreSQL connection failed: {e}, falling back to SQLite")
+    import sqlite3
+    DB = os.getenv('DB_PATH', 'aml_crm.db')
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    conn.execute('PRAGMA foreign_keys = ON')
+    return conn
 
 def is_pg():
-    return bool(DATABASE_URL and DB_TYPE == 'postgres')
+    if not DATABASE_URL or DB_TYPE != 'postgres':
+        return False
+    try:
+        url = DATABASE_URL
+        if url.startswith('postgres://'):
+            url = url.replace('postgres://', 'postgresql://', 1)
+        # Quick test connection
+        import psycopg2 as _pg
+        c = _pg.connect(url, connect_timeout=3)
+        c.close()
+        return True
+    except:
+        return False
+
+# Cache is_pg result per request to avoid multiple connection tests
+_pg_available = None
+def is_pg():
+    global _pg_available
+    if _pg_available is not None:
+        return _pg_available
+    if not DATABASE_URL or DB_TYPE != 'postgres':
+        _pg_available = False
+        return False
+    try:
+        url = DATABASE_URL
+        if url.startswith('postgres://'):
+            url = url.replace('postgres://', 'postgresql://', 1)
+        import psycopg2 as _pg
+        c = _pg.connect(url, connect_timeout=5)
+        c.close()
+        _pg_available = True
+    except:
+        _pg_available = False
+    return _pg_available
 
 def row_val(row):
     # Get first value from fetchone result (works for both sqlite Row and pg dict)
@@ -117,6 +151,8 @@ def lastid(conn):
         return conn.execute('SELECT last_insert_rowid()').fetchone()[0]
 
 # ── SETUP DB ────────────────────────────────────────────────
+
+
 
 def setup_db():
     conn = get_db()
@@ -402,7 +438,16 @@ def _get_dropdown_data():
         ],
     }
 
-setup_db()
+try:
+    setup_db()
+    print("DB initialized successfully")
+except Exception as _e:
+    print(f"WARNING: DB init failed ({_e}) - app will still start")
+
+try:
+    setup_db()
+except Exception as _e:
+    print(f"WARNING: DB setup failed ({_e}) - will use SQLite fallback")
 
 # ── HELPERS ─────────────────────────────────────────────────
 
