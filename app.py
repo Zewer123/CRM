@@ -2,9 +2,9 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 import sqlite3
+import os
 from datetime import datetime, timedelta
 from functools import wraps
-import os
 import csv
 import io
 from collections import defaultdict
@@ -18,6 +18,194 @@ ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'xlsx'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def init_db():
+    """Initialize database if it doesn't exist"""
+    if os.path.exists(DB):
+        return  # Already initialized
+    
+    conn = sqlite3.connect(DB)
+    conn.execute('PRAGMA foreign_keys = ON')
+    cursor = conn.cursor()
+    
+    # Create all tables
+    cursor.executescript('''
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            name TEXT NOT NULL,
+            role TEXT DEFAULT 'staff',
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE TABLE companies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ac_code TEXT UNIQUE NOT NULL,
+            client_name TEXT NOT NULL,
+            customer_name TEXT,
+            ac_opening_date DATE,
+            ac_status TEXT DEFAULT 'Active',
+            active_till_year TEXT,
+            nature TEXT,
+            type_of_client TEXT,
+            name_of_freezone TEXT,
+            mode_of_ac TEXT,
+            country_of_incorporation TEXT,
+            region TEXT,
+            address TEXT,
+            telephone TEXT,
+            mobile TEXT,
+            whatsapp_link TEXT,
+            email_id TEXT,
+            address_proof_type TEXT,
+            address_proof_expiry DATE,
+            address_proof_days_left INTEGER,
+            address_proof_status TEXT,
+            kyc_status TEXT,
+            trade_license_no TEXT,
+            issuing_authority TEXT,
+            legal_type TEXT,
+            incorporation_date DATE,
+            trade_license_expiry DATE,
+            trade_license_days_left INTEGER,
+            trade_license_valid TEXT,
+            tax_no_trn TEXT,
+            vat_cert TEXT,
+            vat_declaration TEXT,
+            vat_declaration_date DATE,
+            num_beneficial_owners INTEGER DEFAULT 0,
+            moa TEXT,
+            pep TEXT,
+            undertaking TEXT,
+            source_of_fund TEXT,
+            software_updation TEXT,
+            doc_status TEXT DEFAULT 'Incomplete',
+            screening_date DATE,
+            screening_tool_registered TEXT,
+            risk_status TEXT DEFAULT 'Unspecified',
+            verified_by TEXT,
+            verified_date DATE,
+            followup_details TEXT,
+            crowe_feedback TEXT,
+            zewer_comments TEXT,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(created_by) REFERENCES users(id)
+        );
+        
+        CREATE TABLE ubos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_id INTEGER NOT NULL,
+            ac_code TEXT,
+            client_name TEXT,
+            position TEXT,
+            share_percentage DECIMAL(5,2),
+            person_name TEXT NOT NULL,
+            nationality TEXT,
+            residential_status TEXT,
+            group_of_companies TEXT,
+            passport_no TEXT,
+            passport_expiry DATE,
+            passport_days_left INTEGER,
+            passport_status TEXT,
+            emirates_id TEXT,
+            emirates_id_expiry DATE,
+            emirates_id_days_left INTEGER,
+            emirates_id_status TEXT,
+            doc_status TEXT DEFAULT 'Incomplete',
+            verified_by TEXT,
+            verified_date DATE,
+            followup_details TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE
+        );
+        
+        CREATE TABLE document_files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_id INTEGER,
+            ubo_id INTEGER,
+            doc_type TEXT NOT NULL,
+            file_name TEXT,
+            file_path TEXT,
+            uploaded_by INTEGER,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE,
+            FOREIGN KEY(ubo_id) REFERENCES ubos(id) ON DELETE CASCADE,
+            FOREIGN KEY(uploaded_by) REFERENCES users(id)
+        );
+        
+        CREATE TABLE followup_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_id INTEGER,
+            ubo_id INTEGER,
+            note_type TEXT DEFAULT 'general',
+            note_text TEXT NOT NULL,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE,
+            FOREIGN KEY(ubo_id) REFERENCES ubos(id) ON DELETE CASCADE,
+            FOREIGN KEY(created_by) REFERENCES users(id)
+        );
+        
+        CREATE TABLE dropdowns (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            field_name TEXT NOT NULL,
+            value TEXT NOT NULL,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(field_name, value)
+        );
+    ''')
+    
+    # Insert admin user
+    admin_password = generate_password_hash('Admin@123')
+    cursor.execute('''
+        INSERT INTO users (email, password_hash, name, role)
+        VALUES (?, ?, ?, ?)
+    ''', ('admin@zewer.ae', admin_password, 'Administrator', 'admin'))
+    
+    # Insert compliance user
+    compliance_password = generate_password_hash('Compliance@123')
+    cursor.execute('''
+        INSERT INTO users (email, password_hash, name, role)
+        VALUES (?, ?, ?, ?)
+    ''', ('compliance@zewer.ae', compliance_password, 'Compliance Officer', 'compliance'))
+    
+    # Insert dropdown values
+    dropdowns_data = {
+        'AC STATUS': ['Active', 'Inactive'],
+        'NATURE': ['Individual', 'Legal entity'],
+        'TYPE OF CLIENT': ['MainLand', 'Free Zone', 'Abroad', 'International Corporate'],
+        'MODE OF AC': ['Supplier', 'Customer', 'Bullion', 'Refinery', 'Logistics Co'],
+        'RISK STATUS': ['High', 'Medium', 'Low', 'Unspecified'],
+        'DOC STATUS': ['Completed', 'Incompleted'],
+        'KYC STATUS': ['Yes', 'No', 'Pending'],
+        'ADDRESS PROOF TYPE': ['Ejari', 'Utility Bill', 'Other'],
+        'LEGAL TYPE': ['Individual', 'Partnership', 'LLC', 'Corporation', 'Trust', 'Foundation'],
+        'VAT CERT': ['Yes', 'No'],
+        'VAT DECLARATION': ['Yes', 'No'],
+        'COUNTRY': ['UAE', 'Saudi Arabia', 'Kuwait', 'Qatar', 'Bahrain', 'Oman', 'Other'],
+        'REGION': ['Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman', 'Umm Al Quwain', 'Ras Al Khaimah', 'Fujairah'],
+        'FREEZONE': ['Jafza', 'DMCC', 'DAFZA', 'RAKEZ', 'ICAD', 'Other']
+    }
+    
+    for field, values in dropdowns_data.items():
+        for value in values:
+            cursor.execute('''
+                INSERT INTO dropdowns (field_name, value, is_active)
+                VALUES (?, ?, 1)
+            ''', (field, value))
+    
+    conn.commit()
+    conn.close()
+    print("✅ Database initialized automatically!")
+
+# Initialize database on app startup
+init_db()
 
 def get_db():
     conn = sqlite3.connect(DB)
@@ -87,11 +275,9 @@ def logout():
 def dashboard():
     conn = get_db()
     
-    # Get stats
     total_companies = conn.execute('SELECT COUNT(*) as count FROM companies').fetchone()['count']
     active_companies = conn.execute('SELECT COUNT(*) as count FROM companies WHERE ac_status = "Active"').fetchone()['count']
     
-    # Get expiring documents
     today = datetime.now().date()
     expiring_30 = conn.execute('''
         SELECT COUNT(*) as count FROM companies 
@@ -105,7 +291,6 @@ def dashboard():
         OR (address_proof_expiry BETWEEN ? AND ?)
     ''', (today + timedelta(days=31), today + timedelta(days=60), today + timedelta(days=31), today + timedelta(days=60))).fetchone()['count']
     
-    # Risk breakdown
     risk_data = conn.execute('''
         SELECT risk_status, COUNT(*) as count FROM companies 
         GROUP BY risk_status
@@ -298,7 +483,6 @@ def api_add_ubo(company_id):
 def api_delete_ubo(id):
     try:
         conn = get_db()
-        ubo = conn.execute('SELECT company_id FROM ubos WHERE id = ?', (id,)).fetchone()
         conn.execute('DELETE FROM ubos WHERE id = ?', (id,))
         conn.commit()
         conn.close()
@@ -313,10 +497,8 @@ def api_delete_ubo(id):
 def settings():
     conn = get_db()
     
-    # Get all users
     users = conn.execute('SELECT id, email, name, role, is_active FROM users').fetchall()
     
-    # Get all dropdowns
     dropdowns = conn.execute('SELECT * FROM dropdowns WHERE is_active = 1 ORDER BY field_name, value').fetchall()
     dropdown_groups = defaultdict(list)
     for dd in dropdowns:
@@ -395,14 +577,12 @@ def reports():
     conn = get_db()
     today = datetime.now().date()
     
-    # Expired documents
     expired = conn.execute('''
         SELECT client_name, trade_license_expiry, address_proof_expiry
         FROM companies
         WHERE trade_license_expiry < ? OR address_proof_expiry < ?
     ''', (today, today)).fetchall()
     
-    # Risk breakdown
     risk_data = conn.execute('''
         SELECT risk_status, COUNT(*) as count
         FROM companies
@@ -430,7 +610,6 @@ def export_companies():
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # Headers
     if companies:
         writer.writerow(companies[0].keys())
         for company in companies:
@@ -444,4 +623,5 @@ def page_not_found(e):
     return render_template('404.html'), 404
 
 if __name__ == '__main__':
-    app.run(debug=False, host='0.0.0.0', port=5000)
+    port = int(os.getenv('PORT', 8000))
+    app.run(debug=False, host='0.0.0.0', port=port)
