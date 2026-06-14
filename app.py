@@ -276,7 +276,10 @@ except Exception as e:
 
 def days_left(d):
     if not d: return None
-    try: return (datetime.strptime(str(d)[:10],'%Y-%m-%d').date()-datetime.now().date()).days
+    try:
+        if hasattr(d, 'year'):  # already a date object
+            return (d - datetime.now().date()).days
+        return (datetime.strptime(str(d)[:10],'%Y-%m-%d').date()-datetime.now().date()).days
     except: return None
 
 def exp_status(d):

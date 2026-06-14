@@ -1,149 +1,205 @@
 {% extends "base.html" %}
 {% block title %}Reports - Zewer AML{% endblock %}
 {% block content %}
+
 <div class="page-header">
-  <div class="page-title">📈 Reports</div>
-  <button class="btn btn-primary" onclick="openModal('exportModal')">⬇️ Download Excel Report</button>
+  <div class="page-title">📊 Reports</div>
+  <div style="color:var(--text-dim);font-size:13px;">Export data as Excel (.xlsx)</div>
 </div>
 
 <!-- DATE FILTER -->
-<div class="search-bar">
-  <div class="form-group" style="min-width:170px;"><label>From Date</label><input type="date" id="dateFrom" value="{{ date_from }}"></div>
-  <div class="form-group" style="min-width:170px;"><label>To Date</label><input type="date" id="dateTo" value="{{ date_to }}"></div>
-  <div class="form-group" style="min-width:150px;">
-    <label>Quick Range</label>
-    <select id="quickRange" onchange="applyQuick()">
-      <option value="">Custom</option>
-      <option value="30">Last 30 days</option>
-      <option value="90">Last 90 days</option>
-      <option value="180">Last 6 months</option>
-      <option value="365">Last year</option>
-      <option value="all">All time</option>
-    </select>
+<div class="card" style="margin-bottom:24px;">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+    <span style="font-size:16px;">📅</span>
+    <span style="font-weight:600;color:var(--text);font-size:14px;">Select Date Range</span>
   </div>
-  <button class="btn btn-primary" onclick="applyFilter()">Apply</button>
-  {% if date_from or date_to %}<a href="{{ url_for('reports') }}" class="btn btn-ghost">Clear</a>{% endif %}
+  <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;">
+    <div class="form-group" style="min-width:160px;">
+      <label>FROM</label>
+      <input type="date" id="dateFrom" value="{{ date_from }}">
+    </div>
+    <div class="form-group" style="min-width:160px;">
+      <label>TO</label>
+      <input type="date" id="dateTo" value="{{ date_to }}">
+    </div>
+    <div style="display:flex;gap:8px;padding-bottom:2px;flex-wrap:wrap;">
+      <button class="btn btn-ghost btn-sm" onclick="setRange('month')">This Month</button>
+      <button class="btn btn-ghost btn-sm" onclick="setRange('last')">Last Month</button>
+      <button class="btn btn-ghost btn-sm" onclick="setRange('year')">This Year</button>
+      <button class="btn btn-ghost btn-sm" onclick="setRange('all')">All Time</button>
+    </div>
+  </div>
 </div>
 
-<!-- SUMMARY -->
-<div class="stat-grid">
-  <div class="stat-card primary"><div class="stat-label">Total Companies</div><div class="stat-value">{{ total }}</div></div>
-  <div class="stat-card danger"><div class="stat-label">Expired Trade Lic.</div><div class="stat-value">{{ expired_tl }}</div></div>
-  <div class="stat-card warning"><div class="stat-label">Expiring 30 Days</div><div class="stat-value">{{ expiring_30 }}</div></div>
-  <div class="stat-card warning"><div class="stat-label">Expiring 90 Days</div><div class="stat-value">{{ expiring_90 }}</div></div>
-</div>
+<!-- REPORT CARDS -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:18px;">
 
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;">
-
-  <!-- RISK -->
-  <div class="card">
-    <div class="card-header"><div class="card-title">⚠️ Risk Distribution</div></div>
-    <table><thead><tr><th>Risk Level</th><th>Count</th><th>%</th></tr></thead><tbody>
-      {% for r in risk_data %}
-      <tr>
-        <td><span class="badge badge-{{ (r.risk_status or 'unspecified').lower() }}">{{ r.risk_status or 'Unspecified' }}</span></td>
-        <td style="font-weight:700;">{{ r.c }}</td>
-        <td style="color:var(--text-dim);">{{ ((r.c/total*100)|int if total > 0 else 0) }}%</td>
-      </tr>
-      {% endfor %}
-    </tbody></table>
+  <!-- COMPANY REPORT -->
+  <div class="card" style="border-top:3px solid #3b82f6;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+      <span style="font-size:24px;">🏢</span>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#3b82f6;">Company Report</div>
+        <div style="font-size:12px;color:var(--text-dim);">Full company list with all details</div>
+      </div>
+    </div>
+    <ul style="margin:12px 0 16px 16px;color:var(--text-muted);font-size:13px;line-height:2;">
+      <li>AC Code, company name, type, region</li>
+      <li>Contact details, account manager</li>
+      <li>Risk status, doc status, KYC status</li>
+      <li>Trade license & address proof expiry</li>
+    </ul>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;background:#3b82f6;" onclick="dl('all')">⬇ Export to Excel</button>
   </div>
 
-  <!-- DOC STATUS -->
-  <div class="card">
-    <div class="card-header"><div class="card-title">📄 Document Status</div></div>
-    <table><thead><tr><th>Status</th><th>Count</th><th>%</th></tr></thead><tbody>
-      {% for r in doc_data %}
-      <tr>
-        <td><span class="badge {% if r.doc_status=='Completed' %}badge-completed{% else %}badge-incomplete{% endif %}">{{ r.doc_status or '—' }}</span></td>
-        <td style="font-weight:700;">{{ r.c }}</td>
-        <td style="color:var(--text-dim);">{{ ((r.c/total*100)|int if total > 0 else 0) }}%</td>
-      </tr>
-      {% endfor %}
-    </tbody></table>
+  <!-- EXPIRY REPORT -->
+  <div class="card" style="border-top:3px solid #ef4444;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+      <span style="font-size:24px;">⏰</span>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#ef4444;">Expiry Report</div>
+        <div style="font-size:12px;color:var(--text-dim);">Trade license & document expiry tracking</div>
+      </div>
+    </div>
+    <ul style="margin:12px 0 16px 16px;color:var(--text-muted);font-size:13px;line-height:2;">
+      <li>Trade license number & expiry date</li>
+      <li>Address proof type & expiry date</li>
+      <li>Days remaining / expired status</li>
+      <li>Account manager & region</li>
+    </ul>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;background:#ef4444;" onclick="dl('expiry')">⬇ Export to Excel</button>
   </div>
 
-  <!-- CLIENT TYPE -->
-  <div class="card">
-    <div class="card-header"><div class="card-title">🏢 Client Type</div></div>
-    <table><thead><tr><th>Type</th><th>Count</th></tr></thead><tbody>
-      {% for r in type_data %}<tr><td style="color:var(--text-muted);">{{ r.type_of_client or 'Unknown' }}</td><td style="font-weight:700;">{{ r.c }}</td></tr>{% endfor %}
-    </tbody></table>
+  <!-- KYC REPORT -->
+  <div class="card" style="border-top:3px solid var(--primary);">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+      <span style="font-size:24px;">🛡️</span>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:var(--primary);">KYC Status Report</div>
+        <div style="font-size:12px;color:var(--text-dim);">Know Your Customer compliance status</div>
+      </div>
+    </div>
+    <ul style="margin:12px 0 16px 16px;color:var(--text-muted);font-size:13px;line-height:2;">
+      <li>KYC status per company</li>
+      <li>Document completion status</li>
+      <li>Risk rating & verified by</li>
+      <li>Verified date & follow-up notes</li>
+    </ul>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="dl('kyc')">⬇ Export to Excel</button>
   </div>
 
-  <!-- KYC -->
-  <div class="card">
-    <div class="card-header"><div class="card-title">🛡️ KYC Status</div></div>
-    <table><thead><tr><th>KYC Status</th><th>Count</th></tr></thead><tbody>
-      {% for r in kyc_data %}<tr><td style="color:var(--text-muted);font-size:12px;">{{ r.kyc_status or 'Not Set' }}</td><td style="font-weight:700;">{{ r.c }}</td></tr>{% endfor %}
-    </tbody></table>
+  <!-- RISK REPORT -->
+  <div class="card" style="border-top:3px solid #f59e0b;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+      <span style="font-size:24px;">⚠️</span>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#f59e0b;">Risk Report</div>
+        <div style="font-size:12px;color:var(--text-dim);">Risk distribution & compliance gaps</div>
+      </div>
+    </div>
+    <ul style="margin:12px 0 16px 16px;color:var(--text-muted);font-size:13px;line-height:2;">
+      <li>Risk status (High / Medium / Low)</li>
+      <li>MOA, PEP, Undertaking, Source of Funds</li>
+      <li>Screening tool registration status</li>
+      <li>Account manager & region</li>
+    </ul>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;background:#f59e0b;color:#1c1917;" onclick="dl('risk')">⬇ Export to Excel</button>
   </div>
 
-  <!-- REGION -->
-  <div class="card">
-    <div class="card-header"><div class="card-title">📍 Top Regions</div></div>
-    <table><thead><tr><th>Region</th><th>Count</th></tr></thead><tbody>
-      {% for r in region_data %}<tr><td style="color:var(--text-muted);">{{ r.region or 'Unknown' }}</td><td style="font-weight:700;">{{ r.c }}</td></tr>{% endfor %}
-    </tbody></table>
+  <!-- UBO REPORT -->
+  <div class="card" style="border-top:3px solid #8b5cf6;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+      <span style="font-size:24px;">👤</span>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#8b5cf6;">UBO Report</div>
+        <div style="font-size:12px;color:var(--text-dim);">Beneficial owners & authorized persons</div>
+      </div>
+    </div>
+    <ul style="margin:12px 0 16px 16px;color:var(--text-muted);font-size:13px;line-height:2;">
+      <li>Person name, position, % share</li>
+      <li>Nationality & residential status</li>
+      <li>Passport & Emirates ID expiry</li>
+      <li>Doc status per person</li>
+    </ul>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;background:#8b5cf6;" onclick="dl('ubo')">⬇ Export to Excel</button>
   </div>
 
-  <!-- MODE -->
-  <div class="card">
-    <div class="card-header"><div class="card-title">🔄 Mode of Account</div></div>
-    <table><thead><tr><th>Mode</th><th>Count</th></tr></thead><tbody>
-      {% for r in mode_data %}<tr><td style="color:var(--text-muted);">{{ r.mode_of_ac or 'Unknown' }}</td><td style="font-weight:700;">{{ r.c }}</td></tr>{% endfor %}
-    </tbody></table>
-  </div>
-
-</div>
-
-<!-- EXPORT MODAL -->
-<div class="modal-overlay" id="exportModal">
-  <div class="modal-box">
-    <div class="modal-title">⬇️ Download Excel Report</div>
-    <div class="form-group" style="margin-bottom:16px;">
-      <label>Report Type</label>
-      <select id="repType">
-        <option value="all">Full Company List</option>
-        <option value="expiry">Expiry Report (Trade Licenses & Address Proof)</option>
-        <option value="kyc">KYC Status Report</option>
-        <option value="risk">Risk Distribution Report</option>
+  <!-- TASK REPORT -->
+  <div class="card" style="border-top:3px solid #22c55e;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+      <span style="font-size:24px;">✅</span>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#22c55e;">Task Report</div>
+        <div style="font-size:12px;color:var(--text-dim);">Tasks with full status history</div>
+      </div>
+    </div>
+    <ul style="margin:12px 0 12px 16px;color:var(--text-muted);font-size:13px;line-height:2;">
+      <li>Task title, assigned to, priority</li>
+      <li>Due date & current status</li>
+      <li>Linked company & created by</li>
+    </ul>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>Filter by Status</label>
+      <select id="taskStatusFilter">
+        <option value="all">All Tasks</option>
+        <option value="todo">To Do</option>
+        <option value="inprogress">In Progress</option>
+        <option value="pending_close">Awaiting Close</option>
+        <option value="done">Closed</option>
       </select>
     </div>
-    <div style="background:var(--primary-bg);border:1px solid #bfdbfe;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:var(--primary);">
-      📊 All reports download as <strong>Excel (.xlsx)</strong> — ready to open in Microsoft Excel or Google Sheets.
+    <button class="btn btn-primary" style="width:100%;justify-content:center;background:#22c55e;color:#1c1917;" onclick="dl('tasks')">⬇ Export to Excel</button>
+  </div>
+
+</div>
+
+<!-- QUICK SUMMARY -->
+<div class="card" style="margin-top:18px;">
+  <div class="card-header"><div class="card-title">📈 Quick Summary</div></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;">
+    {% for label, val, color in [
+      ('Total Companies', total, '#3b82f6'),
+      ('Expired Trade Lic.', expired_tl, '#ef4444'),
+      ('Expiring 30 Days', expiring_30, '#f59e0b'),
+      ('Expiring 90 Days', expiring_90, '#d97706'),
+    ] %}
+    <div style="text-align:center;padding:14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+      <div style="font-size:26px;font-weight:700;color:{{ color }};">{{ val }}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;text-transform:uppercase;letter-spacing:0.5px;">{{ label }}</div>
     </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('exportModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="doExport()">⬇️ Download Excel</button>
+    {% endfor %}
+    {% for r in risk_data %}
+    <div style="text-align:center;padding:14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+      <div style="font-size:26px;font-weight:700;color:{% if r.risk_status=='High' %}#ef4444{% elif r.risk_status=='Medium' %}#f59e0b{% elif r.risk_status=='Low' %}#22c55e{% else %}#78716c{% endif %};">{{ r.c }}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;text-transform:uppercase;letter-spacing:0.5px;">{{ r.risk_status or 'Unspecified' }}</div>
     </div>
+    {% endfor %}
   </div>
 </div>
+
 {% endblock %}
 {% block scripts %}
 <script>
-function applyQuick() {
-  const val=document.getElementById('quickRange').value;
-  if (val==='all'||!val) { document.getElementById('dateFrom').value=''; document.getElementById('dateTo').value=''; if(val==='all') applyFilter(); return; }
-  const to=new Date(); const from=new Date(); from.setDate(from.getDate()-parseInt(val));
-  document.getElementById('dateFrom').value=from.toISOString().split('T')[0];
-  document.getElementById('dateTo').value=to.toISOString().split('T')[0];
-  applyFilter();
+function setRange(type) {
+  const now = new Date();
+  let from, to = now.toISOString().split('T')[0];
+  if (type === 'month') { from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]; }
+  else if (type === 'last') { const d = new Date(now.getFullYear(), now.getMonth()-1, 1); from = d.toISOString().split('T')[0]; to = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0]; }
+  else if (type === 'year') { from = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0]; }
+  else { from = ''; to = ''; }
+  document.getElementById('dateFrom').value = from || '';
+  document.getElementById('dateTo').value = to || '';
 }
-function applyFilter() {
-  const p=new URLSearchParams();
-  const f=document.getElementById('dateFrom').value; const t=document.getElementById('dateTo').value;
-  if(f) p.set('from',f); if(t) p.set('to',t);
-  window.location.href='/reports'+(p.toString()?'?'+p.toString():'');
-}
-function doExport() {
-  const type=document.getElementById('repType').value;
-  const from=document.getElementById('dateFrom').value;
-  const to=document.getElementById('dateTo').value;
-  let url=`/export/report?type=${type}&format=xlsx`;
-  if(from) url+=`&from=${from}`; if(to) url+=`&to=${to}`;
-  window.location.href=url;
-  closeModal('exportModal');
+
+function dl(type) {
+  const from = document.getElementById('dateFrom').value;
+  const to = document.getElementById('dateTo').value;
+  const taskStatus = document.getElementById('taskStatusFilter') ? document.getElementById('taskStatusFilter').value : 'all';
+  let url = `/export/report?type=${type}&format=xlsx`;
+  if (from) url += `&from=${from}`;
+  if (to) url += `&to=${to}`;
+  if (type === 'tasks' && taskStatus !== 'all') url += `&status=${taskStatus}`;
+  window.location.href = url;
 }
 </script>
 {% endblock %}
