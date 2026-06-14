@@ -4,16 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Zewer AML CRM{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='enhanced.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <!-- NAVBAR -->
     <nav class="navbar">
         <div class="navbar-brand">
-            <div style="font-size: 28px;">💎</div>
+            <span style="font-size: 24px;">💎</span>
             <div>
                 <div class="navbar-title">Zewer AML</div>
-                <div class="navbar-subtitle">COMPLIANCE CRM</div>
+                <div style="font-size: 11px; color: #999; letter-spacing: 1px;">COMPLIANCE CRM</div>
             </div>
         </div>
         
@@ -28,9 +28,9 @@
         </div>
         
         <div class="navbar-right">
-            <div class="user-info">
+            <div style="text-align: right;">
                 <div class="user-name">{{ user_name }}</div>
-                <div class="user-role">{{ user_role.upper() }}</div>
+                <div class="user-role">{{ user_role.capitalize() }}</div>
             </div>
             <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
         </div>

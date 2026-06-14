@@ -1,22 +1,48 @@
-{% extends "base.html" %}
+{% extends "base_enhanced.html" %}
+
+{% block title %}Alerts - Zewer AML CRM{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <h1>⚠️ Document Expiry Alerts</h1>
     <p>Documents expiring in the next 90 days</p>
 </div>
 
-<table style="width: 100%; background: white; border-radius: 8px; overflow: hidden;">
-    <tr style="background: #2D5F5F; color: white;">
-        <th style="padding: 15px; text-align: left;">Company</th>
-        <th style="padding: 15px;">Trade License Expiry</th>
-        <th style="padding: 15px;">Address Proof Expiry</th>
-    </tr>
+{% if alerts %}
+<div class="companies-grid">
     {% for alert in alerts %}
-    <tr style="border-bottom: 1px solid #E0E0E0;">
-        <td style="padding: 15px;">{{ alert.client_name }}</td>
-        <td style="padding: 15px;">{{ alert.trade_license_expiry or '—' }}</td>
-        <td style="padding: 15px;">{{ alert.address_proof_expiry or '—' }}</td>
-    </tr>
+    <div class="company-card expiring">
+        <div class="card-row-1">
+            <div>
+                <div class="card-company-name">{{ alert.client_name }}</div>
+            </div>
+            <div class="card-badges">
+                <span class="badge" style="background: #F39C12;">⚠️ Expiring Soon</span>
+            </div>
+        </div>
+        
+        <div class="card-row-2">
+            <div class="card-field">
+                <span class="card-field-label">Trade License</span>
+                <span class="card-field-value expiring">{{ alert.trade_license_expiry or '—' }}</span>
+            </div>
+            <div class="card-field">
+                <span class="card-field-label">Address Proof</span>
+                <span class="card-field-value expiring">{{ alert.address_proof_expiry or '—' }}</span>
+            </div>
+        </div>
+        
+        <div class="card-row-3">
+            <a href="{{ url_for('company_detail', id=alert.id) }}" class="btn-view">👁️ View</a>
+            <a href="{{ url_for('company_new') }}" class="btn-edit">✏️ Update</a>
+        </div>
+    </div>
     {% endfor %}
-</table>
+</div>
+{% else %}
+<div style="background: white; padding: 40px; text-align: center; border-radius: 8px; color: #999;">
+    <p style="font-size: 18px; margin-bottom: 10px;">✅ No Alerts</p>
+    <p>All documents are up to date!</p>
+</div>
+{% endif %}
 {% endblock %}

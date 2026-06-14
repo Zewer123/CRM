@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Zewer AML CRM</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #2D5F5F 0%, #1a3a3a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .login-box {
+            background: white;
+            padding: 50px;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+            border-top: 5px solid #B8956A;
+        }
+        .login-logo { text-align: center; margin-bottom: 30px; font-size: 40px; }
+        .login-title { color: #2D5F5F; font-size: 24px; text-align: center; margin-bottom: 10px; }
+        .login-subtitle { color: #666; text-align: center; margin-bottom: 30px; font-size: 13px; letter-spacing: 1px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #2D5F5F; }
+        .form-group input { width: 100%; padding: 12px; border: 2px solid #E0E0E0; border-radius: 6px; font-size: 14px; }
+        .form-group input:focus { outline: none; border-color: #B8956A; }
+        .login-btn { width: 100%; padding: 12px; background: linear-gradient(135deg, #B8956A 0%, #9d7d5c 100%); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(184, 149, 106, 0.3); }
+        .error { background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; margin-bottom: 20px; display: none; }
+        .credentials { background: #d4edda; color: #155724; padding: 15px; border-radius: 6px; margin-top: 25px; font-size: 13px; line-height: 1.8; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <div class="login-logo">💎</div>
+        <h1 class="login-title">Zewer AML</h1>
+        <p class="login-subtitle">COMPLIANCE CRM SYSTEM</p>
+        
+        <div class="error" id="errorMsg"></div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="email" placeholder="admin@zewer.ae" required>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" placeholder="Enter password" required>
+            </div>
+            <button type="submit" class="login-btn">Sign In</button>
+        </form>
+        
+        <div class="credentials">
+            <strong>Test Credentials:</strong><br>
+            👤 Admin: admin@zewer.ae / Admin@123<br>
+            👤 Compliance: compliance@zewer.ae / Compliance@123
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    window.location.href = '/dashboard';
+                } else {
+                    document.getElementById('errorMsg').textContent = data.error || 'Login failed';
+                    document.getElementById('errorMsg').style.display = 'block';
+                }
+            } catch (err) {
+                document.getElementById('errorMsg').textContent = 'Error: ' + err;
+                document.getElementById('errorMsg').style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

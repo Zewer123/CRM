@@ -1,45 +1,55 @@
-{% extends "base.html" %}
+{% extends "base_enhanced.html" %}
 
 {% block title %}Dashboard - Zewer AML CRM{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <h1>📊 Dashboard</h1>
-    <p>Compliance Health at a Glance</p>
+    <p>Compliance overview and key metrics</p>
 </div>
 
+<!-- STATS CARDS -->
 <div class="stats-grid">
     <div class="stat-card">
-        <div style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">Total Companies</div>
+        <div class="stat-label">Total Companies</div>
         <div class="stat-number">{{ total_companies }}</div>
     </div>
+    
     <div class="stat-card">
-        <div style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">Active</div>
+        <div class="stat-label">Active Companies</div>
         <div class="stat-number" style="color: #27AE60;">{{ active_companies }}</div>
     </div>
+    
     <div class="stat-card">
-        <div style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">Expiring (30 days)</div>
+        <div class="stat-label">Expiring (30 Days)</div>
         <div class="stat-number" style="color: #F39C12;">{{ expiring_30 }}</div>
     </div>
+    
     <div class="stat-card">
-        <div style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">Expiring (60 days)</div>
-        <div class="stat-number" style="color: #E74C3C;">{{ expiring_60 }}</div>
-    </div>
-</div>
-
-<div style="background: white; padding: 25px; border-radius: 8px; border-left: 5px solid #B8956A;">
-    <h3 style="color: #2D5F5F; margin-bottom: 15px;">Risk Breakdown</h3>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
-        {% for risk, count in risk_breakdown.items() %}
-        <div style="text-align: center; padding: 15px; background: #f5f5f5; border-radius: 6px;">
-            <div style="font-size: 24px; font-weight: 700; color: #2D5F5F;">{{ count }}</div>
-            <div style="font-size: 12px; color: #666; text-transform: uppercase;">{{ risk or 'Unspecified' }}</div>
+        <div class="stat-label">Risk Breakdown</div>
+        <div style="margin-top: 10px; display: flex; gap: 10px; font-size: 12px;">
+            <div>🔴 High: <strong>{{ risk_breakdown.get('High', 0) }}</strong></div>
+            <div>🟡 Med: <strong>{{ risk_breakdown.get('Medium', 0) }}</strong></div>
+            <div>🟢 Low: <strong>{{ risk_breakdown.get('Low', 0) }}</strong></div>
         </div>
-        {% endfor %}
     </div>
 </div>
 
-<div style="margin-top: 30px; text-align: center; color: #999; font-size: 14px;">
-    ✨ Real-time compliance monitoring
+<!-- QUICK ACTIONS -->
+<div style="background: white; padding: 25px; border-radius: 8px; border-left: 5px solid #B8956A; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+    <h3 style="color: #2D5F5F; margin-bottom: 15px;">Quick Actions</h3>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="{{ url_for('company_new') }}" class="btn btn-primary">➕ Add Company</a>
+        <a href="{{ url_for('companies') }}" class="btn btn-primary">📋 View All</a>
+        <a href="{{ url_for('alerts') }}" class="btn btn-primary">⚠️ View Alerts</a>
+        <a href="{{ url_for('reports') }}" class="btn btn-primary">📈 Reports</a>
+    </div>
+</div>
+
+<!-- WELCOME MESSAGE -->
+<div style="background: linear-gradient(135deg, #2D5F5F 0%, #1a3a3a 100%); color: white; padding: 30px; border-radius: 8px; text-align: center;">
+    <h2 style="margin-bottom: 10px;">Welcome, {{ user_name }}!</h2>
+    <p>You are logged in as <strong>{{ user_role.upper() }}</strong></p>
+    <p style="margin-top: 10px; opacity: 0.9;">Zewer AML Compliance Management System</p>
 </div>
 {% endblock %}

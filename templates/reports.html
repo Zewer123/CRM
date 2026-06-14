@@ -1,19 +1,30 @@
-{% extends "base.html" %}
+{% extends "base_enhanced.html" %}
+
+{% block title %}Reports - Zewer AML CRM{% endblock %}
+
 {% block content %}
 <div class="page-header">
-    <h1>📈 Compliance Reports</h1>
-    <p>Generate insights from your data</p>
+    <h1>📈 Reports</h1>
+    <p>Compliance metrics and breakdown</p>
 </div>
 
-<div style="background: white; padding: 25px; border-radius: 8px;">
-    <h3 style="color: #2D5F5F; margin-bottom: 20px;">Risk Status Breakdown</h3>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-        {% for risk, count in risk_data %}
-        <div style="padding: 20px; background: #f5f5f5; border-radius: 8px; text-align: center;">
-            <div style="font-size: 28px; font-weight: 700; color: #2D5F5F;">{{ count }}</div>
-            <div style="color: #666; margin-top: 10px;">{{ risk or 'Unspecified' }}</div>
+<div style="background: white; padding: 25px; border-radius: 8px; border-left: 5px solid #B8956A; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+    <h3 style="color: #2D5F5F; margin-bottom: 20px;">Risk Distribution</h3>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+        {% for item in risk_data %}
+        <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, 
+            {% if item.risk_status == 'High' %}#E74C3C{% elif item.risk_status == 'Medium' %}#F39C12{% else %}#27AE60{% endif %} 0%, 
+            {% if item.risk_status == 'High' %}#c0392b{% elif item.risk_status == 'Medium' %}#d68910{% else %}#229954{% endif %} 100%); 
+            border-radius: 8px; color: white;">
+            <div style="font-size: 32px; font-weight: 700;">{{ item.c }}</div>
+            <div style="font-size: 14px; opacity: 0.9;">{{ item.risk_status }} Risk</div>
         </div>
         {% endfor %}
     </div>
+</div>
+
+<div style="text-align: center; margin-top: 40px; padding: 20px; color: #999;">
+    <p>More reports coming soon!</p>
 </div>
 {% endblock %}
