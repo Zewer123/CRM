@@ -132,6 +132,8 @@
     <div style="display:flex;gap:5px;justify-content:flex-end;">
       <button class="btn btn-ghost btn-sm btn-icon" title="Edit"
         onclick="editDoc({{ d.id }},'{{ d.doc_name|replace("'","\\'") }}','{{ d.doc_category }}','{{ (d.person_name or '')|replace("'","\\'") }}','{{ (d.issuing_authority or '')|replace("'","\\'") }}','{{ d.issue_date or "" }}','{{ d.expiry_date or "" }}','{{ (d.notes or '')|replace("'","\\'") }}')">✏️</button>
+      <button class="btn btn-ghost btn-sm btn-icon" title="Convert to Renewal Task"
+        onclick="convertToTask('{{ d.doc_name|replace('\'\''\'\')' }}','{{ d.expiry_date or '' }}','{{ (d.person_name or '')|replace('\'\''\'\')' }}')">✅</button>
       <button class="btn btn-danger btn-sm btn-icon" title="Delete" onclick="deleteDoc({{ d.id }})">🗑️</button>
     </div>
   </div>
@@ -234,6 +236,47 @@
     </div>
   </div>
 </div>
+<!-- CONVERT TO TASK MODAL -->
+<div class="modal-overlay" id="convertTaskModal">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-title">✅ Create Renewal Task</div>
+    <div id="convertDocName" style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:16px;"></div>
+    <div class="form-group">
+      <label>Task Title</label>
+      <input type="text" id="ctTitle">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group">
+        <label>Assign To</label>
+        <select id="ctAssign">
+          <option value="">— Unassigned —</option>
+          {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Priority</label>
+        <select id="ctPriority">
+          <option value="normal">Normal</option>
+          <option value="high">High</option>
+          <option value="urgent">Urgent</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Due Date</label>
+      <input type="date" id="ctDue">
+    </div>
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea id="ctNotes" rows="2" placeholder="Renewal instructions, reference numbers..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('convertTaskModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitConvertTask()">✅ Create Task</button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -321,5 +364,38 @@ function deleteDoc(id) {
       else alert('Error: ' + d.error);
     });
 }
+function convertToTask(docName, expiry, person) {
+  document.getElementById('convertDocName').textContent = '📄 ' + docName + (person ? ' — ' + person : '');
+  document.getElementById('ctTitle').value = 'Renew: ' + docName + (person ? ' (' + person + ')' : '');
+  document.getElementById('ctDue').value = expiry || '';
+  document.getElementById('ctNotes').value = '';
+  document.getElementById('ctPriority').value = 'high';
+  openModal('convertTaskModal');
+}
+function submitConvertTask() {
+  const title = document.getElementById('ctTitle').value.trim();
+  if (!title) { alert('Title required'); return; }
+  fetch('/api/task/add', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      title,
+      description: document.getElementById('ctNotes').value,
+      assigned_to: document.getElementById('ctAssign').value || null,
+      priority: document.getElementById('ctPriority').value,
+      due_date: document.getElementById('ctDue').value || null
+    })
+  }).then(r => r.json()).then(d => {
+    if (d.success) {
+      closeModal('convertTaskModal');
+      const msg = document.createElement('div');
+      msg.style.cssText = 'position:fixed;top:20px;right:20px;background:#166534;color:#86efac;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.4)';
+      msg.textContent = '✅ Task created successfully';
+      document.body.appendChild(msg);
+      setTimeout(() => msg.remove(), 3000);
+    } else alert('Error: ' + d.error);
+  });
+}
 </script>
 {% endblock %}
+
