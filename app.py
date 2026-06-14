@@ -319,7 +319,7 @@ def exp_status(d):
     if d<0: return 'expired'
     if d<=30: return 'critical'
     if d<=90: return 'warning'
-    return 'valid'
+    return 'ok'
 
 def dropdowns():
     conn=get_db()
@@ -416,7 +416,9 @@ def dashboard():
         row = dict(t)
         row['due_date'] = str(row['due_date'])[:10] if row.get('due_date') else None
         utasks.append(row)
-    staff_task_counts=all_(conn,"SELECT u.name,u.id,COUNT(t.id) as pending FROM users u LEFT JOIN tasks t ON t.assigned_to=u.id AND t.status NOT IN ('done') WHERE u.is_active=1 GROUP BY u.id,u.name ORDER BY pending DESC")
+    try:
+        staff_task_counts=all_(conn,"SELECT u.name,u.id,COUNT(t.id) as pending FROM users u LEFT JOIN tasks t ON t.assigned_to=u.id AND t.status NOT IN ('done') WHERE u.is_active=1 GROUP BY u.id,u.name ORDER BY pending DESC")
+    except: staff_task_counts=[]
     conn.close()
     return render_template('dashboard.html',total_companies=total,active_companies=active,
         expired_tl=etl,expiring_30_tl=e30tl,
@@ -1105,30 +1107,35 @@ def regular_tasks():
     uid = session.get('user_id')
     role = session.get('user_role')
     # Admin/compliance see all, staff see only assigned to them
-    if role in ['admin', 'compliance']:
-        templates = all_(conn, '''SELECT rt.*,u.name as created_by_name
-            FROM regular_task_templates rt LEFT JOIN users u ON rt.created_by=u.id
-            ORDER BY rt.frequency, rt.title''')
-        logs = all_(conn, '''SELECT l.*,u.name as staff_name,rt.title as task_title,rt.frequency
-            FROM regular_task_logs l JOIN users u ON l.user_id=u.id
-            JOIN regular_task_templates rt ON l.template_id=rt.id
-            ORDER BY l.logged_at DESC LIMIT 200''')
-    else:
-        templates = all_(conn, '''SELECT rt.*,u.name as created_by_name
-            FROM regular_task_templates rt LEFT JOIN users u ON rt.created_by=u.id
-            WHERE rt.assigned_role='all' OR rt.assigned_user_id=? OR rt.assigned_role=?
-            ORDER BY rt.frequency, rt.title''', (uid, role))
-        logs = all_(conn, '''SELECT l.*,u.name as staff_name,rt.title as task_title,rt.frequency
-            FROM regular_task_logs l JOIN users u ON l.user_id=u.id
-            JOIN regular_task_templates rt ON l.template_id=rt.id
-            WHERE l.user_id=? ORDER BY l.logged_at DESC LIMIT 100''', (uid,))
+    try:
+        if role in ['admin', 'compliance']:
+            templates = all_(conn, '''SELECT rt.*,u.name as created_by_name
+                FROM regular_task_templates rt LEFT JOIN users u ON rt.created_by=u.id
+                ORDER BY rt.frequency, rt.title''')
+            logs = all_(conn, '''SELECT l.*,u.name as staff_name,rt.title as task_title,rt.frequency
+                FROM regular_task_logs l JOIN users u ON l.user_id=u.id
+                JOIN regular_task_templates rt ON l.template_id=rt.id
+                ORDER BY l.logged_at DESC LIMIT 200''')
+        else:
+            templates = all_(conn, '''SELECT rt.*,u.name as created_by_name
+                FROM regular_task_templates rt LEFT JOIN users u ON rt.created_by=u.id
+                WHERE rt.assigned_role='all' OR rt.assigned_user_id=? OR rt.assigned_role=?
+                ORDER BY rt.frequency, rt.title''', (uid, role))
+            logs = all_(conn, '''SELECT l.*,u.name as staff_name,rt.title as task_title,rt.frequency
+                FROM regular_task_logs l JOIN users u ON l.user_id=u.id
+                JOIN regular_task_templates rt ON l.template_id=rt.id
+                WHERE l.user_id=? ORDER BY l.logged_at DESC LIMIT 100''', (uid,))
+    except:
+        templates = []; logs = []
     users = all_(conn, 'SELECT id,name,role FROM users WHERE is_active=1 ORDER BY name')
     # Pending count per template for current user
     pending = {}
     for t in templates:
-        last = one(conn, 'SELECT logged_at FROM regular_task_logs WHERE template_id=? AND user_id=? ORDER BY logged_at DESC LIMIT 1',
-                   (t['id'], uid))
-        pending[t['id']] = last['logged_at'] if last else None
+        try:
+            last = one(conn, 'SELECT logged_at FROM regular_task_logs WHERE template_id=? AND user_id=? ORDER BY logged_at DESC LIMIT 1',
+                       (t['id'], uid))
+            pending[t['id']] = last['logged_at'] if last else None
+        except: pending[t['id']] = None
     conn.close()
     return render_template('regular_tasks.html', templates=templates, logs=logs,
                            all_users=users, last_logged=pending)
@@ -1181,9 +1188,11 @@ def api_log_regular_task(id):
 @compliance_required
 def internal_docs():
     conn = get_db()
-    docs = all_(conn, '''SELECT d.*,u.name as added_by_name
-        FROM internal_documents d LEFT JOIN users u ON d.added_by=u.id
-        ORDER BY d.expiry_date ASC NULLS LAST, d.doc_category, d.doc_name''')
+    try:
+        docs = all_(conn, '''SELECT d.*,u.name as added_by_name
+            FROM internal_documents d LEFT JOIN users u ON d.added_by=u.id
+            ORDER BY CASE WHEN d.expiry_date IS NULL THEN 1 ELSE 0 END, d.expiry_date ASC, d.doc_category, d.doc_name''')
+    except: docs = []
     today = datetime.now().date()
     doc_list = []
     for d in docs:
