@@ -358,17 +358,17 @@ def dashboard():
     risk_bd={r['risk_status']:r['c'] for r in risk_rows}
     doc_rows=all_(conn,'SELECT doc_status,COUNT(*) as c FROM companies GROUP BY doc_status')
     doc_bd={r['doc_status']:r['c'] for r in doc_rows}
-    urgent_raw=all_(conn,'''SELECT id,ac_code,client_name,trade_license_expiry,address_proof_expiry,
-        risk_status,mobile,whatsapp_number FROM companies
-        WHERE (trade_license_expiry BETWEEN ? AND ?) OR (address_proof_expiry BETWEEN ? AND ?)
-        ORDER BY trade_license_expiry LIMIT 10''',(today,today+timedelta(days=90),today,today+timedelta(days=90)))
-    # Convert date objects to strings for template compatibility
-    urgent = []
-    for r in urgent_raw:
-        row = dict(r)
-        row['trade_license_expiry'] = str(row['trade_license_expiry'])[:10] if row.get('trade_license_expiry') else None
-        row['address_proof_expiry'] = str(row['address_proof_expiry'])[:10] if row.get('address_proof_expiry') else None
-        urgent.append(row)
+    # Count ALL expiring documents (TL + AP + Passport + EID) by window
+    def doc_count(days):
+        t1 = cnt(conn,'SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ?',(today,today+timedelta(days=days)))
+        t2 = cnt(conn,'SELECT COUNT(*) FROM companies WHERE address_proof_expiry BETWEEN ? AND ?',(today,today+timedelta(days=days)))
+        t3 = cnt(conn,'SELECT COUNT(*) FROM ubos WHERE passport_expiry BETWEEN ? AND ?',(today,today+timedelta(days=days)))
+        t4 = cnt(conn,'SELECT COUNT(*) FROM ubos WHERE emirates_id_expiry BETWEEN ? AND ?',(today,today+timedelta(days=days)))
+        return t1 + t2 + t3 + t4
+    exp_30 = doc_count(30)
+    exp_60 = doc_count(60)
+    exp_90 = doc_count(90)
+    urgent = []  # no longer used in template
     otasks=c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done')")
     overtasks=c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done','pending_close') AND due_date<?", (today,))
     dtasks=c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done') AND due_date=?", (today,))
