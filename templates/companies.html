@@ -87,8 +87,11 @@
       {% if c.account_manager %}
       <div style="font-size:11px;color:var(--primary);margin-top:2px;">👤 {{ c.account_manager }}</div>
       {% endif %}
-      {% if c.contact_person_name %}
-      <div style="font-size:11px;color:var(--text-dim);">📞 {{ c.contact_person_name }}</div>
+      {% if c.mobile %}
+      <div style="font-size:11px;color:var(--text-dim);">📱 {{ c.mobile }}</div>
+      {% endif %}
+      {% if c.email_id %}
+      <div style="font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">✉️ {{ c.email_id }}</div>
       {% endif %}
     </div>
 
@@ -205,7 +208,21 @@
 
 {% block scripts %}
 <script>
+// ── FILTER PERSISTENCE ───────────────────────────────────
+const FILTER_KEY = 'zewer-companies-filters';
+
+function saveFilters() {
+  const f = {
+    search: document.getElementById('searchInput').value,
+    risk: document.getElementById('riskFilter').value,
+    status: document.getElementById('statusFilter').value,
+    region: document.getElementById('regionFilter').value
+  };
+  sessionStorage.setItem(FILTER_KEY, JSON.stringify(f));
+}
+
 function applyFilters() {
+  saveFilters();
   const p = new URLSearchParams();
   const s = document.getElementById('searchInput').value;
   const r = document.getElementById('riskFilter').value;
@@ -214,7 +231,37 @@ function applyFilters() {
   if(s) p.set('search',s); if(r) p.set('risk',r); if(st) p.set('status',st); if(rg) p.set('region',rg);
   window.location.href = '/companies?' + p.toString();
 }
-function clearFilters() { window.location.href = '/companies'; }
+
+function clearFilters() {
+  sessionStorage.removeItem(FILTER_KEY);
+  window.location.href = '/companies';
+}
+
+// Restore filters if arriving with no query params (e.g. back from detail)
+document.addEventListener('DOMContentLoaded', function() {
+  const params = new URLSearchParams(window.location.search);
+  const hasParams = params.has('search') || params.has('risk') || params.has('status') || params.has('region');
+  if (!hasParams) {
+    const saved = sessionStorage.getItem(FILTER_KEY);
+    if (saved) {
+      try {
+        const f = JSON.parse(saved);
+        if (f.search || f.risk || f.status || f.region) {
+          const p = new URLSearchParams();
+          if(f.search) p.set('search', f.search);
+          if(f.risk) p.set('risk', f.risk);
+          if(f.status) p.set('status', f.status);
+          if(f.region) p.set('region', f.region);
+          window.location.replace('/companies?' + p.toString());
+        }
+      } catch(e) {}
+    }
+  } else {
+    // Save current URL params to sessionStorage
+    saveFilters();
+  }
+});
+
 function deleteCompany(id, name) {
   if (!confirm(`Delete "${name}"?`)) return;
   fetch(`/api/company/${id}/delete`,{method:'POST'}).then(r=>r.json()).then(d=>{if(d.success)location.reload();else alert('Error: '+d.error);});
@@ -237,3 +284,4 @@ function importCompanies() {
 }
 </script>
 {% endblock %}
+
