@@ -1,11 +1,20 @@
 FROM python:3.11-slim
-RUN apt-get update && apt-get install -y gcc && rm -rf /var/lib/apt/lists/*
+
+# Install system dependencies for psycopg2
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
 COPY . .
-# /data is where Railway persistent volume will be mounted
-RUN mkdir -p /data
-ENV DB_PATH=/data/aml_crm.db
+
+# DB stored in /app by default (no volume needed)
+ENV DB_PATH=/app/aml_crm.db
+
 EXPOSE 8000
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "1", "--timeout", "120", "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "1", "--timeout", "120", "wsgi:app"]
