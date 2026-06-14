@@ -13,14 +13,14 @@
 </div>
 
 <!-- FILTERS -->
-<div class="search-bar" style="margin-bottom:16px;">
+<div class="search-bar">
   <div class="form-group search-input">
-    <label>SEARCH</label>
-    <input type="text" id="searchInput" value="{{ search }}" placeholder="Name, AC Code, Mobile, Trade License..."
+    <label>Search</label>
+    <input type="text" id="searchInput" value="{{ search }}" placeholder="Name, AC Code, Mobile, License..."
       onkeydown="if(event.key==='Enter') applyFilters()">
   </div>
   <div class="form-group" style="min-width:120px;">
-    <label>RISK</label>
+    <label>Risk</label>
     <select id="riskFilter" onchange="applyFilters()">
       <option value="">All</option>
       {% for r in ['High','Medium','Low','Unspecified'] %}
@@ -29,7 +29,7 @@
     </select>
   </div>
   <div class="form-group" style="min-width:110px;">
-    <label>STATUS</label>
+    <label>Status</label>
     <select id="statusFilter" onchange="applyFilters()">
       <option value="">All</option>
       <option value="Active" {% if status_filter=='Active' %}selected{% endif %}>Active</option>
@@ -37,7 +37,7 @@
     </select>
   </div>
   <div class="form-group" style="min-width:120px;">
-    <label>REGION</label>
+    <label>Region</label>
     <select id="regionFilter" onchange="applyFilters()">
       <option value="">All</option>
       {% for r in regions %}
@@ -51,66 +51,89 @@
 <div style="color:var(--text-dim);font-size:12px;margin-bottom:10px;">{{ companies|length }} companies</div>
 
 <!-- COLUMN HEADERS -->
-<div style="display:flex;align-items:center;gap:16px;padding:0 18px;margin-bottom:4px;">
-  <div style="min-width:90px;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">AC Code</div>
-  <div style="flex:2;min-width:160px;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Company / Manager</div>
-  <div style="min-width:100px;text-align:center;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Docs</div>
-  <div style="min-width:70px;text-align:center;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Risk</div>
-  <div style="min-width:110px;text-align:center;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Trade Lic Expiry</div>
-  <div style="min-width:120px;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-left:auto;text-align:right;">Actions</div>
+<div style="display:grid;grid-template-columns:90px 1fr 80px 80px 140px 130px;gap:0;padding:6px 16px;margin-bottom:4px;align-items:center;">
+  <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">AC Code</div>
+  <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Company / Manager</div>
+  <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;text-align:center;">Docs</div>
+  <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;text-align:center;">Risk</div>
+  <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;text-align:center;">Trade Lic. Expiry</div>
+  <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;text-align:right;">Actions</div>
 </div>
+
 <!-- COMPANY CARDS -->
-<div style="display:flex;flex-direction:column;gap:8px;">
+<div style="display:flex;flex-direction:column;gap:6px;">
   {% for c in companies %}
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:16px;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;
+    display:grid;grid-template-columns:90px 1fr 80px 80px 140px 130px;gap:0;align-items:center;
+    transition:all 0.15s;box-shadow:0 1px 3px rgba(0,0,0,0.2);"
+    onmouseover="this.style.borderColor='var(--primary)';this.style.background='var(--surface3)'"
+    onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)'">
 
-    <!-- AC CODE + STATUS -->
-    <div style="min-width:90px;text-align:center;">
-      <div style="font-size:12px;font-weight:700;color:var(--primary-light);">{{ c.ac_code }}</div>
-      <span class="badge {% if c.ac_status=='Active' %}badge-active{% else %}badge-inactive{% endif %}" style="font-size:10px;margin-top:3px;">{{ c.ac_status }}</span>
+    <!-- AC CODE -->
+    <div>
+      <a href="{{ url_for('company_detail', id=c.id) }}"
+        style="font-size:13px;font-weight:700;color:var(--primary);text-decoration:none;letter-spacing:0.3px;">{{ c.ac_code }}</a>
+      <div style="margin-top:3px;">
+        <span style="font-size:10px;padding:1px 7px;border-radius:20px;font-weight:600;
+          {% if c.ac_status=='Active' %}background:rgba(34,197,94,0.12);color:#86efac;border:1px solid rgba(34,197,94,0.2);
+          {% else %}background:var(--surface3);color:var(--text-dim);border:1px solid var(--border);{% endif %}">
+          {{ c.ac_status }}
+        </span>
+      </div>
     </div>
 
-    <!-- COMPANY NAME + ACCOUNT MANAGER + CONTACT -->
-    <div style="flex:2;min-width:160px;">
-      <div style="font-weight:600;color:var(--text);font-size:14px;">{{ c.client_name }}</div>
-      {% if c.account_manager %}<div style="font-size:11px;color:var(--primary-light);margin-top:2px;">👤 {{ c.account_manager }}</div>{% endif %}
-      {% if c.contact_person_name %}<div style="font-size:11px;color:var(--text-dim);">📞 {{ c.contact_person_name }}</div>{% endif %}
+    <!-- COMPANY / MANAGER -->
+    <div style="padding-right:12px;">
+      <div style="font-weight:600;color:var(--text);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.client_name }}</div>
+      {% if c.account_manager %}
+      <div style="font-size:11px;color:var(--primary);margin-top:2px;">👤 {{ c.account_manager }}</div>
+      {% endif %}
+      {% if c.contact_person_name %}
+      <div style="font-size:11px;color:var(--text-dim);">📞 {{ c.contact_person_name }}</div>
+      {% endif %}
     </div>
 
-    <!-- DOC COMPLETION BAR -->
-    <div style="min-width:100px;text-align:center;">
-      {% set doc_pct = 100 if c.doc_status == 'Completed' else 40 %}
-      <div style="font-size:10px;color:var(--text-dim);margin-bottom:4px;">DOCS</div>
-      <div style="width:80px;height:8px;background:var(--bg);border-radius:10px;overflow:hidden;margin:0 auto;">
-        <div style="height:8px;border-radius:10px;width:{{ doc_pct }}%;background:{% if doc_pct==100 %}#4ade80{% else %}#f87171{% endif %};"></div>
+    <!-- DOC STATUS -->
+    <div style="text-align:center;">
+      {% if c.doc_status == 'Completed' %}
+      <div style="width:36px;height:36px;border-radius:50%;background:rgba(34,197,94,0.15);border:2px solid rgba(34,197,94,0.4);display:flex;align-items:center;justify-content:center;margin:0 auto;">
+        <span style="font-size:14px;">✓</span>
       </div>
-      <div style="font-size:10px;margin-top:3px;color:{% if doc_pct==100 %}#4ade80{% else %}#f87171{% endif %};">
-        {% if c.doc_status == 'Completed' %}✅ Done{% else %}⚠️ Pending{% endif %}
+      <div style="font-size:9px;color:#86efac;margin-top:2px;font-weight:600;">DONE</div>
+      {% else %}
+      <div style="width:36px;height:36px;border-radius:50%;background:rgba(239,68,68,0.1);border:2px solid rgba(239,68,68,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto;">
+        <span style="font-size:14px;">!</span>
       </div>
+      <div style="font-size:9px;color:#fca5a5;margin-top:2px;font-weight:600;">PENDING</div>
+      {% endif %}
     </div>
 
     <!-- RISK -->
-    <div style="min-width:70px;text-align:center;">
+    <div style="text-align:center;">
       {% set risk = c.risk_status or 'Unspecified' %}
       <span class="badge badge-{{ risk.lower() }}">{{ risk }}</span>
     </div>
 
     <!-- TRADE LIC EXPIRY -->
-    <div style="min-width:110px;text-align:center;">
-      <div style="font-size:10px;color:var(--text-dim);margin-bottom:2px;">TRADE LIC</div>
+    <div style="text-align:center;">
       {% if c.trade_license_expiry %}
       <div style="font-size:12px;font-weight:600;
-        {% if c.tl_status=='expired' %}color:#f87171{% elif c.tl_status=='critical' %}color:#fb923c{% elif c.tl_status=='warning' %}color:#fbbf24{% else %}color:#4ade80{% endif %}">
-        {{ c.trade_license_expiry|string|truncate(10,True,"") }}
+        {% if c.tl_status=='expired' %}color:#fca5a5;{% elif c.tl_status=='critical' %}color:#fb923c;{% elif c.tl_status=='warning' %}color:#fcd34d;{% else %}color:#86efac;{% endif %}">
+        {{ c.trade_license_expiry }}
       </div>
-      <div style="font-size:10px;{% if c.tl_status=='expired' %}color:#f87171{% elif c.tl_status=='critical' %}color:#fb923c{% elif c.tl_status=='warning' %}color:#fbbf24{% else %}color:#4ade80{% endif %}">
-        {% if c.tl_days is not none %}{% if c.tl_days < 0 %}EXPIRED {{ c.tl_days|abs }}d{% else %}{{ c.tl_days }}d left{% endif %}{% endif %}
+      <div style="font-size:10px;margin-top:1px;
+        {% if c.tl_status=='expired' %}color:#fca5a5;{% elif c.tl_status=='critical' %}color:#fb923c;{% elif c.tl_status=='warning' %}color:#fcd34d;{% else %}color:#86efac;{% endif %}">
+        {% if c.tl_days is not none %}
+          {% if c.tl_days < 0 %}EXP {{ c.tl_days|abs }}d ago{% else %}{{ c.tl_days }}d left{% endif %}
+        {% endif %}
       </div>
-      {% else %}<div style="font-size:12px;color:var(--text-dim);">—</div>{% endif %}
+      {% else %}
+      <span style="color:var(--text-dim);font-size:13px;">—</span>
+      {% endif %}
     </div>
 
     <!-- ACTIONS -->
-    <div style="display:flex;gap:6px;align-items:center;margin-left:auto;">
+    <div style="display:flex;gap:5px;align-items:center;justify-content:flex-end;">
       {% set wa = c.whatsapp_number or c.mobile %}
       {% if wa %}
       <a href="https://wa.me/{{ wa|replace('+','')|replace(' ','')|replace('-','') }}" target="_blank"
@@ -120,59 +143,34 @@
       <a href="{{ url_for('company_edit', id=c.id) }}" class="btn btn-ghost btn-sm btn-icon" title="Edit">✏️</a>
       <button class="btn btn-danger btn-sm btn-icon" onclick="deleteCompany({{ c.id }}, '{{ c.client_name|replace("'","\\'") }}')" title="Delete">🗑️</button>
     </div>
+
   </div>
   {% else %}
-  <div style="text-align:center;padding:60px;color:var(--text-dim);">
-    No companies found. <a href="{{ url_for('company_new') }}" style="color:var(--primary-light);">Add one?</a>
+  <div style="text-align:center;padding:60px;color:var(--text-dim);background:var(--surface);border-radius:10px;border:1px solid var(--border);">
+    No companies found. <a href="{{ url_for('company_new') }}" style="color:var(--primary);">Add one?</a>
   </div>
   {% endfor %}
 </div>
 
-<!-- IMPORT MODAL -->
-<div class="modal-overlay" id="importModal">
-  <div class="modal-box">
-    <div class="modal-title">⬆️ Import Companies from Excel</div>
-    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--text-muted);line-height:1.7;">
-      <strong style="color:var(--text);">Instructions:</strong><br>
-      1. Download the Excel template first<br>
-      2. Fill in company details (AC Code and Client Name are required)<br>
-      3. Upload the completed file below<br>
-      <span style="color:#fbbf24;">⚠️ Duplicate AC Codes will be skipped</span>
-    </div>
-    <div class="form-group" style="margin-bottom:16px;">
-      <label>Excel File (.xlsx)</label>
-      <input type="file" id="importFile" accept=".xlsx,.xls"
-        style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px;">
-    </div>
-    <div id="importStatus" style="display:none;font-size:13px;padding:10px;border-radius:6px;margin-bottom:12px;"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('importModal')">Cancel</button>
-      <button class="btn btn-ghost" onclick="downloadTemplate()">📋 Download Template</button>
-      <button class="btn btn-primary" onclick="importCompanies()">Import</button>
-    </div>
-  </div>
-</div>
 <!-- EXPORT MODAL -->
 <div class="modal-overlay" id="exportModal">
   <div class="modal-box">
     <div class="modal-title">⬇️ Export Companies</div>
-    <div class="form-group" style="margin-bottom:16px;">
+    <div class="form-group" style="margin-bottom:14px;">
       <label>Which companies?</label>
       <select id="exportScope">
         <option value="all">All Companies</option>
         <option value="active">Active Only</option>
         <option value="inactive">Inactive Only</option>
         <option value="high">High Risk Only</option>
-        <option value="medium">Medium Risk Only</option>
-        <option value="low">Low Risk Only</option>
         <option value="incomplete">Incomplete Docs Only</option>
       </select>
     </div>
     <div class="form-group" style="margin-bottom:16px;">
       <label>Format</label>
       <select id="exportFormat">
-        <option value="csv">CSV</option>
         <option value="xlsx">Excel (.xlsx)</option>
+        <option value="csv">CSV</option>
       </select>
     </div>
     <div class="modal-actions">
@@ -182,66 +180,61 @@
   </div>
 </div>
 
+<!-- IMPORT MODAL -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal-box">
+    <div class="modal-title">⬆️ Import from Excel</div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px;color:var(--text-muted);line-height:1.8;">
+      1. Download the template first<br>
+      2. Fill in company details<br>
+      3. Upload the file below<br>
+      <span style="color:#fcd34d;font-size:12px;">⚠️ Duplicate AC Codes will be skipped</span>
+    </div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label>Excel File (.xlsx)</label>
+      <input type="file" id="importFile" accept=".xlsx,.xls" style="padding:7px;">
+    </div>
+    <div id="importStatus" style="display:none;font-size:13px;padding:10px;border-radius:6px;margin-bottom:10px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('importModal')">Cancel</button>
+      <button class="btn btn-ghost" onclick="downloadTemplate()">📋 Template</button>
+      <button class="btn btn-primary" onclick="importCompanies()">Import</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 function applyFilters() {
+  const p = new URLSearchParams();
   const s = document.getElementById('searchInput').value;
   const r = document.getElementById('riskFilter').value;
   const st = document.getElementById('statusFilter').value;
   const rg = document.getElementById('regionFilter').value;
-  const params = new URLSearchParams();
-  if (s) params.set('search', s);
-  if (r) params.set('risk', r);
-  if (st) params.set('status', st);
-  if (rg) params.set('region', rg);
-  window.location.href = '/companies?' + params.toString();
+  if(s) p.set('search',s); if(r) p.set('risk',r); if(st) p.set('status',st); if(rg) p.set('region',rg);
+  window.location.href = '/companies?' + p.toString();
 }
 function clearFilters() { window.location.href = '/companies'; }
-
 function deleteCompany(id, name) {
-  if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
-  fetch(`/api/company/${id}/delete`, {method:'POST'})
-    .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
+  if (!confirm(`Delete "${name}"?`)) return;
+  fetch(`/api/company/${id}/delete`,{method:'POST'}).then(r=>r.json()).then(d=>{if(d.success)location.reload();else alert('Error: '+d.error);});
 }
-
-function downloadTemplate() {
-  window.location.href = '/export/template';
-}
-
+function downloadTemplate() { window.location.href = '/export/template'; }
 function doExport() {
-  const scope = document.getElementById('exportScope').value;
-  const fmt = document.getElementById('exportFormat').value;
-  window.location.href = `/export/companies?scope=${scope}&format=${fmt}`;
+  window.location.href = `/export/companies?scope=${document.getElementById('exportScope').value}&format=${document.getElementById('exportFormat').value}`;
   closeModal('exportModal');
 }
-
 function importCompanies() {
   const file = document.getElementById('importFile').files[0];
-  if (!file) { alert('Please select an Excel file'); return; }
-  const fd = new FormData();
-  fd.append('file', file);
-  const status = document.getElementById('importStatus');
-  status.style.display = 'block';
-  status.style.background = 'var(--surface2)';
-  status.style.color = 'var(--text-muted)';
-  status.textContent = '⏳ Importing...';
-  fetch('/api/import/companies', {method:'POST', body:fd})
-    .then(r=>r.json())
-    .then(d => {
-      if (d.success) {
-        status.style.background = 'var(--success-bg)';
-        status.style.color = '#86efac';
-        status.textContent = `✅ Imported ${d.imported} companies. ${d.skipped} skipped (duplicates).`;
-        setTimeout(() => { closeModal('importModal'); location.reload(); }, 2000);
-      } else {
-        status.style.background = 'var(--danger-bg)';
-        status.style.color = '#fca5a5';
-        status.textContent = '❌ Error: ' + d.error;
-      }
-    })
-    .catch(e => { status.style.color='#fca5a5'; status.textContent='Error: '+e; });
+  if (!file) { alert('Please select a file'); return; }
+  const fd = new FormData(); fd.append('file', file);
+  const st = document.getElementById('importStatus');
+  st.style.display='block'; st.style.background='var(--surface2)'; st.style.color='var(--text-muted)'; st.textContent='⏳ Importing...';
+  fetch('/api/import/companies',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
+    if(d.success){st.style.color='#86efac';st.textContent=`✅ Imported ${d.imported} companies. ${d.skipped} skipped.`;setTimeout(()=>{closeModal('importModal');location.reload();},2000);}
+    else{st.style.color='#fca5a5';st.textContent='❌ Error: '+d.error;}
+  });
 }
 </script>
 {% endblock %}

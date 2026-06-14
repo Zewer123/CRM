@@ -128,8 +128,8 @@
             <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;">
               {% set wa = t.assigned_mobile %}
               {% if wa %}
-              <a href="https://wa.me/{{ wa|replace('+','')|replace(' ','')|replace('-','') }}" target="_blank"
-                 class="btn btn-wa btn-sm btn-icon" title="WhatsApp {{ t.assigned_name }}">💬</a>
+              <button class="btn btn-wa btn-sm btn-icon" title="WhatsApp {{ t.assigned_name }}"
+                onclick="sendTaskWA('{{ wa|replace('+','')|replace(' ','')|replace('-','') }}', '{{ t.assigned_name|replace("'","\'") }}', '{{ t.title|replace("'","\'") }}', '{{ t.due_date[:10] if t.due_date else "" }}', '{{ t.priority }}')">💬</button>
               {% endif %}
               <button class="btn btn-ghost btn-sm btn-icon" onclick="viewTask({{ t.id }})" title="View">👁️</button>
               {% if t.status != 'done' and (user_role in ['admin','compliance'] or t.assigned_to == current_user_id or t.created_by == current_user_id) %}
@@ -479,6 +479,11 @@ function deleteTask(id) {
   if (!confirm('Delete this task?')) return;
   fetch(`/api/task/${id}/delete`, {method:'POST'})
     .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
+}
+
+function sendTaskWA(mobile, name, title, due, priority) {
+  const msg = `Hi ${name},\n\nYou have a task assigned to you:\n\n📋 *${title}*\n⚡ Priority: ${priority.toUpperCase()}${due ? '\n📅 Due: ' + due : ''}\n\nPlease update the task status once done.\n\nRegards,\nZewer AML Team`;
+  window.open(`https://wa.me/${mobile}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 function filterTasks() {

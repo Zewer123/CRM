@@ -350,7 +350,6 @@ def dashboard():
     active=c('SELECT COUNT(*) FROM companies WHERE ac_status=?',('Active',))
     etl=c('SELECT COUNT(*) FROM companies WHERE trade_license_expiry<?',(today,))
     e30tl=c('SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ?',(today,today+timedelta(days=30)))
-    e90tl=c('SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ?',(today,today+timedelta(days=90)))
     eap=c('SELECT COUNT(*) FROM companies WHERE address_proof_expiry<?',(today,))
     e30ap=c('SELECT COUNT(*) FROM companies WHERE address_proof_expiry BETWEEN ? AND ?',(today,today+timedelta(days=30)))
     epass=c('SELECT COUNT(*) FROM ubos WHERE passport_expiry<?',(today,))
@@ -387,7 +386,7 @@ def dashboard():
         utasks.append(row)
     conn.close()
     return render_template('dashboard.html',total_companies=total,active_companies=active,
-        expired_tl=etl,expiring_30_tl=e30tl,expiring_90_tl=e90tl,
+        expired_tl=etl,expiring_30_tl=e30tl,
         expired_ap=eap,expiring_30_ap=e30ap,expired_pass=epass,expiring_30_pass=e30p,
         risk_breakdown=risk_bd,doc_breakdown=doc_bd,urgent_companies=urgent,
         open_tasks=otasks,overdue_tasks=overtasks,due_today=dtasks,pending_close=ptasks,
@@ -537,15 +536,81 @@ def api_delete_company(id):
 @app.route('/alerts')
 @compliance_required
 def alerts():
-    conn=get_db(); today=datetime.now().date(); cutoff=today-timedelta(days=30)
-    tl=all_(conn,'SELECT id,ac_code,client_name,mobile,whatsapp_number,trade_license_expiry,risk_status,region FROM companies WHERE trade_license_expiry>=? ORDER BY trade_license_expiry',(cutoff,))
-    ap=all_(conn,'SELECT id,ac_code,client_name,mobile,whatsapp_number,address_proof_expiry,address_proof_type,risk_status FROM companies WHERE address_proof_expiry>=? ORDER BY address_proof_expiry',(cutoff,))
-    ubos=all_(conn,'''SELECT u.id,u.person_name,u.passport_no,u.passport_expiry,u.emirates_id,u.emirates_id_expiry,
-        c.id as company_id,c.client_name,c.ac_code FROM ubos u JOIN companies c ON u.company_id=c.id
-        WHERE u.passport_expiry>=? OR u.emirates_id_expiry>=? ORDER BY u.passport_expiry''',(cutoff,cutoff))
+    conn=get_db(); today=datetime.now().date()
+    # Build unified alert list from all document types
+    all_alerts = []
+
+    # Trade licenses
+    tl_rows = all_(conn,'''SELECT id,ac_code,client_name,mobile,whatsapp_number,
+        trade_license_expiry,risk_status,region,account_manager,
+        contact_person_name,contact_person_number
+        FROM companies WHERE trade_license_expiry IS NOT NULL ORDER BY trade_license_expiry''')
+    for r in tl_rows:
+        d = days_left(r['trade_license_expiry'])
+        if d is None: continue
+        all_alerts.append({'company_id':r['id'],'ac_code':r['ac_code'],
+            'client_name':r['client_name'],'mobile':r['mobile'],
+            'whatsapp_number':r['whatsapp_number'],'account_manager':r.get('account_manager'),
+            'contact_person_name':r.get('contact_person_name'),
+            'contact_person_number':r.get('contact_person_number'),
+            'doc_type':'Trade License','doc_subtype':None,
+            'expiry_date':str(r['trade_license_expiry'])[:10],'days':d})
+
+    # Address proofs
+    ap_rows = all_(conn,'''SELECT id,ac_code,client_name,mobile,whatsapp_number,
+        address_proof_expiry,address_proof_type,account_manager,
+        contact_person_name,contact_person_number
+        FROM companies WHERE address_proof_expiry IS NOT NULL ORDER BY address_proof_expiry''')
+    for r in ap_rows:
+        d = days_left(r['address_proof_expiry'])
+        if d is None: continue
+        all_alerts.append({'company_id':r['id'],'ac_code':r['ac_code'],
+            'client_name':r['client_name'],'mobile':r['mobile'],
+            'whatsapp_number':r['whatsapp_number'],'account_manager':r.get('account_manager'),
+            'contact_person_name':r.get('contact_person_name'),
+            'contact_person_number':r.get('contact_person_number'),
+            'doc_type':'Address Proof','doc_subtype':r.get('address_proof_type'),
+            'expiry_date':str(r['address_proof_expiry'])[:10],'days':d})
+
+    # Passports
+    ubo_rows = all_(conn,'''SELECT u.person_name,u.passport_no,u.passport_expiry,
+        u.emirates_id,u.emirates_id_expiry,
+        c.id as company_id,c.client_name,c.ac_code,c.mobile,c.whatsapp_number,
+        c.account_manager,c.contact_person_name,c.contact_person_number
+        FROM ubos u JOIN companies c ON u.company_id=c.id
+        WHERE u.passport_expiry IS NOT NULL OR u.emirates_id_expiry IS NOT NULL''')
+    for r in ubo_rows:
+        if r.get('passport_expiry'):
+            d = days_left(r['passport_expiry'])
+            if d is not None:
+                all_alerts.append({'company_id':r['company_id'],'ac_code':r['ac_code'],
+                    'client_name':r['client_name'],'mobile':r['mobile'],
+                    'whatsapp_number':r['whatsapp_number'],'account_manager':r.get('account_manager'),
+                    'contact_person_name':r['person_name'],'contact_person_number':None,
+                    'doc_type':'Passport','doc_subtype':r.get('passport_no'),
+                    'expiry_date':str(r['passport_expiry'])[:10],'days':d})
+        if r.get('emirates_id_expiry'):
+            d = days_left(r['emirates_id_expiry'])
+            if d is not None:
+                all_alerts.append({'company_id':r['company_id'],'ac_code':r['ac_code'],
+                    'client_name':r['client_name'],'mobile':r['mobile'],
+                    'whatsapp_number':r['whatsapp_number'],'account_manager':r.get('account_manager'),
+                    'contact_person_name':r['person_name'],'contact_person_number':None,
+                    'doc_type':'Emirates ID','doc_subtype':r.get('emirates_id'),
+                    'expiry_date':str(r['emirates_id_expiry'])[:10],'days':d})
+
+    # Sort by days (most urgent first)
+    all_alerts.sort(key=lambda x: x['days'])
+
+    # Get unique managers for filter
+    managers = sorted(set(a['account_manager'] for a in all_alerts if a.get('account_manager')))
+    
+    # Get users for task assignment
+    all_users = all_(conn,'SELECT id,name,role FROM users WHERE is_active=1 ORDER BY name')
+    
     conn.close()
-    return render_template('alerts.html',tl_expiring=tl,ap_expiring=ap,ubo_expiring=ubos,
-        today=str(today),days_left=days_left,expiry_status=exp_status)
+    return render_template('alerts.html', all_alerts=all_alerts, managers=managers,
+        all_users=all_users, today=str(today))
 
 @app.route('/reports')
 @compliance_required
