@@ -1,119 +1,360 @@
 {% extends "base.html" %}
-
-{% block title %}{{ company.client_name }} - Zewer AML CRM{% endblock %}
+{% block title %}{{ company.client_name }} - Zewer AML{% endblock %}
 
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+<div style="max-width:1000px;margin:0 auto;padding:20px 0;">
+
+  <!-- HEADER -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
     <div>
-        <h1 style="color: #2D5F5F; margin-bottom: 5px;">{{ company.client_name }}</h1>
-        <p style="color: #999; font-size: 14px;">AC Code: <strong>{{ company.ac_code }}</strong></p>
+      <a href="{{ url_for('companies') }}" style="color:#a78bfa;text-decoration:none;font-size:13px;">← Companies</a>
+      <h1 style="margin:4px 0 0;font-size:22px;color:#f1f5f9;">{{ company.client_name }}</h1>
+      <div style="color:#64748b;font-size:13px;margin-top:2px;">{{ company.ac_code }}
+        {% if company.ac_status == 'Active' %}
+        <span style="background:#14532d;color:#86efac;padding:1px 8px;border-radius:5px;font-size:11px;margin-left:6px;">ACTIVE</span>
+        {% else %}
+        <span style="background:#374151;color:#9ca3af;padding:1px 8px;border-radius:5px;font-size:11px;margin-left:6px;">INACTIVE</span>
+        {% endif %}
+      </div>
     </div>
-    <div style="display: flex; gap: 10px;">
-        <a href="{{ url_for('companies') }}" class="btn btn-primary">← Back</a>
-        <button class="btn btn-danger" onclick="deleteCompany({{ company.id }})">🗑️ Delete</button>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="{{ url_for('company_edit', id=company.id) }}" style="background:#334155;color:#f1f5f9;text-decoration:none;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:500;">✏️ Edit</a>
+      {% set wa_num = company.whatsapp_number or company.mobile %}
+      {% if wa_num %}
+      <button onclick="sendWhatsApp()" style="background:#25d366;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">💬 WhatsApp</button>
+      {% endif %}
+      <button onclick="confirmDelete({{ company.id }})" style="background:#7f1d1d;color:#fca5a5;border:none;padding:9px 18px;border-radius:8px;font-size:13px;cursor:pointer;">🗑️ Delete</button>
     </div>
-</div>
+  </div>
 
-<!-- COMPANY INFO SECTION -->
-<div style="background: white; padding: 25px; border-radius: 8px; border-left: 5px solid #B8956A; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-    <h3 style="color: #2D5F5F; margin-bottom: 20px;">📋 Company Details</h3>
-    
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
-        <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Customer Name</label>
-            <div style="font-weight: 600; color: #2D5F5F;">{{ company.customer_name or '—' }}</div>
-        </div>
-        <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Phone</label>
-            <div style="font-weight: 600; color: #2D5F5F;">{{ company.mobile or '—' }}</div>
-        </div>
-        <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Email</label>
-            <div style="font-weight: 600; color: #2D5F5F;">{{ company.email_id or '—' }}</div>
-        </div>
-        <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Status</label>
-            <span style="background: {% if company.ac_status == 'Active' %}#27AE60{% else %}#E74C3C{% endif %}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">{{ company.ac_status }}</span>
-        </div>
-        <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Risk Level</label>
-            <span style="background: {% if company.risk_status == 'High' %}#E74C3C{% elif company.risk_status == 'Medium' %}#F39C12{% else %}#27AE60{% endif %}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">{{ company.risk_status or 'Unspecified' }}</span>
-        </div>
-        <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">KYC Status</label>
-            <div style="font-weight: 600; color: #2D5F5F;">{{ company.kyc_status or '—' }}</div>
-        </div>
-        <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Type of Client</label>
-            <div style="font-weight: 600; color: #2D5F5F;">{{ company.type_of_client or '—' }}</div>
-        </div>
-        <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Region</label>
-            <div style="font-weight: 600; color: #2D5F5F;">{{ company.region or '—' }}</div>
-        </div>
-        <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Trade License</label>
-            <div style="font-weight: 600; color: #2D5F5F;">{{ company.trade_license_expiry or '—' }}</div>
-        </div>
-        <div>
-            <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; display: block;">Address Proof</label>
-            <div style="font-weight: 600; color: #2D5F5F;">{{ company.address_proof_expiry or '—' }}</div>
-        </div>
+  <!-- EXPIRY ALERT BANNER -->
+  {% if tl_status in ['expired','critical','warning'] or ap_status in ['expired','critical','warning'] %}
+  <div style="background:{% if tl_status == 'expired' or ap_status == 'expired' %}#7f1d1d{% elif tl_status == 'critical' or ap_status == 'critical' %}#7c2d12{% else %}#78350f{% endif %};
+    border-radius:10px;padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
+    <span style="font-size:22px;">⚠️</span>
+    <div>
+      <div style="color:#fed7aa;font-weight:600;font-size:14px;">Document Expiry Alert</div>
+      <div style="color:#fdba74;font-size:13px;margin-top:2px;">
+        {% if tl_status == 'expired' %}Trade License EXPIRED {{ tl_days|abs }} days ago. {% endif %}
+        {% if tl_status == 'critical' %}Trade License expires in {{ tl_days }} days. {% endif %}
+        {% if tl_status == 'warning' %}Trade License expires in {{ tl_days }} days. {% endif %}
+        {% if ap_status == 'expired' %}Address Proof EXPIRED {{ ap_days|abs }} days ago. {% endif %}
+        {% if ap_status == 'critical' %}Address Proof expires in {{ ap_days }} days. {% endif %}
+        {% if ap_status == 'warning' %}Address Proof expires in {{ ap_days }} days. {% endif %}
+      </div>
     </div>
-    
-    {% if company.address %}
-    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #E0E0E0;">
-        <label style="color: #999; font-size: 12px; text-transform: uppercase; margin-bottom: 8px; display: block;">Address</label>
-        <div style="color: #2D5F5F;">{{ company.address }}</div>
-    </div>
-    {% endif %}
-</div>
+  </div>
+  {% endif %}
 
-<!-- DOCUMENTS SECTION -->
-<div style="background: white; padding: 25px; border-radius: 8px; border-left: 5px solid #B8956A; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-    <h3 style="color: #2D5F5F; margin-bottom: 20px;">📄 Documents</h3>
-    
-    <div style="background: #f9f9f9; padding: 30px; text-align: center; border-radius: 8px; color: #999;">
-        <p style="margin-bottom: 10px;">📁 Document management coming soon</p>
-        <p style="font-size: 13px;">Upload, manage, and track company documents here</p>
-    </div>
-</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
 
-<!-- UBOs SECTION -->
-{% if ubos %}
-<div style="background: white; padding: 25px; border-radius: 8px; border-left: 5px solid #B8956A; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-    <h3 style="color: #2D5F5F; margin-bottom: 20px;">👥 Beneficial Owners (UBOs)</h3>
-    
-    <table style="width: 100%; border-collapse: collapse;">
-        <thead style="background: #f9f9f9; border-bottom: 2px solid #E0E0E0;">
-            <tr>
-                <th style="padding: 12px; text-align: left; font-weight: 600; color: #2D5F5F;">Name</th>
-                <th style="padding: 12px; text-align: left; font-weight: 600; color: #2D5F5F;">Position</th>
-                <th style="padding: 12px; text-align: left; font-weight: 600; color: #2D5F5F;">Nationality</th>
-                <th style="padding: 12px; text-align: left; font-weight: 600; color: #2D5F5F;">Passport Expiry</th>
-            </tr>
+    <!-- BASIC INFO -->
+    <div style="background:#1e293b;border-radius:12px;padding:20px;">
+      <h3 style="margin:0 0 16px;color:#a78bfa;font-size:13px;text-transform:uppercase;letter-spacing:1px;">📋 Basic Information</h3>
+      {% macro row(label, value) %}
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;">
+        <span style="color:#64748b;font-size:12px;">{{ label }}</span>
+        <span style="color:#f1f5f9;font-size:13px;font-weight:500;text-align:right;max-width:60%;">{{ value or '—' }}</span>
+      </div>
+      {% endmacro %}
+      {{ row('Nature', company.nature) }}
+      {{ row('Type of Client', company.type_of_client) }}
+      {{ row('Freezone', company.name_of_freezone) }}
+      {{ row('Mode of AC', company.mode_of_ac) }}
+      {{ row('Country', company.country_of_incorporation) }}
+      {{ row('Region', company.region) }}
+      {{ row('Opening Date', company.ac_opening_date) }}
+      {{ row('Active Till Year', company.active_till_year) }}
+    </div>
+
+    <!-- CONTACT -->
+    <div style="background:#1e293b;border-radius:12px;padding:20px;">
+      <h3 style="margin:0 0 16px;color:#a78bfa;font-size:13px;text-transform:uppercase;letter-spacing:1px;">📞 Contact Details</h3>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;">
+        <span style="color:#64748b;font-size:12px;">Telephone</span>
+        <span style="color:#f1f5f9;font-size:13px;">{{ company.telephone or '—' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;">
+        <span style="color:#64748b;font-size:12px;">Mobile</span>
+        <span style="color:#f1f5f9;font-size:13px;">{{ company.mobile or '—' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;">
+        <span style="color:#64748b;font-size:12px;">WhatsApp</span>
+        <span style="font-size:13px;">
+          {% set wa_num = company.whatsapp_number or company.mobile %}
+          {% if wa_num %}
+          <a href="https://wa.me/{{ wa_num | replace('+','') | replace(' ','') | replace('-','') }}" target="_blank" style="color:#25d366;text-decoration:none;">💬 {{ wa_num }}</a>
+          {% else %}—{% endif %}
+        </span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;">
+        <span style="color:#64748b;font-size:12px;">Email</span>
+        <span style="color:#60a5fa;font-size:13px;">{{ company.email_id or '—' }}</span>
+      </div>
+      <div style="padding:8px 0;">
+        <span style="color:#64748b;font-size:12px;">Address</span>
+        <div style="color:#94a3b8;font-size:12px;margin-top:4px;line-height:1.5;">{{ company.address or '—' }}</div>
+      </div>
+    </div>
+
+    <!-- TRADE LICENSE -->
+    <div style="background:#1e293b;border-radius:12px;padding:20px;">
+      <h3 style="margin:0 0 16px;color:#a78bfa;font-size:13px;text-transform:uppercase;letter-spacing:1px;">🏢 Trade License</h3>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;">
+        <span style="color:#64748b;font-size:12px;">License No</span>
+        <span style="color:#f1f5f9;font-size:13px;font-weight:600;">{{ company.trade_license_no or '—' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;">
+        <span style="color:#64748b;font-size:12px;">Issuing Authority</span>
+        <span style="color:#f1f5f9;font-size:12px;text-align:right;max-width:60%;">{{ company.issuing_authority or '—' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;">
+        <span style="color:#64748b;font-size:12px;">Legal Type</span>
+        <span style="color:#f1f5f9;font-size:12px;text-align:right;max-width:60%;">{{ company.legal_type or '—' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;">
+        <span style="color:#64748b;font-size:12px;">Incorporation Date</span>
+        <span style="color:#f1f5f9;font-size:13px;">{{ company.incorporation_date or '—' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1a2744;">
+        <span style="color:#64748b;font-size:12px;">Expiry Date</span>
+        <span style="font-size:13px;font-weight:700;
+          {% if tl_status == 'expired' %}color:#f87171;
+          {% elif tl_status == 'critical' %}color:#fb923c;
+          {% elif tl_status == 'warning' %}color:#fbbf24;
+          {% else %}color:#4ade80;{% endif %}">
+          {{ company.trade_license_expiry or '—' }}
+          {% if tl_days is not none %}
+          <span style="font-size:11px;font-weight:400;"> ({% if tl_days < 0 %}EXPIRED {{ tl_days|abs }}d ago{% else %}{{ tl_days }}d left{% endif %})</span>
+          {% endif %}
+        </span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;">
+        <span style="color:#64748b;font-size:12px;">Address Proof</span>
+        <span style="font-size:13px;font-weight:600;
+          {% if ap_status == 'expired' %}color:#f87171;
+          {% elif ap_status == 'critical' %}color:#fb923c;
+          {% elif ap_status == 'warning' %}color:#fbbf24;
+          {% else %}color:#4ade80;{% endif %}">
+          {{ company.address_proof_type or '' }} {{ company.address_proof_expiry or '—' }}
+          {% if ap_days is not none %}
+          <span style="font-size:11px;font-weight:400;"> ({% if ap_days < 0 %}EXPIRED {{ ap_days|abs }}d ago{% else %}{{ ap_days }}d left{% endif %})</span>
+          {% endif %}
+        </span>
+      </div>
+    </div>
+
+    <!-- COMPLIANCE -->
+    <div style="background:#1e293b;border-radius:12px;padding:20px;">
+      <h3 style="margin:0 0 16px;color:#a78bfa;font-size:13px;text-transform:uppercase;letter-spacing:1px;">🛡️ Compliance</h3>
+      {% set risk = company.risk_status or 'Unspecified' %}
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;align-items:center;">
+        <span style="color:#64748b;font-size:12px;">Risk Status</span>
+        <span style="padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;
+          {% if risk == 'High' %}background:#7f1d1d;color:#fca5a5;
+          {% elif risk == 'Medium' %}background:#78350f;color:#fcd34d;
+          {% elif risk == 'Low' %}background:#14532d;color:#86efac;
+          {% else %}background:#1e293b;color:#64748b;{% endif %}">{{ risk }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;align-items:center;">
+        <span style="color:#64748b;font-size:12px;">Doc Status</span>
+        <span style="padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600;
+          {% if company.doc_status == 'Completed' %}background:#14532d;color:#86efac;
+          {% else %}background:#7f1d1d;color:#fca5a5;{% endif %}">{{ company.doc_status or '—' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;">
+        <span style="color:#64748b;font-size:12px;">KYC Status</span>
+        <span style="color:#f1f5f9;font-size:12px;">{{ company.kyc_status or '—' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;">
+        <span style="color:#64748b;font-size:12px;">TRN</span>
+        <span style="color:#f1f5f9;font-size:12px;">{{ company.tax_no_trn or '—' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;">
+        <span style="color:#64748b;font-size:12px;">VAT Cert / Declaration</span>
+        <span style="color:#f1f5f9;font-size:12px;">{{ company.vat_cert or '—' }} / {{ company.vat_declaration or '—' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;">
+        <span style="color:#64748b;font-size:12px;">MOA / PEP / Undertaking</span>
+        <span style="color:#f1f5f9;font-size:12px;">{{ company.moa or '—' }} / {{ company.pep or '—' }} / {{ company.undertaking or '—' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;">
+        <span style="color:#64748b;font-size:12px;">Source of Fund</span>
+        <span style="color:#f1f5f9;font-size:12px;">{{ company.source_of_fund or '—' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;">
+        <span style="color:#64748b;font-size:12px;">No. of Beneficial Owners</span>
+        <span style="color:#f1f5f9;font-size:13px;font-weight:600;">{{ company.num_beneficial_owners or '0' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a2744;">
+        <span style="color:#64748b;font-size:12px;">Screening Date</span>
+        <span style="color:#f1f5f9;font-size:12px;">{{ company.screening_date or '—' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;">
+        <span style="color:#64748b;font-size:12px;">Verified By / Date</span>
+        <span style="color:#f1f5f9;font-size:12px;">{{ company.verified_by or '—' }} / {{ company.verified_date or '—' }}</span>
+      </div>
+    </div>
+
+  </div><!-- end grid -->
+
+  <!-- UBOs -->
+  {% if ubos %}
+  <div style="margin-top:20px;background:#1e293b;border-radius:12px;padding:20px;">
+    <h3 style="margin:0 0 16px;color:#a78bfa;font-size:13px;text-transform:uppercase;letter-spacing:1px;">👤 UBO / Authorized Persons ({{ ubos|length }})</h3>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="border-bottom:1px solid #334155;">
+            <th style="padding:10px 12px;text-align:left;color:#64748b;font-size:11px;">NAME</th>
+            <th style="padding:10px 12px;text-align:left;color:#64748b;font-size:11px;">POSITION / SHARE</th>
+            <th style="padding:10px 12px;text-align:left;color:#64748b;font-size:11px;">NATIONALITY</th>
+            <th style="padding:10px 12px;text-align:left;color:#64748b;font-size:11px;">PASSPORT NO / EXPIRY</th>
+            <th style="padding:10px 12px;text-align:left;color:#64748b;font-size:11px;">EMIRATES ID / EXPIRY</th>
+            <th style="padding:10px 12px;text-align:left;color:#64748b;font-size:11px;">DOC STATUS</th>
+          </tr>
         </thead>
         <tbody>
-            {% for ubo in ubos %}
-            <tr style="border-bottom: 1px solid #E0E0E0;">
-                <td style="padding: 12px;"><strong>{{ ubo.person_name }}</strong></td>
-                <td style="padding: 12px;">{{ ubo.position or '—' }}</td>
-                <td style="padding: 12px;">{{ ubo.nationality or '—' }}</td>
-                <td style="padding: 12px;">{{ ubo.passport_expiry or '—' }}</td>
-            </tr>
-            {% endfor %}
+          {% for u in ubos %}
+          <tr style="border-bottom:1px solid #1a2744;">
+            <td style="padding:10px 12px;color:#f1f5f9;font-weight:500;">{{ u.person_name }}</td>
+            <td style="padding:10px 12px;color:#94a3b8;">
+              {{ u.position or '—' }}
+              {% if u.share_percentage %}<div style="font-size:11px;color:#64748b;">{{ u.share_percentage }}%</div>{% endif %}
+            </td>
+            <td style="padding:10px 12px;color:#94a3b8;">{{ u.nationality or '—' }}<br><span style="font-size:11px;color:#64748b;">{{ u.residential_status or '' }}</span></td>
+            <td style="padding:10px 12px;">
+              <div style="color:#94a3b8;">{{ u.passport_no or '—' }}</div>
+              {% if u.passport_expiry %}
+              <div style="font-size:11px;font-weight:600;
+                {% if u.p_status == 'expired' %}color:#f87171;
+                {% elif u.p_status == 'critical' %}color:#fb923c;
+                {% elif u.p_status == 'warning' %}color:#fbbf24;
+                {% else %}color:#4ade80;{% endif %}">
+                {{ u.passport_expiry }}
+                {% if u.p_days is not none %}({% if u.p_days < 0 %}EXPIRED{{ else %}{{ u.p_days }}d{% endif %}){% endif %}
+              </div>
+              {% endif %}
+            </td>
+            <td style="padding:10px 12px;">
+              <div style="color:#94a3b8;font-size:12px;">{{ u.emirates_id or '—' }}</div>
+              {% if u.emirates_id_expiry %}
+              <div style="font-size:11px;font-weight:600;
+                {% if u.e_status == 'expired' %}color:#f87171;
+                {% elif u.e_status == 'critical' %}color:#fb923c;
+                {% elif u.e_status == 'warning' %}color:#fbbf24;
+                {% else %}color:#4ade80;{% endif %}">
+                {{ u.emirates_id_expiry }}
+                {% if u.e_days is not none %}({% if u.e_days < 0 %}EXPIRED{% else %}{{ u.e_days }}d{% endif %}){% endif %}
+              </div>
+              {% endif %}
+            </td>
+            <td style="padding:10px 12px;">
+              <span style="font-size:11px;padding:2px 8px;border-radius:5px;font-weight:600;
+                {% if u.doc_status == 'Completed' %}background:#14532d;color:#86efac;
+                {% else %}background:#7f1d1d;color:#fca5a5;{% endif %}">
+                {{ u.doc_status or '—' }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
         </tbody>
-    </table>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- NOTES -->
+  {% if company.followup_details or company.crowe_feedback or company.zewer_comments %}
+  <div style="margin-top:20px;background:#1e293b;border-radius:12px;padding:20px;">
+    <h3 style="margin:0 0 16px;color:#a78bfa;font-size:13px;text-transform:uppercase;letter-spacing:1px;">📝 Notes & Followup</h3>
+    {% if company.followup_details %}
+    <div style="margin-bottom:12px;">
+      <div style="color:#64748b;font-size:11px;margin-bottom:4px;">FOLLOWUP DETAILS</div>
+      <div style="color:#f1f5f9;font-size:13px;line-height:1.6;background:#0f172a;padding:10px;border-radius:8px;">{{ company.followup_details }}</div>
+    </div>
+    {% endif %}
+    {% if company.crowe_feedback %}
+    <div style="margin-bottom:12px;">
+      <div style="color:#64748b;font-size:11px;margin-bottom:4px;">CROWE FEEDBACK / MISSING DOCS</div>
+      <div style="color:#f1f5f9;font-size:13px;line-height:1.6;background:#0f172a;padding:10px;border-radius:8px;">{{ company.crowe_feedback }}</div>
+    </div>
+    {% endif %}
+    {% if company.zewer_comments %}
+    <div>
+      <div style="color:#64748b;font-size:11px;margin-bottom:4px;">ZEWER COMMENTS</div>
+      <div style="color:#f1f5f9;font-size:13px;line-height:1.6;background:#0f172a;padding:10px;border-radius:8px;">{{ company.zewer_comments }}</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
 </div>
-{% endif %}
+
+<!-- WHATSAPP MODAL -->
+<div id="waModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#1e293b;border-radius:16px;padding:28px;max-width:520px;width:90%;margin:20px;">
+    <h3 style="margin:0 0 16px;color:#25d366;font-size:16px;">💬 WhatsApp Message</h3>
+    <textarea id="waMessage" rows="10" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:10px;color:#f1f5f9;padding:12px;font-size:13px;line-height:1.6;box-sizing:border-box;resize:vertical;"></textarea>
+    <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end;">
+      <button onclick="closeWA()" style="background:#334155;color:#94a3b8;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;">Cancel</button>
+      <button onclick="openWA()" style="background:#25d366;color:#fff;border:none;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600;">Open WhatsApp</button>
+    </div>
+  </div>
+</div>
 
 <script>
-    function deleteCompany(id) {
-        if (confirm('Delete this company and all related data?')) {
-            fetch(`/api/company/${id}/delete`, { method: 'POST' })
-                .then(r => r.json())
-                .then(d => d.success ? window.location.href = '/companies' : alert('Error'));
-        }
+const COMPANY = {
+  name: {{ company.client_name | tojson }},
+  mobile: {{ (company.whatsapp_number or company.mobile or '') | tojson }},
+  tl_expiry: {{ (company.trade_license_expiry or '') | tojson }},
+  tl_days: {{ tl_days if tl_days is not none else 'null' }},
+  ap_expiry: {{ (company.address_proof_expiry or '') | tojson }},
+  ap_days: {{ ap_days if ap_days is not none else 'null' }},
+  ap_type: {{ (company.address_proof_type or '') | tojson }},
+};
+
+function buildMessage() {
+  let msg = `Dear ${COMPANY.name},\n\nThis is a reminder from Zewer AML Compliance regarding your document status:\n\n`;
+  if (COMPANY.tl_expiry) {
+    if (COMPANY.tl_days !== null && COMPANY.tl_days < 0) {
+      msg += `⚠️ Trade License: EXPIRED on ${COMPANY.tl_expiry} (${Math.abs(COMPANY.tl_days)} days ago)\n`;
+    } else if (COMPANY.tl_days !== null) {
+      msg += `📋 Trade License: Expiring on ${COMPANY.tl_expiry} (${COMPANY.tl_days} days remaining)\n`;
     }
+  }
+  if (COMPANY.ap_expiry) {
+    if (COMPANY.ap_days !== null && COMPANY.ap_days < 0) {
+      msg += `⚠️ ${COMPANY.ap_type || 'Address Proof'}: EXPIRED on ${COMPANY.ap_expiry} (${Math.abs(COMPANY.ap_days)} days ago)\n`;
+    } else if (COMPANY.ap_days !== null) {
+      msg += `🏠 ${COMPANY.ap_type || 'Address Proof'}: Expiring on ${COMPANY.ap_expiry} (${COMPANY.ap_days} days remaining)\n`;
+    }
+  }
+  msg += `\nKindly provide updated documents at your earliest convenience to ensure compliance.\n\nRegards,\nZewer AML Compliance Team`;
+  return msg;
+}
+
+function sendWhatsApp() {
+  document.getElementById('waMessage').value = buildMessage();
+  document.getElementById('waModal').style.display = 'flex';
+}
+
+function closeWA() {
+  document.getElementById('waModal').style.display = 'none';
+}
+
+function openWA() {
+  const msg = document.getElementById('waMessage').value;
+  const num = COMPANY.mobile.replace(/[\+\s\-]/g, '');
+  window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
+  closeWA();
+}
+
+function confirmDelete(id) {
+  if (confirm('Delete this company? This cannot be undone.')) {
+    fetch(`/api/company/${id}/delete`, {method: 'POST'})
+      .then(r => r.json())
+      .then(res => { if (res.success) window.location.href = '/companies'; });
+  }
+}
 </script>
-{% endblock %}

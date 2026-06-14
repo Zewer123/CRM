@@ -1,42 +1,149 @@
 {% extends "base.html" %}
-
-{% block title %}Alerts - Zewer AML CRM{% endblock %}
+{% block title %}Alerts - Zewer AML{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1>⚠️ Document Expiry Alerts</h1>
-    <p>Documents expiring in the next 90 days</p>
-</div>
+<div style="padding:20px 0;">
+  <h1 style="margin:0 0 24px;font-size:22px;color:#f1f5f9;">⚠️ Expiry Alerts</h1>
 
-{% if alerts %}
-<div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-    <table style="width: 100%; border-collapse: collapse;">
-        <thead style="background: linear-gradient(135deg, #E74C3C 0%, #c0392b 100%); color: white;">
-            <tr>
-                <th style="padding: 15px; text-align: left; font-weight: 600;">Company</th>
-                <th style="padding: 15px; text-align: left; font-weight: 600;">Trade License</th>
-                <th style="padding: 15px; text-align: left; font-weight: 600;">Address Proof</th>
-                <th style="padding: 15px; text-align: center; font-weight: 600;">Actions</th>
-            </tr>
+  {% macro expiry_badge(days) %}
+    {% if days is none %}<span style="color:#475569;">—</span>
+    {% elif days < 0 %}<span style="background:#7f1d1d;color:#fca5a5;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">EXPIRED {{ days|abs }}d ago</span>
+    {% elif days <= 30 %}<span style="background:#7c2d12;color:#fb923c;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">{{ days }}d LEFT</span>
+    {% elif days <= 90 %}<span style="background:#78350f;color:#fcd34d;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">{{ days }}d LEFT</span>
+    {% else %}<span style="background:#14532d;color:#86efac;padding:2px 8px;border-radius:5px;font-size:11px;">{{ days }}d LEFT</span>
+    {% endif %}
+  {% endmacro %}
+
+  <!-- TRADE LICENSE -->
+  <div style="background:#1e293b;border-radius:12px;margin-bottom:20px;overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;">
+      <h2 style="margin:0;font-size:15px;color:#f1f5f9;">🏢 Trade License Expiry</h2>
+      <span style="color:#64748b;font-size:13px;">{{ tl_expiring|length }} companies</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="border-bottom:1px solid #334155;">
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">AC CODE</th>
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">CLIENT NAME</th>
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">REGION</th>
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">RISK</th>
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">EXPIRY DATE</th>
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">STATUS</th>
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">ACTION</th>
+          </tr>
         </thead>
         <tbody>
-            {% for alert in alerts %}
-            <tr style="border-bottom: 1px solid #E0E0E0;">
-                <td style="padding: 15px;"><strong style="color: #2D5F5F;">{{ alert.client_name }}</strong></td>
-                <td style="padding: 15px; color: #E74C3C; font-weight: 600;">{{ alert.trade_license_expiry or '—' }}</td>
-                <td style="padding: 15px; color: #E74C3C; font-weight: 600;">{{ alert.address_proof_expiry or '—' }}</td>
-                <td style="padding: 15px; text-align: center;">
-                    <a href="{{ url_for('company_detail', id=alert.id) }}" class="btn btn-primary" style="font-size: 12px;">View Details</a>
-                </td>
-            </tr>
-            {% endfor %}
+          {% for c in tl_expiring %}
+          {% set d = days_left(c['trade_license_expiry']) %}
+          <tr style="border-bottom:1px solid #1a2744;">
+            <td style="padding:10px 16px;"><a href="{{ url_for('company_detail', id=c['id']) }}" style="color:#a78bfa;text-decoration:none;font-weight:600;">{{ c['ac_code'] }}</a></td>
+            <td style="padding:10px 16px;color:#f1f5f9;">{{ c['client_name'] }}</td>
+            <td style="padding:10px 16px;color:#94a3b8;">{{ c['region'] or '—' }}</td>
+            <td style="padding:10px 16px;">
+              {% set risk = c['risk_status'] or 'Unspecified' %}
+              <span style="font-size:11px;font-weight:600;
+                {% if risk == 'High' %}color:#fca5a5;{% elif risk == 'Medium' %}color:#fcd34d;{% elif risk == 'Low' %}color:#86efac;{% else %}color:#64748b;{% endif %}">{{ risk }}</span>
+            </td>
+            <td style="padding:10px 16px;color:#f1f5f9;">{{ c['trade_license_expiry'] }}</td>
+            <td style="padding:10px 16px;">{{ expiry_badge(d) }}</td>
+            <td style="padding:10px 16px;">
+              {% set wa = c['whatsapp_number'] or c['mobile'] %}
+              {% if wa %}
+              <a href="https://wa.me/{{ wa | replace('+','') | replace(' ','') | replace('-','') }}" target="_blank"
+                 style="background:#25d366;color:#fff;text-decoration:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;">💬 WA</a>
+              {% endif %}
+              <a href="{{ url_for('company_detail', id=c['id']) }}" style="color:#a78bfa;text-decoration:none;font-size:11px;margin-left:6px;">View</a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" style="padding:20px;text-align:center;color:#475569;">No trade license expiries found</td></tr>
+          {% endfor %}
         </tbody>
-    </table>
+      </table>
+    </div>
+  </div>
+
+  <!-- ADDRESS PROOF -->
+  <div style="background:#1e293b;border-radius:12px;margin-bottom:20px;overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;">
+      <h2 style="margin:0;font-size:15px;color:#f1f5f9;">🏠 Address Proof Expiry</h2>
+      <span style="color:#64748b;font-size:13px;">{{ ap_expiring|length }} companies</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="border-bottom:1px solid #334155;">
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">AC CODE</th>
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">CLIENT NAME</th>
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">PROOF TYPE</th>
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">EXPIRY DATE</th>
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">STATUS</th>
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">ACTION</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in ap_expiring %}
+          {% set d = days_left(c['address_proof_expiry']) %}
+          <tr style="border-bottom:1px solid #1a2744;">
+            <td style="padding:10px 16px;"><a href="{{ url_for('company_detail', id=c['id']) }}" style="color:#a78bfa;text-decoration:none;font-weight:600;">{{ c['ac_code'] }}</a></td>
+            <td style="padding:10px 16px;color:#f1f5f9;">{{ c['client_name'] }}</td>
+            <td style="padding:10px 16px;color:#94a3b8;">{{ c['address_proof_type'] or '—' }}</td>
+            <td style="padding:10px 16px;color:#f1f5f9;">{{ c['address_proof_expiry'] }}</td>
+            <td style="padding:10px 16px;">{{ expiry_badge(d) }}</td>
+            <td style="padding:10px 16px;">
+              {% set wa = c['whatsapp_number'] or c['mobile'] %}
+              {% if wa %}
+              <a href="https://wa.me/{{ wa | replace('+','') | replace(' ','') | replace('-','') }}" target="_blank"
+                 style="background:#25d366;color:#fff;text-decoration:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;">💬 WA</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" style="padding:20px;text-align:center;color:#475569;">No address proof expiries found</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- UBO PASSPORTS / EIDs -->
+  <div style="background:#1e293b;border-radius:12px;overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;">
+      <h2 style="margin:0;font-size:15px;color:#f1f5f9;">👤 UBO Passport & Emirates ID Expiry</h2>
+      <span style="color:#64748b;font-size:13px;">{{ ubo_expiring|length }} persons</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="border-bottom:1px solid #334155;">
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">COMPANY</th>
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">PERSON NAME</th>
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">PASSPORT NO / EXP</th>
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">PASSPORT STATUS</th>
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">EMIRATES ID / EXP</th>
+            <th style="padding:10px 16px;text-align:left;color:#64748b;font-size:11px;">EID STATUS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in ubo_expiring %}
+          {% set pd = days_left(u['passport_expiry']) %}
+          {% set ed = days_left(u['emirates_id_expiry']) %}
+          <tr style="border-bottom:1px solid #1a2744;">
+            <td style="padding:10px 16px;"><a href="{{ url_for('company_detail', id=u['company_id']) }}" style="color:#a78bfa;text-decoration:none;">{{ u['ac_code'] }}<br><span style="font-size:11px;color:#64748b;">{{ u['client_name'] }}</span></a></td>
+            <td style="padding:10px 16px;color:#f1f5f9;font-weight:500;">{{ u['person_name'] }}</td>
+            <td style="padding:10px 16px;color:#94a3b8;">{{ u['passport_no'] or '—' }}<br><span style="font-size:11px;">{{ u['passport_expiry'] or '' }}</span></td>
+            <td style="padding:10px 16px;">{{ expiry_badge(pd) }}</td>
+            <td style="padding:10px 16px;color:#94a3b8;font-size:12px;">{{ u['emirates_id'] or '—' }}<br><span style="font-size:11px;">{{ u['emirates_id_expiry'] or '' }}</span></td>
+            <td style="padding:10px 16px;">{{ expiry_badge(ed) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" style="padding:20px;text-align:center;color:#475569;">No UBO expiries found</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </div>
-{% else %}
-<div style="background: white; padding: 40px; text-align: center; border-radius: 8px; color: #999;">
-    <p style="font-size: 18px; margin-bottom: 10px;">✅ No Alerts</p>
-    <p>All documents are up to date!</p>
-</div>
-{% endif %}
 {% endblock %}
