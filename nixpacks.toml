@@ -1,2 +1,5 @@
 [build]
-nixpkgs = ["python3", "postgresql", "libpq", "gcc", "gnumake", "openssl", "pkg-config", "libffi"]
+nixpkgs = ["python3", "gcc"]
+
+[start]
+cmd = "gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 120 app:app"
