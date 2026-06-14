@@ -30,6 +30,7 @@
         <button onclick="sendWhatsApp()" class="btn btn-wa">💬 WhatsApp</button>
         {% endif %}
         <a href="{{ url_for('company_edit', id=company.id) }}" class="btn btn-ghost">✏️ Edit</a>
+        <a href="{{ url_for('api_export_company_docs', cid=company.id) }}" class="btn btn-ghost">📥 Export Docs</a>
         <button onclick="confirmDelete({{ company.id }})" class="btn btn-danger">🗑️ Delete</button>
       </div>
     </div>
@@ -351,4 +352,5 @@ function deleteDoc(id) {
 loadDocs();
 </script>
 {% endblock %}
+
 
