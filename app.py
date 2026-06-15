@@ -1132,41 +1132,138 @@ def regular_tasks():
     conn = get_db()
     uid = session.get('user_id')
     role = session.get('user_role')
-    # Admin/compliance see all, staff see only assigned to them
+    today = datetime.now().date()
+
+    def due_dates_for_frequency(freq, since_date):
+        """Return list of all due dates from since_date up to and including today."""
+        dates = []
+        if freq == 'daily':
+            d = since_date
+            while d <= today:
+                dates.append(d)
+                d += timedelta(days=1)
+        elif freq == 'weekly':
+            # Every Friday (weekday 4)
+            d = since_date
+            # Move to first Friday on or after since_date
+            days_ahead = (4 - d.weekday()) % 7
+            d = d + timedelta(days=days_ahead)
+            while d <= today:
+                dates.append(d)
+                d += timedelta(weeks=1)
+        elif freq == 'monthly':
+            # Every 25th
+            d = since_date.replace(day=1)
+            while True:
+                try:
+                    due = d.replace(day=25)
+                except ValueError:
+                    due = None
+                if due and due >= since_date and due <= today:
+                    dates.append(due)
+                # Next month
+                if d.month == 12:
+                    d = d.replace(year=d.year+1, month=1)
+                else:
+                    d = d.replace(month=d.month+1)
+                if d > today:
+                    break
+        return dates
+
     try:
         if role in ['admin', 'compliance']:
-            templates = all_(conn, '''SELECT rt.*,u.name as created_by_name,au.name as assigned_user_name
+            templates = all_(conn, """SELECT rt.*,u.name as created_by_name,au.name as assigned_user_name
                 FROM regular_task_templates rt LEFT JOIN users u ON rt.created_by=u.id
                 LEFT JOIN users au ON rt.assigned_user_id=au.id
-                ORDER BY rt.frequency, rt.title''')
-            logs = all_(conn, '''SELECT l.*,u.name as staff_name,rt.title as task_title,rt.frequency
+                ORDER BY rt.frequency, rt.title""")
+            logs = all_(conn, """SELECT l.*,u.name as staff_name,rt.title as task_title,rt.frequency
                 FROM regular_task_logs l JOIN users u ON l.user_id=u.id
                 JOIN regular_task_templates rt ON l.template_id=rt.id
-                ORDER BY l.logged_at DESC LIMIT 200''')
+                ORDER BY l.logged_at DESC LIMIT 200""")
         else:
-            templates = all_(conn, '''SELECT rt.*,u.name as created_by_name,au.name as assigned_user_name
+            templates = all_(conn, """SELECT rt.*,u.name as created_by_name,au.name as assigned_user_name
                 FROM regular_task_templates rt LEFT JOIN users u ON rt.created_by=u.id
                 LEFT JOIN users au ON rt.assigned_user_id=au.id
                 WHERE rt.assigned_role='all' OR rt.assigned_user_id=? OR rt.assigned_role=?
-                ORDER BY rt.frequency, rt.title''', (uid, role))
-            logs = all_(conn, '''SELECT l.*,u.name as staff_name,rt.title as task_title,rt.frequency
+                ORDER BY rt.frequency, rt.title""", (uid, role))
+            logs = all_(conn, """SELECT l.*,u.name as staff_name,rt.title as task_title,rt.frequency
                 FROM regular_task_logs l JOIN users u ON l.user_id=u.id
                 JOIN regular_task_templates rt ON l.template_id=rt.id
-                WHERE l.user_id=? ORDER BY l.logged_at DESC LIMIT 100''', (uid,))
+                WHERE l.user_id=? ORDER BY l.logged_at DESC LIMIT 100""", (uid,))
     except:
         templates = []; logs = []
+
     users = all_(conn, 'SELECT id,name,role FROM users WHERE is_active=1 ORDER BY name')
-    # Pending count per template for current user
-    pending = {}
+
+    # For each template, compute overdue count for current user
+    task_status = {}
     for t in templates:
         try:
-            last = one(conn, 'SELECT logged_at FROM regular_task_logs WHERE template_id=? AND user_id=? ORDER BY logged_at DESC LIMIT 1',
-                       (t['id'], uid))
-            pending[t['id']] = last['logged_at'] if last else None
-        except: pending[t['id']] = None
+            # Get all logs for this template by this user
+            user_logs = all_(conn,
+                """SELECT DATE(logged_at) as log_date FROM regular_task_logs
+                   WHERE template_id=? AND user_id=? ORDER BY logged_at ASC""",
+                (t['id'], uid))
+            logged_dates = set(r['log_date'] for r in user_logs)
+
+            # Created date as start
+            created = t.get('created_at')
+            if created:
+                try:
+                    start = datetime.strptime(str(created)[:10], '%Y-%m-%d').date()
+                except:
+                    start = today
+            else:
+                start = today
+
+            # All due dates up to today
+            all_due = due_dates_for_frequency(t['frequency'], start)
+
+            # Count how many due dates have no log on that date
+            missed = []
+            for due in all_due:
+                due_str = str(due)
+                if due_str not in logged_dates:
+                    missed.append(due)
+
+            # Next due date
+            freq = t['frequency']
+            if freq == 'daily':
+                next_due = today + timedelta(days=1)
+            elif freq == 'weekly':
+                days_ahead = (4 - today.weekday()) % 7
+                next_due = today + timedelta(days=(days_ahead if days_ahead > 0 else 7))
+            elif freq == 'monthly':
+                if today.day < 25:
+                    next_due = today.replace(day=25)
+                else:
+                    if today.month == 12:
+                        next_due = today.replace(year=today.year+1, month=1, day=25)
+                    else:
+                        next_due = today.replace(month=today.month+1, day=25)
+            else:
+                next_due = today
+
+            last_log = user_logs[-1]['log_date'] if user_logs else None
+            overdue_count = len(missed)
+            is_due_today = str(today) in [str(d) for d in all_due] and str(today) not in logged_dates
+
+            task_status[t['id']] = {
+                'overdue_count': overdue_count,
+                'is_due_today': is_due_today,
+                'next_due': str(next_due),
+                'last_logged': last_log,
+                'missed_dates': [str(d) for d in missed[-3:]]  # last 3 for display
+            }
+        except Exception as e:
+            task_status[t['id']] = {
+                'overdue_count': 0, 'is_due_today': False,
+                'next_due': str(today), 'last_logged': None, 'missed_dates': []
+            }
+
     conn.close()
     return render_template('regular_tasks.html', templates=templates, logs=logs,
-                           all_users=users, last_logged=pending)
+                           all_users=users, task_status=task_status, today=str(today))
 
 @app.route('/api/regular-task/add', methods=['POST'])
 @compliance_required
@@ -1338,4 +1435,5 @@ def api_export_company_docs(cid):
     fname = f"{co['ac_code']}_documents.xlsx"
     return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                      as_attachment=True, download_name=fname)
+
 
