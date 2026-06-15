@@ -91,6 +91,7 @@ body { font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var
 .user-name { font-weight:600; color:var(--text); font-size:13px; }
 .user-role { font-size:10px; color:var(--text-dim); letter-spacing:1px; text-transform:uppercase; }
 .dropdown-menu {
+  display:none;
   position:absolute; top:calc(100% + 6px); right:0;
   background:var(--surface); border:1px solid var(--border);
   border-radius:var(--radius); box-shadow:var(--shadow-md);
