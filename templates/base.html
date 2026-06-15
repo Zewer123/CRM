@@ -19,8 +19,7 @@
       <a href="{{ url_for('alerts') }}" class="navbar-link {% if request.endpoint == 'alerts' %}active{% endif %}">⚠️ Alerts</a>
       <a href="{{ url_for('reports') }}" class="navbar-link {% if request.endpoint == 'reports' %}active{% endif %}">📈 Reports</a>
       {% endif %}
-      <a href="{{ url_for('tasks') }}" class="navbar-link {% if request.endpoint in ['tasks'] %}active{% endif %}">📋 Temp Tasks</a>
-      <a href="{{ url_for('regular_tasks') }}" class="navbar-link {% if request.endpoint == 'regular_tasks' %}active{% endif %}">🔁 Tasks</a>
+      <a href="{{ url_for('tasks') }}" class="navbar-link {% if request.endpoint in ['tasks','regular_tasks'] %}active{% endif %}">✅ Tasks</a>
       {% if user_role in ['admin', 'compliance'] %}
       <a href="{{ url_for('internal_docs') }}" class="navbar-link {% if request.endpoint == 'internal_docs' %}active{% endif %}">🗂️ Zewer Docs</a>
       {% endif %}
@@ -116,6 +115,7 @@
   {% block scripts %}{% endblock %}
 </body>
 </html>
+
 
 
 
