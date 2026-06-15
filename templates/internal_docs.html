@@ -133,7 +133,7 @@
       <button class="btn btn-ghost btn-sm btn-icon" title="Edit"
         onclick="editDoc({{ d.id }},'{{ d.doc_name|replace("'","\\'") }}','{{ d.doc_category }}','{{ (d.person_name or '')|replace("'","\\'") }}','{{ (d.issuing_authority or '')|replace("'","\\'") }}','{{ d.issue_date or "" }}','{{ d.expiry_date or "" }}','{{ (d.notes or '')|replace("'","\\'") }}')">✏️</button>
       <button class="btn btn-ghost btn-sm btn-icon" title="Convert to Renewal Task"
-        onclick="convertToTask('{{ d.doc_name|replace('\'\''\'\')' }}','{{ d.expiry_date or '' }}','{{ (d.person_name or '')|replace('\'\''\'\')' }}')">✅</button>
+        onclick="convertToTask('{{ d.doc_name|e }}','{{ d.expiry_date or "" }}','{{ (d.person_name or "")|e }}')">✅</button>
       <button class="btn btn-danger btn-sm btn-icon" title="Delete" onclick="deleteDoc({{ d.id }})">🗑️</button>
     </div>
   </div>
@@ -398,4 +398,5 @@ function submitConvertTask() {
 }
 </script>
 {% endblock %}
+
 
