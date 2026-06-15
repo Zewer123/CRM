@@ -67,7 +67,7 @@
         {% for t in tasks %}
         <tr data-status="{{ t.status }}" data-user="{{ t.assigned_to or '' }}" data-priority="{{ t.priority }}">
           <td>
-            <div style="font-weight:600;color:var(--text);">{{ t.title }}</div>
+            <div style="font-weight:600;color:var(--text);">📋 {{ t.title }}</div>
             {% if t.description %}<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">{{ t.description[:80] }}{% if t.description|length > 80 %}…{% endif %}</div>{% endif %}
             <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">By: {{ t.created_by_name or '—' }}</div>
           </td>
@@ -484,5 +484,6 @@ function filterTasks() {
 }
 </script>
 {% endblock %}
+
 
 
