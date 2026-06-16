@@ -124,7 +124,7 @@ def _pg_schema(conn):
             doc_status TEXT DEFAULT 'Incompleted', screening_date DATE,
             registration_screening_tool TEXT, risk_status TEXT DEFAULT 'Unspecified',
             verified_by TEXT, verified_date DATE, followup_details TEXT,
-            crowe_feedback TEXT, zewer_comments TEXT, created_by INTEGER,
+            crowe_feedback TEXT, zewer_comments TEXT, group_name TEXT, created_by INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
         """CREATE TABLE IF NOT EXISTS ubos (
@@ -167,6 +167,19 @@ def _pg_schema(conn):
             notes TEXT, added_by INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS company_groups (
+            id SERIAL PRIMARY KEY, group_name TEXT UNIQUE NOT NULL,
+            description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS clients (
+            id SERIAL PRIMARY KEY, name TEXT NOT NULL, phone TEXT,
+            whatsapp_number TEXT, email TEXT, date_of_birth DATE,
+            profession TEXT, address TEXT, notes TEXT,
+            passport_file TEXT, emirates_id_file TEXT, address_proof_file TEXT,
+            created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS app_settings (
+            key TEXT PRIMARY KEY, value TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
     ]
     for s in stmts:
         x(conn, s)
@@ -203,7 +216,7 @@ def _sqlite_schema(conn):
             doc_status TEXT DEFAULT 'Incompleted', screening_date DATE,
             registration_screening_tool TEXT, risk_status TEXT DEFAULT 'Unspecified',
             verified_by TEXT, verified_date DATE, followup_details TEXT,
-            crowe_feedback TEXT, zewer_comments TEXT, created_by INTEGER,
+            crowe_feedback TEXT, zewer_comments TEXT, group_name TEXT, created_by INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         CREATE TABLE IF NOT EXISTS ubos (
@@ -246,10 +259,25 @@ def _sqlite_schema(conn):
             notes TEXT, added_by INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS company_groups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, group_name TEXT UNIQUE NOT NULL,
+            description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS clients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, phone TEXT,
+            whatsapp_number TEXT, email TEXT, date_of_birth DATE,
+            profession TEXT, address TEXT, notes TEXT,
+            passport_file TEXT, emirates_id_file TEXT, address_proof_file TEXT,
+            created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS app_settings (
+            key TEXT PRIMARY KEY, value TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
     ''')
     for col in ['contact_number','mobile']:
         try: conn.execute(f'ALTER TABLE users ADD COLUMN {col} TEXT')
         except: pass
+    try: conn.execute('ALTER TABLE companies ADD COLUMN group_name TEXT')
+    except: pass
     for col in ['contact_person_name','contact_person_number','account_manager',
                 'whatsapp_number','deal_after_vat','registration_screening_tool']:
         try: conn.execute(f'ALTER TABLE companies ADD COLUMN {col} TEXT')
@@ -455,27 +483,31 @@ def dashboard():
 @compliance_required
 def companies():
     conn=get_db()
-    s=request.args.get('search',''); rf=request.args.get('risk','')
-    sf=request.args.get('status',''); rgf=request.args.get('region',''); amf=request.args.get('manager','')
+    s=request.args.get('search',''); sf=request.args.get('status','')
+    rgf=request.args.get('region',''); modf=request.args.get('mode',''); grpf=request.args.get('group','')
     q='SELECT * FROM companies WHERE 1=1'; p=[]
     if s:
         q+=' AND (client_name LIKE ? OR ac_code LIKE ? OR mobile LIKE ? OR trade_license_no LIKE ?)'
         p+=[f'%{s}%']*4
-    if rf: q+=' AND risk_status=?'; p.append(rf)
     if sf: q+=' AND ac_status=?'; p.append(sf)
     if rgf: q+=' AND region=?'; p.append(rgf)
-    if amf: q+=' AND account_manager=?'; p.append(amf)
+    if modf: q+=' AND mode_of_ac=?'; p.append(modf)
+    if grpf: q+=' AND group_name=?'; p.append(grpf)
     rows=all_(conn,q+' ORDER BY created_at DESC',p or None)
-    dd=dropdowns(); conn.close()
+    dd=dropdowns()
+    try: groups=all_(conn,'SELECT group_name FROM company_groups ORDER BY group_name')
+    except: groups=[]
+    conn.close()
     cl=[]
     for c in rows:
         tl=days_left(c['trade_license_expiry']); ap=days_left(c['address_proof_expiry'])
         cl.append({**c,'tl_days':tl,'tl_status':exp_status(tl),'ap_days':ap,'ap_status':exp_status(ap),
                    'trade_license_expiry':str(c['trade_license_expiry']) if c['trade_license_expiry'] else None,
                    'address_proof_expiry':str(c['address_proof_expiry']) if c['address_proof_expiry'] else None})
-    managers=sorted(set(c['account_manager'] for c in cl if c.get('account_manager')))
-    return render_template('companies.html',companies=cl,search=s,risk_filter=rf,
-        status_filter=sf,region_filter=rgf,manager_filter=amf,regions=dd.get('REGION',[]),managers=managers)
+    return render_template('companies.html',companies=cl,search=s,
+        status_filter=sf,region_filter=rgf,mode_filter=modf,group_filter=grpf,
+        regions=dd.get('REGION',[]),modes=dd.get('MODE OF AC',[]),
+        groups=[g['group_name'] for g in groups])
 
 @app.route('/company/new')
 @compliance_required
@@ -1386,4 +1418,216 @@ def api_export_company_docs(cid):
                      as_attachment=True, download_name=fname)
 
 
+
+
+
+# ════════════════════════════════════════════════════════════
+# CLIENTS PAGE
+# ════════════════════════════════════════════════════════════
+@app.route('/clients')
+@login_required
+def clients():
+    conn = get_db()
+    rows = all_(conn, 'SELECT * FROM clients ORDER BY name')
+    today = datetime.now().date()
+    cl = []
+    for c in rows:
+        dob = c.get('date_of_birth')
+        birthday_today = False
+        days_to_birthday = None
+        if dob:
+            try:
+                d = datetime.strptime(str(dob)[:10], '%Y-%m-%d').date()
+                this_year = d.replace(year=today.year)
+                if this_year < today:
+                    this_year = d.replace(year=today.year+1)
+                days_to_birthday = (this_year - today).days
+                birthday_today = (d.month == today.month and d.day == today.day)
+            except: pass
+        cl.append({**c, 'birthday_today': birthday_today, 'days_to_birthday': days_to_birthday})
+    conn.close()
+    birthdays_today = [c for c in cl if c['birthday_today']]
+    return render_template('clients.html', clients=cl, birthdays_today=birthdays_today, today=str(today))
+
+@app.route('/api/client/add', methods=['POST'])
+@login_required
+def api_add_client():
+    d = request.get_json()
+    try:
+        conn = get_db()
+        x(conn, '''INSERT INTO clients (name,phone,whatsapp_number,email,date_of_birth,
+            profession,address,notes,created_by) VALUES (?,?,?,?,?,?,?,?,?)''',
+          (d.get('name'), d.get('phone'), d.get('whatsapp_number'), d.get('email'),
+           d.get('date_of_birth') or None, d.get('profession'), d.get('address'),
+           d.get('notes'), session.get('user_id')))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/client/<int:id>/edit', methods=['POST'])
+@login_required
+def api_edit_client(id):
+    d = request.get_json()
+    try:
+        conn = get_db()
+        x(conn, '''UPDATE clients SET name=?,phone=?,whatsapp_number=?,email=?,date_of_birth=?,
+            profession=?,address=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?''',
+          (d.get('name'), d.get('phone'), d.get('whatsapp_number'), d.get('email'),
+           d.get('date_of_birth') or None, d.get('profession'), d.get('address'),
+           d.get('notes'), id))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/client/<int:id>/delete', methods=['POST'])
+@compliance_required
+def api_delete_client(id):
+    try:
+        conn = get_db()
+        x(conn, 'DELETE FROM clients WHERE id=?', (id,))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ════════════════════════════════════════════════════════════
+# COMPANY GROUPS (admin panel)
+# ════════════════════════════════════════════════════════════
+@app.route('/api/groups', methods=['GET'])
+@login_required
+def api_get_groups():
+    conn = get_db()
+    groups = all_(conn, 'SELECT * FROM company_groups ORDER BY group_name')
+    conn.close()
+    return jsonify({'groups': groups})
+
+@app.route('/api/group/add', methods=['POST'])
+@compliance_required
+def api_add_group():
+    d = request.get_json()
+    try:
+        conn = get_db()
+        x(conn, 'INSERT INTO company_groups (group_name, description) VALUES (?,?)',
+          (d.get('group_name','').strip(), d.get('description','')))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/group/<int:id>/delete', methods=['POST'])
+@compliance_required
+def api_delete_group(id):
+    try:
+        conn = get_db()
+        x(conn, 'DELETE FROM company_groups WHERE id=?', (id,))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ════════════════════════════════════════════════════════════
+# APP SETTINGS (action password)
+# ════════════════════════════════════════════════════════════
+@app.route('/api/settings/action-password', methods=['POST'])
+@compliance_required
+def api_set_action_password():
+    if session.get('user_role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin only'}), 403
+    d = request.get_json()
+    pw = d.get('password', '').strip()
+    if len(pw) < 4:
+        return jsonify({'success': False, 'error': 'Password must be at least 4 characters'}), 400
+    try:
+        import hashlib
+        hashed = hashlib.sha256(pw.encode()).hexdigest()
+        conn = get_db()
+        x(conn, "INSERT INTO app_settings (key,value) VALUES ('action_password',?) ON CONFLICT(key) DO UPDATE SET value=?,updated_at=CURRENT_TIMESTAMP",
+          (hashed, hashed))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/settings/verify-action-password', methods=['POST'])
+@login_required
+def api_verify_action_password():
+    d = request.get_json()
+    pw = d.get('password', '')
+    try:
+        import hashlib
+        hashed = hashlib.sha256(pw.encode()).hexdigest()
+        conn = get_db()
+        s = one(conn, "SELECT value FROM app_settings WHERE key='action_password'")
+        conn.close()
+        if not s:
+            return jsonify({'success': True, 'note': 'No action password set'})
+        return jsonify({'success': s['value'] == hashed})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ════════════════════════════════════════════════════════════
+# DATA BACKUP — full Excel export
+# ════════════════════════════════════════════════════════════
+@app.route('/admin/backup')
+@login_required
+def admin_backup():
+    if session.get('user_role') != 'admin':
+        return redirect(url_for('dashboard'))
+    if not HAS_XL:
+        return "openpyxl not installed", 500
+    from openpyxl.styles import Font, PatternFill, Alignment
+    conn = get_db()
+    wb = openpyxl.Workbook()
+    gold_fill = PatternFill(start_color="1C1917", end_color="1C1917", fill_type="solid")
+    gold_font = Font(color="D97706", bold=True, size=10)
+
+    def add_sheet(wb, name, rows, first=False):
+        ws = wb.active if first else wb.create_sheet(name)
+        ws.title = name
+        if not rows: return ws
+        headers = list(rows[0].keys())
+        for i, h in enumerate(headers, 1):
+            c = ws.cell(row=1, column=i, value=h)
+            c.font = gold_font; c.fill = gold_fill
+        for ri, row in enumerate(rows, 2):
+            for ci, h in enumerate(headers, 1):
+                val = row.get(h)
+                ws.cell(row=ri, column=ci, value=str(val) if val is not None else '')
+        for col in ws.columns:
+            ws.column_dimensions[col[0].column_letter].width = min(40, max(12, len(str(col[0].value or ''))+4))
+        ws.freeze_panes = 'A2'
+        return ws
+
+    add_sheet(wb, 'Companies',     all_(conn, 'SELECT * FROM companies ORDER BY ac_code'), first=True)
+    add_sheet(wb, 'UBOs',          all_(conn, 'SELECT * FROM ubos ORDER BY company_id'))
+    add_sheet(wb, 'Tasks',         all_(conn, 'SELECT * FROM tasks ORDER BY created_at DESC'))
+    add_sheet(wb, 'Users',         all_(conn, 'SELECT id,email,name,role,is_active,created_at FROM users ORDER BY name'))
+    add_sheet(wb, 'Clients',       all_(conn, 'SELECT * FROM clients ORDER BY name'))
+    add_sheet(wb, 'InternalDocs',  all_(conn, 'SELECT * FROM internal_documents ORDER BY expiry_date'))
+    add_sheet(wb, 'RegularTasks',  all_(conn, 'SELECT * FROM regular_task_templates'))
+    add_sheet(wb, 'TaskLogs',      all_(conn, 'SELECT * FROM regular_task_logs ORDER BY logged_at DESC'))
+    add_sheet(wb, 'Groups',        all_(conn, 'SELECT * FROM company_groups'))
+    add_sheet(wb, 'Dropdowns',     all_(conn, 'SELECT * FROM dropdowns WHERE is_active=1 ORDER BY field_name,value'))
+    conn.close()
+
+    out = io.BytesIO()
+    wb.save(out); out.seek(0)
+    fname = f"ZewerCRM_Backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name=fname)
+
+# ════════════════════════════════════════════════════════════
+# GROUPS API for companies form
+# ════════════════════════════════════════════════════════════
+@app.route('/api/groups/list')
+@login_required
+def api_groups_list():
+    conn = get_db()
+    try:
+        groups = all_(conn, 'SELECT group_name FROM company_groups ORDER BY group_name')
+    except: groups = []
+    conn.close()
+    return jsonify([g['group_name'] for g in groups])
 
