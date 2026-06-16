@@ -7,7 +7,9 @@
   <div class="page-title">✅ Tasks</div>
   <div style="display:flex;gap:8px;" id="headerActions">
     <button class="btn btn-primary" id="btnNewTask" onclick="openAddTask()">+ New Task</button>
-    <button class="btn btn-primary btn-sm" id="btnNewRegular" onclick="openModal('addTemplateModal')" style="display:none;">{% if user_role in ['admin','compliance'] %}+ Add Regular Task{% endif %}</button>
+    {% if user_role in ['admin','compliance'] %}
+    <button class="btn btn-primary btn-sm" id="btnNewRegular" onclick="openModal('addTemplateModal')" style="display:none;">+ Add Regular Task</button>
+    {% endif %}
   </div>
 </div>
 
@@ -845,3 +847,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
