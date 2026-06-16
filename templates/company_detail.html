@@ -29,9 +29,9 @@
         {% if wa_num %}
         <button onclick="sendWhatsApp()" class="btn btn-wa">💬 WhatsApp</button>
         {% endif %}
-        <a href="{{ url_for('company_edit', id=company.id) }}" class="btn btn-ghost">✏️ Edit</a>
+        <a href="#" onclick="secureAction('edit',{{ company.id }});return false;" class="btn btn-ghost">✏️ Edit</a>
         <a href="{{ url_for('api_export_company_docs', cid=company.id) }}" class="btn btn-ghost">📥 Export Docs</a>
-        <button onclick="confirmDelete({{ company.id }})" class="btn btn-danger">🗑️ Delete</button>
+        <button onclick="secureAction('delete',{{ company.id }})" class="btn btn-danger">🗑️ Delete</button>
       </div>
     </div>
   </div>
@@ -311,9 +311,24 @@ function openWA() {
   window.open(`https://wa.me/${num}?text=${encodeURIComponent(document.getElementById('waMessage').value)}`, '_blank');
   closeModal('waModal');
 }
-function confirmDelete(id) {
-  if (!confirm('Delete this company? This cannot be undone.')) return;
-  fetch(`/api/company/${id}/delete`,{method:'POST'})
+function secureAction(type, id) {
+  _actionType = type; _actionId = id;
+  document.getElementById('apLabel').textContent = type === 'edit' ? 'Enter action password to edit this company:' : 'Enter action password to delete this company:';
+  document.getElementById('apInput').value = '';
+  document.getElementById('apError').style.display = 'none';
+  openModal('apModal');
+}
+function submitAP() {
+  const pw = document.getElementById('apInput').value;
+  fetch('/api/settings/verify-action-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})})
+  .then(r=>r.json()).then(d=>{
+    if (d.success) {
+      closeModal('apModal');
+      if (_actionType === 'edit') {
+        window.location.href = `/company/${_actionId}/edit`;
+      } else {
+        if (!confirm('Delete this company? This cannot be undone.')) return;
+        fetch(`/api/company/${_actionId}/delete`,{method:'POST'})
     .then(r=>r.json()).then(d=>{ if(d.success) window.location.href='/companies'; });
 }
 function loadDocs() {
@@ -351,6 +366,24 @@ function deleteDoc(id) {
 }
 loadDocs();
 </script>
+
+<!-- ACTION PASSWORD MODAL -->
+<div class="modal-overlay" id="apModal">
+  <div class="modal-box" style="max-width:380px;">
+    <div class="modal-title">🔐 Action Password Required</div>
+    <div id="apLabel" style="font-size:13px;color:var(--text-muted);margin-bottom:16px;"></div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="apInput" placeholder="Enter action password">
+    </div>
+    <div id="apError" style="display:none;color:#fca5a5;font-size:12px;margin-top:-8px;margin-bottom:8px;">❌ Incorrect password</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('apModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAP()">Confirm</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
+
 
 
