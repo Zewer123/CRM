@@ -306,17 +306,20 @@
 <div id="tab-regular" {% if active_tab != 'regular' %}style="display:none;"{% endif %}>
 
 <!-- SUMMARY STATS -->
-{% set total_overdue = namespace(n=0) %}
+{% set ns = namespace(total=0, overdue=0, due_today=0, ok=0) %}
 {% for t in templates %}
   {% set s = task_status.get(t.id, {}) %}
-  {% set total_overdue.n = total_overdue.n + (s.overdue_count or 0) %}
+  {% set ns.total = ns.total + 1 %}
+  {% if s.get('overdue_count', 0) > 0 %}{% set ns.overdue = ns.overdue + 1 %}
+  {% elif s.get('is_due_today', false) %}{% set ns.due_today = ns.due_today + 1 %}
+  {% else %}{% set ns.ok = ns.ok + 1 %}{% endif %}
 {% endfor %}
-{% if total_overdue.n > 0 %}
-<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
-  <span style="font-size:18px;">⚠️</span>
-  <span style="font-size:13px;color:#fca5a5;font-weight:600;">{{ total_overdue.n }} overdue task occurrence{{ 's' if total_overdue.n != 1 else '' }} pending across all regular tasks</span>
+<div class="stat-grid" style="margin-bottom:20px;">
+  <div class="stat-card"><div class="stat-label">Total Tasks</div><div class="stat-value" style="color:var(--text);">{{ ns.total }}</div></div>
+  <div class="stat-card {% if ns.overdue > 0 %}danger{% endif %}"><div class="stat-label">Overdue</div><div class="stat-value">{{ ns.overdue }}</div></div>
+  <div class="stat-card warning"><div class="stat-label">Due Today</div><div class="stat-value">{{ ns.due_today }}</div></div>
+  <div class="stat-card active"><div class="stat-label">Up to Date</div><div class="stat-value" style="color:#86efac;">{{ ns.ok }}</div></div>
 </div>
-{% endif %}
 
 <!-- FREQUENCY TABS -->
 <div class="tab-bar" style="margin-bottom:20px;">
@@ -474,43 +477,61 @@
 
 <!-- ADD TEMPLATE MODAL -->
 <div class="modal-overlay" id="addTemplateModal">
-  <div class="modal-box" style="max-width:500px;">
-    <div class="modal-title">➕ Add Regular Task</div>
+  <div class="modal-box" style="max-width:520px;">
+    <div class="modal-title">🔁 Add Regular Task</div>
+
     <div class="form-group">
       <label>Task Title *</label>
-      <input type="text" id="tmplTitle" placeholder="e.g. Check email alerts">
+      <input type="text" id="tmplTitle" placeholder="e.g. Check email alerts, Review KYC status">
     </div>
+
     <div class="form-group">
-      <label>Description</label>
-      <textarea id="tmplDesc" rows="2" placeholder="What needs to be done..."></textarea>
+      <label>Description <span style="color:var(--text-dim);font-weight:400;">(optional)</span></label>
+      <textarea id="tmplDesc" rows="2" placeholder="What needs to be done, any specific steps..."></textarea>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div class="form-group">
-        <label>Frequency</label>
-        <select id="tmplFreq" onchange="updateFreqHint()">
-          <option value="daily">📅 Daily — due every day</option>
-          <option value="weekly">📆 Weekly — due every Friday</option>
-          <option value="monthly">🗓️ Monthly — due on 25th</option>
-        </select>
+
+    <!-- FREQUENCY SELECTOR - visual cards -->
+    <div class="form-group">
+      <label>Frequency *</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px;">
+        <div class="freq-card active" onclick="selectFreq('daily',this)" style="background:rgba(59,130,246,0.1);border:2px solid #3b82f6;border-radius:8px;padding:12px 8px;text-align:center;cursor:pointer;transition:all 0.15s;">
+          <div style="font-size:20px;margin-bottom:4px;">📅</div>
+          <div style="font-size:12px;font-weight:600;color:#93c5fd;">Daily</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Every day</div>
+        </div>
+        <div class="freq-card" onclick="selectFreq('weekly',this)" style="background:var(--surface2);border:2px solid var(--border);border-radius:8px;padding:12px 8px;text-align:center;cursor:pointer;transition:all 0.15s;">
+          <div style="font-size:20px;margin-bottom:4px;">📆</div>
+          <div style="font-size:12px;font-weight:600;color:var(--text-muted);">Weekly</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Every Friday</div>
+        </div>
+        <div class="freq-card" onclick="selectFreq('monthly',this)" style="background:var(--surface2);border:2px solid var(--border);border-radius:8px;padding:12px 8px;text-align:center;cursor:pointer;transition:all 0.15s;">
+          <div style="font-size:20px;margin-bottom:4px;">🗓️</div>
+          <div style="font-size:12px;font-weight:600;color:var(--text-muted);">Monthly</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">25th of month</div>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Assign To</label>
-        <select id="tmplRole">
-          <option value="all">👥 All Staff</option>
-          <option value="compliance">Compliance Only</option>
-          <option value="staff">Staff Only</option>
-          {% for u in all_users %}
-          <option value="user_{{ u.id }}">👤 {{ u.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
+      <input type="hidden" id="tmplFreq" value="daily">
     </div>
-    <div id="freqHint" style="font-size:12px;color:var(--text-dim);margin:-8px 0 12px;padding:8px 12px;background:var(--surface2);border-radius:6px;">
-      📅 This task will appear as due every day. Overdue days accumulate until logged.
+
+    <div class="form-group">
+      <label>Assign To</label>
+      <select id="tmplRole" style="width:100%;">
+        <option value="all">👥 All Staff</option>
+        <option value="compliance">🛡️ Compliance Only</option>
+        <option value="staff">📋 Staff Only</option>
+        {% for u in all_users %}
+        <option value="user_{{ u.id }}">👤 {{ u.name }}</option>
+        {% endfor %}
+      </select>
     </div>
+
+    <div id="freqHint" style="font-size:12px;color:var(--text-dim);padding:10px 12px;background:var(--surface2);border-radius:6px;border-left:3px solid #3b82f6;">
+      📅 Due every day. Missed days accumulate until logged — staff see overdue count on the task card.
+    </div>
+
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('addTemplateModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="addTemplate()">Add Task</button>
+      <button class="btn btn-primary" onclick="addTemplate()">🔁 Add Regular Task</button>
     </div>
   </div>
 </div>
@@ -782,15 +803,29 @@ function submitLog() {
   });
 }
 
-function updateFreqHint() {
-  const freq = document.getElementById('tmplFreq').value;
+function selectFreq(freq, el) {
+  document.getElementById('tmplFreq').value = freq;
+  document.querySelectorAll('.freq-card').forEach(c => {
+    c.style.background = 'var(--surface2)';
+    c.style.borderColor = 'var(--border)';
+    c.querySelector('div:nth-child(2)').style.color = 'var(--text-muted)';
+  });
+  const colors = {daily:'#3b82f6', weekly:'#a855f7', monthly:'#f59e0b'};
+  const bgColors = {daily:'rgba(59,130,246,0.1)', weekly:'rgba(168,85,247,0.1)', monthly:'rgba(245,158,11,0.1)'};
+  const textColors = {daily:'#93c5fd', weekly:'#c4b5fd', monthly:'#fcd34d'};
+  el.style.background = bgColors[freq];
+  el.style.borderColor = colors[freq];
+  el.querySelector('div:nth-child(2)').style.color = textColors[freq];
   const hints = {
-    daily: '📅 This task will appear as due every day. Overdue days accumulate until logged.',
-    weekly: '📆 This task is due every Friday. Missed Fridays accumulate until logged.',
-    monthly: '🗓️ This task is due on the 25th of each month. Missed months accumulate.'
+    daily: '📅 Due every day. Missed days accumulate until logged.',
+    weekly: '📆 Due every Friday. Missed Fridays accumulate until logged.',
+    monthly: '🗓️ Due on the 25th of each month. Missed months accumulate.'
   };
-  document.getElementById('freqHint').textContent = hints[freq];
+  const hint = document.getElementById('freqHint');
+  hint.textContent = hints[freq];
+  hint.style.borderLeftColor = colors[freq];
 }
+function updateFreqHint() {}
 
 function addTemplate() {
   const title = document.getElementById('tmplTitle').value.trim();
@@ -847,5 +882,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
 
 
