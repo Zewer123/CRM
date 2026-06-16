@@ -159,6 +159,13 @@
           </div>
         </div>
 
+        <!-- GROUP -->
+        <div class="form-group">
+          <label>Group</label>
+          <select name="group_name" id="f_group_name">
+            <option value="">— No Group —</option>
+          </select>
+        </div>
         <!-- ACCOUNT MANAGER -->
         <div class="form-group">
           <label>Account Manager <small style="color:var(--text-dim);">(Zewer Staff)</small></label>
@@ -703,6 +710,14 @@ function submitForm() {
       alert('Network error: ' + e);
     });
 }
+  // Load groups
+  fetch('/api/groups/list').then(r=>r.json()).then(gs=>{
+    const sel=document.getElementById('f_group_name');
+    if(!sel) return;
+    const cur='{{ (company.group_name or "") if company else "" }}';
+    gs.forEach(g=>{const o=document.createElement('option');o.value=g;o.textContent=g;if(g===cur)o.selected=true;sel.appendChild(o);});
+  }).catch(()=>{});
 </script>
 {% endblock %}
+
 
