@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+{% block title %}Clients - Zewer AML{% endblock %}
+
+{% block content %}
+
+<!-- BIRTHDAY POPUP -->
+{% if birthdays_today %}
+<div id="birthdayBanner" style="background:linear-gradient(135deg,rgba(217,119,6,0.15),rgba(245,158,11,0.08));border:1px solid rgba(217,119,6,0.4);border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px;">
+  <div style="font-size:32px;">🎂</div>
+  <div style="flex:1;">
+    <div style="font-weight:700;color:var(--primary);font-size:14px;margin-bottom:4px;">Birthday Today!</div>
+    {% for c in birthdays_today %}
+    <div style="font-size:13px;color:var(--text);">🎉 {{ c.name }}
+      {% if c.whatsapp_number %}
+      <a href="https://wa.me/{{ c.whatsapp_number|replace('+','')|replace(' ','')|replace('-','') }}?text={{ ('🎂 Happy Birthday ' ~ c.name ~ '! Wishing you a wonderful day filled with joy and happiness. Best wishes from Zewer Jewellery LLC! 💎')|urlencode }}"
+         target="_blank" class="btn btn-wa btn-sm" style="margin-left:10px;">💬 Send Wishes</a>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  <button onclick="document.getElementById('birthdayBanner').style.display='none'" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:18px;">✕</button>
+</div>
+{% endif %}
+
+<div class="page-header">
+  <div class="page-title">👤 Clients</div>
+  <button class="btn btn-primary" onclick="openModal('addClientModal')">+ Add Client</button>
+</div>
+
+<!-- SEARCH -->
+<div class="search-bar" style="margin-bottom:16px;">
+  <div class="form-group search-input">
+    <label>Search</label>
+    <input type="text" id="searchInput" placeholder="Name, phone, email..." oninput="filterClients()">
+  </div>
+  <div class="form-group" style="min-width:130px;">
+    <label>Birthday</label>
+    <select id="bdFilter" onchange="filterClients()">
+      <option value="">All</option>
+      <option value="today">🎂 Today</option>
+      <option value="week">This Week</option>
+      <option value="month">This Month</option>
+    </select>
+  </div>
+  <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear</button>
+</div>
+
+<!-- COLUMN HEADERS -->
+<div style="display:grid;grid-template-columns:1fr 130px 130px 110px 110px;gap:0;padding:6px 16px;margin-bottom:4px;">
+  {% for h in ['Name / Profession','Phone','Email','Birthday','Actions'] %}
+  <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;{% if loop.last %}text-align:right;{% endif %}">{{ h }}</div>
+  {% endfor %}
+</div>
+
+<!-- CLIENT LIST -->
+<div id="clientList" style="display:flex;flex-direction:column;gap:6px;">
+{% for c in clients %}
+<div class="client-row"
+  data-search="{{ (c.name ~ ' ' ~ (c.phone or '') ~ ' ' ~ (c.email or '') ~ ' ' ~ (c.profession or ''))|lower }}"
+  data-bd-month="{{ c.date_of_birth[5:7] if c.date_of_birth else '' }}"
+  data-bd-day="{{ c.date_of_birth[8:10] if c.date_of_birth else '' }}"
+  data-bd-today="{{ 'yes' if c.birthday_today else 'no' }}"
+  style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;
+    display:grid;grid-template-columns:1fr 130px 130px 110px 110px;gap:0;align-items:center;
+    {% if c.birthday_today %}border-left:3px solid #d97706;{% endif %}">
+
+  <!-- NAME / PROFESSION -->
+  <div>
+    <div style="font-weight:600;color:var(--text);font-size:14px;">
+      {% if c.birthday_today %}🎂 {% endif %}{{ c.name }}
+    </div>
+    {% if c.profession %}
+    <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">{{ c.profession }}</div>
+    {% endif %}
+    {% if c.address %}
+    <div style="font-size:11px;color:var(--text-dim);">📍 {{ c.address[:50] }}{% if c.address|length > 50 %}…{% endif %}</div>
+    {% endif %}
+  </div>
+
+  <!-- PHONE -->
+  <div>
+    {% if c.phone %}
+    <div style="font-size:12px;color:var(--text-muted);">📞 {{ c.phone }}</div>
+    {% endif %}
+    {% if c.whatsapp_number %}
+    <a href="https://wa.me/{{ c.whatsapp_number|replace('+','')|replace(' ','')|replace('-','') }}" target="_blank"
+       style="font-size:11px;color:#25d366;text-decoration:none;">💬 WhatsApp</a>
+    {% endif %}
+  </div>
+
+  <!-- EMAIL -->
+  <div style="font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+    {% if c.email %}✉️ {{ c.email }}{% else %}—{% endif %}
+  </div>
+
+  <!-- BIRTHDAY -->
+  <div>
+    {% if c.date_of_birth %}
+    <div style="font-size:12px;{% if c.birthday_today %}color:#d97706;font-weight:700;{% elif c.days_to_birthday is not none and c.days_to_birthday <= 7 %}color:#fcd34d;font-weight:600;{% else %}color:var(--text-dim);{% endif %}">
+      {{ c.date_of_birth[5:] }}
+      {% if c.birthday_today %} 🎂
+      {% elif c.days_to_birthday is not none and c.days_to_birthday <= 7 %} ({{ c.days_to_birthday }}d)
+      {% endif %}
+    </div>
+    {% else %}—{% endif %}
+  </div>
+
+  <!-- ACTIONS -->
+  <div style="display:flex;gap:5px;justify-content:flex-end;">
+    <button class="btn btn-ghost btn-sm btn-icon" title="Edit"
+      onclick="editClient({{ c.id }},'{{ c.name|e }}','{{ (c.phone or '')|e }}','{{ (c.whatsapp_number or '')|e }}','{{ (c.email or '')|e }}','{{ c.date_of_birth or '' }}','{{ (c.profession or '')|e }}','{{ (c.address or '')|replace("'","\\'") }}','{{ (c.notes or '')|replace("'","\\'") }}')">✏️</button>
+    {% if user_role in ['admin','compliance'] %}
+    <button class="btn btn-danger btn-sm btn-icon" title="Delete" onclick="deleteClient({{ c.id }},'{{ c.name|e }}')">🗑️</button>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div style="text-align:center;padding:60px;color:var(--text-dim);background:var(--surface);border-radius:10px;border:1px solid var(--border);">
+  No clients yet. <a href="#" onclick="openModal('addClientModal');return false;" style="color:var(--primary);">Add one?</a>
+</div>
+{% endfor %}
+</div>
+
+<!-- ADD CLIENT MODAL -->
+<div class="modal-overlay" id="addClientModal">
+  <div class="modal-box" style="max-width:560px;">
+    <div class="modal-title">➕ Add Client</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group form-full">
+        <label>Full Name *</label>
+        <input type="text" id="addName" placeholder="Client full name">
+      </div>
+      <div class="form-group">
+        <label>Phone Number</label>
+        <input type="text" id="addPhone" placeholder="+971 50 123 4567">
+      </div>
+      <div class="form-group">
+        <label>WhatsApp Number</label>
+        <input type="text" id="addWA" placeholder="+971 50 123 4567">
+      </div>
+      <div class="form-group form-full">
+        <label>Email</label>
+        <input type="email" id="addEmail" placeholder="email@example.com">
+      </div>
+      <div class="form-group">
+        <label>Date of Birth</label>
+        <input type="date" id="addDOB">
+      </div>
+      <div class="form-group">
+        <label>Profession</label>
+        <input type="text" id="addProf" placeholder="e.g. Business Owner">
+      </div>
+      <div class="form-group form-full">
+        <label>Address</label>
+        <textarea id="addAddr" rows="2" placeholder="Full address..."></textarea>
+      </div>
+      <div class="form-group form-full">
+        <label>Notes</label>
+        <textarea id="addNotes" rows="2" placeholder="Any additional notes..."></textarea>
+      </div>
+    </div>
+    <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:8px;">
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">📎 Document uploads (Passport, Emirates ID, Address Proof) — coming soon via Cloudinary</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('addClientModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAdd()">💾 Save Client</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT CLIENT MODAL -->
+<div class="modal-overlay" id="editClientModal">
+  <div class="modal-box" style="max-width:560px;">
+    <div class="modal-title">✏️ Edit Client</div>
+    <input type="hidden" id="editId">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group form-full">
+        <label>Full Name *</label>
+        <input type="text" id="editName">
+      </div>
+      <div class="form-group">
+        <label>Phone Number</label>
+        <input type="text" id="editPhone">
+      </div>
+      <div class="form-group">
+        <label>WhatsApp Number</label>
+        <input type="text" id="editWA">
+      </div>
+      <div class="form-group form-full">
+        <label>Email</label>
+        <input type="email" id="editEmail">
+      </div>
+      <div class="form-group">
+        <label>Date of Birth</label>
+        <input type="date" id="editDOB">
+      </div>
+      <div class="form-group">
+        <label>Profession</label>
+        <input type="text" id="editProf">
+      </div>
+      <div class="form-group form-full">
+        <label>Address</label>
+        <textarea id="editAddr" rows="2"></textarea>
+      </div>
+      <div class="form-group form-full">
+        <label>Notes</label>
+        <textarea id="editNotes" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('editClientModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitEdit()">💾 Save</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TODAY_MONTH = '{{ today[5:7] }}';
+const TODAY_DAY = '{{ today[8:10] }}';
+
+function filterClients() {
+  const s = document.getElementById('searchInput').value.toLowerCase();
+  const bd = document.getElementById('bdFilter').value;
+  document.querySelectorAll('.client-row').forEach(row => {
+    const matchS = !s || row.dataset.search.includes(s);
+    let matchBD = true;
+    if (bd === 'today') matchBD = row.dataset.bdToday === 'yes';
+    else if (bd === 'month') matchBD = row.dataset.bdMonth === TODAY_MONTH;
+    else if (bd === 'week') {
+      // within 7 days
+      const m = parseInt(row.dataset.bdMonth), d = parseInt(row.dataset.bdDay);
+      const bday = new Date(new Date().getFullYear(), m-1, d);
+      const today = new Date(); today.setHours(0,0,0,0);
+      if (bday < today) bday.setFullYear(bday.getFullYear()+1);
+      matchBD = (bday - today) / 86400000 <= 7;
+    }
+    row.style.display = (matchS && matchBD) ? '' : 'none';
+  });
+}
+function clearFilters() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('bdFilter').value = '';
+  filterClients();
+}
+function submitAdd() {
+  const name = document.getElementById('addName').value.trim();
+  if (!name) { alert('Name is required'); return; }
+  fetch('/api/client/add', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      name, phone: document.getElementById('addPhone').value,
+      whatsapp_number: document.getElementById('addWA').value,
+      email: document.getElementById('addEmail').value,
+      date_of_birth: document.getElementById('addDOB').value,
+      profession: document.getElementById('addProf').value,
+      address: document.getElementById('addAddr').value,
+      notes: document.getElementById('addNotes').value
+    })
+  }).then(r=>r.json()).then(d=>{
+    if(d.success){closeModal('addClientModal');location.reload();}
+    else alert('Error: '+d.error);
+  });
+}
+function editClient(id,name,phone,wa,email,dob,prof,addr,notes) {
+  document.getElementById('editId').value=id;
+  document.getElementById('editName').value=name;
+  document.getElementById('editPhone').value=phone;
+  document.getElementById('editWA').value=wa;
+  document.getElementById('editEmail').value=email;
+  document.getElementById('editDOB').value=dob;
+  document.getElementById('editProf').value=prof;
+  document.getElementById('editAddr').value=addr;
+  document.getElementById('editNotes').value=notes;
+  openModal('editClientModal');
+}
+function submitEdit() {
+  const id=document.getElementById('editId').value;
+  const name=document.getElementById('editName').value.trim();
+  if(!name){alert('Name required');return;}
+  fetch('/api/client/'+id+'/edit',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      name, phone:document.getElementById('editPhone').value,
+      whatsapp_number:document.getElementById('editWA').value,
+      email:document.getElementById('editEmail').value,
+      date_of_birth:document.getElementById('editDOB').value,
+      profession:document.getElementById('editProf').value,
+      address:document.getElementById('editAddr').value,
+      notes:document.getElementById('editNotes').value
+    })
+  }).then(r=>r.json()).then(d=>{
+    if(d.success){closeModal('editClientModal');location.reload();}
+    else alert('Error: '+d.error);
+  });
+}
+function deleteClient(id,name) {
+  if(!confirm('Delete client "'+name+'"?')) return;
+  fetch('/api/client/'+id+'/delete',{method:'POST'}).then(r=>r.json()).then(d=>{
+    if(d.success) location.reload(); else alert('Error: '+d.error);
+  });
+}
+</script>
+{% endblock %}
