@@ -14,7 +14,7 @@
 </div>
 
 <!-- TABS -->
-<div class="tab-bar" style="margin-bottom:20px;">
+<div class="tab-bar main-tabs" style="margin-bottom:20px;">
   <button class="tab-btn {% if active_tab == 'temp' %}active{% endif %}" onclick="switchMainTab('temp',this)">📋 Temp Tasks</button>
   <button class="tab-btn {% if active_tab == 'regular' %}active{% endif %}" onclick="switchMainTab('regular',this)">🔁 Regular Tasks</button>
 </div>
@@ -320,10 +320,10 @@
 
 <!-- FREQUENCY TABS -->
 <div class="tab-bar" style="margin-bottom:20px;">
-  <button class="tab-btn active" onclick="filterFreq('all',this)">All</button>
-  <button class="tab-btn" onclick="filterFreq('daily',this)">📅 Daily</button>
-  <button class="tab-btn" onclick="filterFreq('weekly',this)">📆 Weekly</button>
-  <button class="tab-btn" onclick="filterFreq('monthly',this)">🗓️ Monthly</button>
+  <button class="freq-btn active" onclick="filterFreq('all',this)">All</button>
+  <button class="freq-btn" onclick="filterFreq('daily',this)">📅 Daily</button>
+  <button class="freq-btn" onclick="filterFreq('weekly',this)">📆 Weekly</button>
+  <button class="freq-btn" onclick="filterFreq('monthly',this)">🗓️ Monthly</button>
 </div>
 
 <!-- TASK CARDS -->
@@ -745,7 +745,7 @@ function filterTasks() {
 let _logTemplateId = null;
 
 function filterFreq(freq, btn) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.freq-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.querySelectorAll('.task-card').forEach(c => {
     c.style.display = (freq === 'all' || c.dataset.freq === freq) ? '' : 'none';
@@ -828,7 +828,7 @@ function deleteTemplate(id) {
 
 <script>
 function switchMainTab(tab, btn) {
-  document.querySelectorAll('.tab-bar .tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.main-tabs .tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('tab-temp').style.display = tab === 'temp' ? '' : 'none';
   document.getElementById('tab-regular').style.display = tab === 'regular' ? '' : 'none';
@@ -847,4 +847,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
 
