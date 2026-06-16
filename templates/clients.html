@@ -119,7 +119,7 @@
     {% if c.passport_no %}
     <div style="font-size:11px;color:var(--text-muted);">🛂 Passport
       {% if c.passport_expiry %}
-      <span style="color:{% if days_left(c.passport_expiry) is not none and days_left(c.passport_expiry) < 0 %}#fca5a5{% elif days_left(c.passport_expiry) is not none and days_left(c.passport_expiry) <= 90 %}#fcd34d{% else %}#86efac{% endif %};">
+      <span style="color:{% if c.passport_expiry_status == 'expired' %}#fca5a5{% elif c.passport_expiry_status == 'warning' %}#fcd34d{% else %}#86efac{% endif %};">
         ({{ c.passport_expiry }})
       </span>
       {% endif %}
@@ -128,7 +128,7 @@
     {% if c.emirates_id %}
     <div style="font-size:11px;color:var(--text-muted);">🪪 EID
       {% if c.emirates_id_expiry %}
-      <span style="color:{% if days_left(c.emirates_id_expiry) is not none and days_left(c.emirates_id_expiry) < 0 %}#fca5a5{% elif days_left(c.emirates_id_expiry) is not none and days_left(c.emirates_id_expiry) <= 90 %}#fcd34d{% else %}#86efac{% endif %};">
+      <span style="color:{% if c.eid_expiry_status == 'expired' %}#fca5a5{% elif c.eid_expiry_status == 'warning' %}#fcd34d{% else %}#86efac{% endif %};">
         ({{ c.emirates_id_expiry }})
       </span>
       {% endif %}
@@ -426,3 +426,4 @@ function deleteClient(id, name) {
 }
 </script>
 {% endblock %}
+
