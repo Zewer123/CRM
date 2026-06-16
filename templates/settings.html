@@ -13,6 +13,8 @@
 <div class="tab-bar">
   <button class="tab-btn active" onclick="switchTab('users',this)">👥 Users & Roles</button>
   <button class="tab-btn" onclick="switchTab('dropdowns',this)">📋 Dropdown Values</button>
+  <button class="tab-btn" onclick="switchTab('groups',this)">🏷️ Groups</button>
+  <button class="tab-btn" onclick="switchTab('security',this)">🔐 Security & Backup</button>
 </div>
 
 <!-- ===== TAB: USERS ===== -->
@@ -250,6 +252,74 @@
   </div>
 </div>
 
+<!-- ===== TAB: GROUPS ===== -->
+<div id="tab-groups" style="display:none;">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="card-title">🏷️ Company Groups</div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('addGroupModal')">+ Add Group</button>
+    </div>
+    <div id="groupList" style="display:flex;flex-direction:column;gap:8px;">
+      <div style="text-align:center;padding:20px;color:var(--text-dim);font-size:13px;">Loading groups...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TAB: SECURITY & BACKUP ===== -->
+<div id="tab-security" style="display:none;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div class="card">
+      <div class="card-title" style="margin-bottom:16px;">🔐 Action Password</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">
+        This password is required whenever someone tries to edit or delete a company. Set it once here.
+      </div>
+      <div class="form-group">
+        <label>New Action Password</label>
+        <input type="password" id="newActionPw" placeholder="Min 4 characters">
+      </div>
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <input type="password" id="confirmActionPw" placeholder="Re-enter password">
+      </div>
+      <div id="actionPwMsg" style="display:none;font-size:12px;margin-bottom:12px;"></div>
+      <button class="btn btn-primary" onclick="saveActionPassword()">💾 Save Password</button>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:16px;">📥 Data Backup</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:20px;">
+        Downloads a full Excel backup of all CRM data — companies, UBOs, tasks, clients, documents, users, dropdowns, groups, and task logs.
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:14px;margin-bottom:16px;font-size:12px;color:var(--text-dim);">
+        📊 Includes:<br>
+        Companies · UBOs · Tasks · Clients<br>
+        Internal Docs · Regular Tasks · Task Logs<br>
+        Users · Groups · Dropdowns
+      </div>
+      <a href="{{ url_for('admin_backup') }}" class="btn btn-primary" style="display:inline-block;text-decoration:none;">
+        📥 Download Full Backup
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ADD GROUP MODAL -->
+<div class="modal-overlay" id="addGroupModal">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-title">🏷️ Add Group</div>
+    <div class="form-group">
+      <label>Group Name *</label>
+      <input type="text" id="grpName" placeholder="e.g. Zewer Group, Al Futtaim Family">
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <input type="text" id="grpDesc" placeholder="Optional description">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('addGroupModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addGroup()">Add Group</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -257,10 +327,61 @@
 const CURRENT_USER_ID = {{ current_user_id }};
 
 function switchTab(name, btn) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('[id^="tab-"]').forEach(p => p.style.display = 'none');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + name).style.display = 'block';
   btn.classList.add('active');
+  if (name === 'groups') loadGroups();
+}
+
+// ── GROUPS ──
+function loadGroups() {
+  fetch('/api/groups').then(r=>r.json()).then(data=>{
+    const list = document.getElementById('groupList');
+    if (!data.groups || data.groups.length === 0) {
+      list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-dim);">No groups yet.</div>';
+      return;
+    }
+    list.innerHTML = data.groups.map(g => `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:600;color:var(--text);">🏷️ ${g.group_name}</div>
+          ${g.description ? `<div style="font-size:12px;color:var(--text-dim);">${g.description}</div>` : ''}
+        </div>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="deleteGroup(${g.id},'${g.group_name.replace(/'/g,"\\'")}')" >🗑️</button>
+      </div>`).join('');
+  });
+}
+function addGroup() {
+  const name = document.getElementById('grpName').value.trim();
+  if (!name) { alert('Group name required'); return; }
+  fetch('/api/group/add',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({group_name:name,description:document.getElementById('grpDesc').value})})
+  .then(r=>r.json()).then(d=>{
+    if(d.success){closeModal('addGroupModal');loadGroups();document.getElementById('grpName').value='';document.getElementById('grpDesc').value='';}
+    else alert('Error: '+d.error);
+  });
+}
+function deleteGroup(id, name) {
+  if(!confirm('Delete group "'+name+'"?')) return;
+  fetch('/api/group/'+id+'/delete',{method:'POST'}).then(r=>r.json()).then(d=>{
+    if(d.success) loadGroups(); else alert('Error: '+d.error);
+  });
+}
+
+// ── ACTION PASSWORD ──
+function saveActionPassword() {
+  const pw = document.getElementById('newActionPw').value;
+  const cf = document.getElementById('confirmActionPw').value;
+  const msg = document.getElementById('actionPwMsg');
+  if (pw.length < 4) { msg.style.display='block';msg.style.color='#fca5a5';msg.textContent='Minimum 4 characters'; return; }
+  if (pw !== cf) { msg.style.display='block';msg.style.color='#fca5a5';msg.textContent='Passwords do not match'; return; }
+  fetch('/api/settings/action-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})})
+  .then(r=>r.json()).then(d=>{
+    msg.style.display='block';
+    msg.style.color = d.success ? '#86efac' : '#fca5a5';
+    msg.textContent = d.success ? '✅ Action password saved' : 'Error: '+d.error;
+  });
 }
 
 // ADD USER
@@ -344,5 +465,6 @@ function deleteDropdown(id, val) {
 }
 </script>
 {% endblock %}
+
 
 
