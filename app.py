@@ -1468,7 +1468,15 @@ def clients():
                 days_to_birthday = (this_year - today).days
                 birthday_today = (d.month == today.month and d.day == today.day)
             except: pass
-        cl.append({**c, 'birthday_today': birthday_today, 'days_to_birthday': days_to_birthday})
+        def expiry_status(d):
+            dl = days_left(d)
+            if dl is None: return 'ok'
+            if dl < 0: return 'expired'
+            if dl <= 90: return 'warning'
+            return 'ok'
+        cl.append({**c, 'birthday_today': birthday_today, 'days_to_birthday': days_to_birthday,
+                   'passport_expiry_status': expiry_status(c.get('passport_expiry')),
+                   'eid_expiry_status': expiry_status(c.get('emirates_id_expiry'))})
     conn.close()
     birthdays_today = [c for c in cl if c['birthday_today']]
     return render_template('clients.html', clients=cl, birthdays_today=birthdays_today, today=str(today), days_left=days_left)
@@ -1661,5 +1669,6 @@ def api_groups_list():
     except: groups = []
     conn.close()
     return jsonify([g['group_name'] for g in groups])
+
 
 
