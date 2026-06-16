@@ -1,5 +1,22 @@
 {% extends "base.html" %}
-{% block title %}Companies - Zewer AML{% endblock %}
+{% block title %}Companies - Zewer AML
+<!-- ACTION PASSWORD MODAL -->
+<div class="modal-overlay" id="actionPwModal">
+  <div class="modal-box" style="max-width:400px;">
+    <div class="modal-title">🔐 Action Password Required</div>
+    <div id="actionPwLabel" style="font-size:13px;color:var(--text-muted);margin-bottom:16px;"></div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="actionPwInput" placeholder="Enter action password" autofocus>
+    </div>
+    <div id="actionPwError" style="display:none;color:#fca5a5;font-size:12px;margin-top:-8px;margin-bottom:8px;">❌ Incorrect password</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('actionPwModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitActionPw()">Confirm</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -18,12 +35,12 @@
     <input type="text" id="searchInput" value="{{ search }}" placeholder="Name, AC Code, Mobile, License..."
       onkeydown="if(event.key==='Enter') applyFilters()">
   </div>
-  <div class="form-group" style="min-width:120px;">
-    <label>Risk</label>
-    <select id="riskFilter" onchange="applyFilters()">
-      <option value="">All</option>
-      {% for r in ['High','Medium','Low','Unspecified'] %}
-      <option value="{{ r }}" {% if risk_filter==r %}selected{% endif %}>{{ r }}</option>
+  <div class="form-group" style="min-width:130px;">
+    <label>Mode of AC</label>
+    <select id="modeFilter" onchange="applyFilters()">
+      <option value="">All Modes</option>
+      {% for m in modes %}
+      <option value="{{ m }}" {% if mode_filter==m %}selected{% endif %}>{{ m }}</option>
       {% endfor %}
     </select>
   </div>
@@ -44,12 +61,12 @@
       {% endfor %}
     </select>
   </div>
-  <div class="form-group" style="min-width:140px;">
-    <label>Account Manager</label>
-    <select id="managerFilter" onchange="applyFilters()">
-      <option value="">All</option>
-      {% for m in managers %}
-      <option value="{{ m }}" {% if manager_filter==m %}selected{% endif %}>{{ m }}</option>
+  <div class="form-group" style="min-width:130px;">
+    <label>Group</label>
+    <select id="groupFilter" onchange="applyFilters()">
+      <option value="">All Groups</option>
+      {% for g in groups %}
+      <option value="{{ g }}" {% if group_filter==g %}selected{% endif %}>{{ g }}</option>
       {% endfor %}
     </select>
   </div>
@@ -165,7 +182,7 @@
          class="btn btn-wa btn-sm btn-icon" title="WhatsApp">💬</a>
       {% endif %}
       <a href="{{ url_for('company_detail', id=c.id) }}" class="btn btn-ghost btn-sm btn-icon" title="View">👁️</a>
-      <a href="{{ url_for('company_edit', id=c.id) }}" class="btn btn-ghost btn-sm btn-icon" title="Edit">✏️</a>
+      <a href="#" onclick="editCompanySecure({{ c.id }});return false;" class="btn btn-ghost btn-sm btn-icon" title="Edit">✏️</a>
       <button class="btn btn-danger btn-sm btn-icon" onclick="deleteCompany({{ c.id }}, '{{ c.client_name|replace("'","\\'") }}')" title="Delete">🗑️</button>
     </div>
 
@@ -237,10 +254,10 @@ const FILTER_KEY = 'zewer-companies-filters';
 function saveFilters() {
   const f = {
     search: document.getElementById('searchInput').value,
-    risk: document.getElementById('riskFilter').value,
+    mode: document.getElementById('modeFilter').value,
     status: document.getElementById('statusFilter').value,
     region: document.getElementById('regionFilter').value,
-    manager: document.getElementById('managerFilter').value
+    group: document.getElementById('groupFilter').value
   };
   sessionStorage.setItem(FILTER_KEY, JSON.stringify(f));
 }
@@ -249,11 +266,11 @@ function applyFilters() {
   saveFilters();
   const p = new URLSearchParams();
   const s = document.getElementById('searchInput').value;
-  const r = document.getElementById('riskFilter').value;
   const st = document.getElementById('statusFilter').value;
   const rg = document.getElementById('regionFilter').value;
-  const mg = document.getElementById('managerFilter').value;
-  if(s) p.set('search',s); if(r) p.set('risk',r); if(st) p.set('status',st); if(rg) p.set('region',rg); if(mg) p.set('manager',mg);
+  const md = document.getElementById('modeFilter').value;
+  const gp = document.getElementById('groupFilter').value;
+  if(s) p.set('search',s); if(st) p.set('status',st); if(rg) p.set('region',rg); if(md) p.set('mode',md); if(gp) p.set('group',gp);
   window.location.href = '/companies?' + p.toString();
 }
 
@@ -274,10 +291,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (f.search || f.risk || f.status || f.region) {
           const p = new URLSearchParams();
           if(f.search) p.set('search', f.search);
-          if(f.risk) p.set('risk', f.risk);
+          if(f.mode) p.set('mode', f.mode);
           if(f.status) p.set('status', f.status);
           if(f.region) p.set('region', f.region);
-          if(f.manager) p.set('manager', f.manager);
+          if(f.group) p.set('group', f.group);
           window.location.replace('/companies?' + p.toString());
         }
       } catch(e) {}
@@ -289,14 +306,48 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function deleteCompany(id, name) {
-  if (!confirm(`Delete "${name}"?`)) return;
-  fetch(`/api/company/${id}/delete`,{method:'POST'}).then(r=>r.json()).then(d=>{if(d.success)location.reload();else alert('Error: '+d.error);});
+  _actionTarget = {type:'delete', id, name};
+  document.getElementById('actionPwLabel').textContent = `Delete "${name}" — enter action password:`;
+  document.getElementById('actionPwInput').value = '';
+  openModal('actionPwModal');
+}
+function editCompanySecure(id) {
+  _actionTarget = {type:'edit', id};
+  document.getElementById('actionPwLabel').textContent = 'Enter action password to edit:';
+  document.getElementById('actionPwInput').value = '';
+  openModal('actionPwModal');
+}
+let _actionTarget = null;
+function submitActionPw() {
+  const pw = document.getElementById('actionPwInput').value;
+  fetch('/api/settings/verify-action-password', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})})
+  .then(r=>r.json()).then(d=>{
+    if (d.success) {
+      closeModal('actionPwModal');
+      if (_actionTarget.type === 'delete') {
+        fetch(`/api/company/${_actionTarget.id}/delete`,{method:'POST'}).then(r=>r.json()).then(d=>{
+          if(d.success) location.reload(); else alert('Error: '+d.error);
+        });
+      } else if (_actionTarget.type === 'edit') {
+        window.location.href = `/company/${_actionTarget.id}/edit`;
+      }
+    } else {
+      document.getElementById('actionPwError').style.display='block';
+    }
+  });
 }
 function downloadTemplate() { window.location.href = '/export/template'; }
 function doExport() {
   window.location.href = `/export/companies?scope=${document.getElementById('exportScope').value}&format=${document.getElementById('exportFormat').value}`;
   closeModal('exportModal');
 }
+// Action Password Modal
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && document.getElementById('actionPwModal').classList.contains('open')) {
+    submitActionPw();
+  }
+});
+
 function importCompanies() {
   const file = document.getElementById('importFile').files[0];
   if (!file) { alert('Please select a file'); return; }
@@ -310,6 +361,7 @@ function importCompanies() {
 }
 </script>
 {% endblock %}
+
 
 
 
