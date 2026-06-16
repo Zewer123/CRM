@@ -279,13 +279,29 @@ def _sqlite_schema(conn):
     try: conn.execute('ALTER TABLE companies ADD COLUMN group_name TEXT')
     except: pass
     # Ensure new tables exist (for existing deployments)
-    for sql in [
-        '''CREATE TABLE IF NOT EXISTS company_groups (id INTEGER PRIMARY KEY AUTOINCREMENT, group_name TEXT UNIQUE NOT NULL, description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''',
-        '''CREATE TABLE IF NOT EXISTS clients (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, phone TEXT, whatsapp_number TEXT, email TEXT, date_of_birth DATE, profession TEXT, address TEXT, notes TEXT, nationality TEXT, passport_no TEXT, passport_expiry DATE, emirates_id TEXT, emirates_id_expiry DATE, address_proof TEXT, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''',
-        '''CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''',
-    ]:
-        try: conn.executescript(sql) if not use_pg() else x(conn, sql)
+    # Ensure all new tables exist
+    new_tables_pg = [
+        """CREATE TABLE IF NOT EXISTS company_groups (id SERIAL PRIMARY KEY, group_name TEXT UNIQUE NOT NULL, description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS clients (id SERIAL PRIMARY KEY, name TEXT NOT NULL, phone TEXT, whatsapp_number TEXT, email TEXT, date_of_birth DATE, profession TEXT, address TEXT, notes TEXT, nationality TEXT, passport_no TEXT, passport_expiry DATE, emirates_id TEXT, emirates_id_expiry DATE, address_proof TEXT, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS regular_task_templates (id SERIAL PRIMARY KEY, title TEXT NOT NULL, description TEXT, frequency TEXT DEFAULT 'daily', assigned_role TEXT DEFAULT 'all', assigned_user_id INTEGER, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS regular_task_logs (id SERIAL PRIMARY KEY, template_id INTEGER NOT NULL, user_id INTEGER NOT NULL, notes TEXT, status TEXT DEFAULT 'done', logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS internal_documents (id SERIAL PRIMARY KEY, doc_name TEXT NOT NULL, doc_category TEXT DEFAULT 'Staff', person_name TEXT, issuing_authority TEXT, issue_date DATE, expiry_date DATE, notes TEXT, added_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+    ]
+    new_tables_sq = [t.replace('SERIAL PRIMARY KEY','INTEGER PRIMARY KEY AUTOINCREMENT') for t in new_tables_pg]
+    for sql in (new_tables_pg if use_pg() else new_tables_sq):
+        try: x(conn, sql)
         except: pass
+    # Add new columns to existing clients table if missing
+    client_cols = ['nationality','passport_no','passport_expiry','emirates_id','emirates_id_expiry','address_proof']
+    if use_pg():
+        for col in client_cols:
+            try: x(conn, f'ALTER TABLE clients ADD COLUMN IF NOT EXISTS {col} TEXT')
+            except: pass
+    else:
+        for col in client_cols:
+            try: conn.execute(f'ALTER TABLE clients ADD COLUMN {col} TEXT')
+            except: pass
     for col in ['contact_person_name','contact_person_number','account_manager',
                 'whatsapp_number','deal_after_vat','registration_screening_tool']:
         try: conn.execute(f'ALTER TABLE companies ADD COLUMN {col} TEXT')
