@@ -16,13 +16,13 @@
       <a href="{{ url_for('dashboard') }}" class="navbar-link {% if request.endpoint == 'dashboard' %}active{% endif %}">📊 Dashboard</a>
       {% if user_role in ['admin', 'compliance'] %}
       <a href="{{ url_for('companies') }}" class="navbar-link {% if request.endpoint in ['companies','company_detail','company_new','company_edit'] %}active{% endif %}">🏢 Companies</a>
+      <a href="{{ url_for('clients') }}" class="navbar-link {% if request.endpoint == 'clients' %}active{% endif %}">👤 Clients</a>
       <a href="{{ url_for('alerts') }}" class="navbar-link {% if request.endpoint == 'alerts' %}active{% endif %}">⚠️ Alerts</a>
       <a href="{{ url_for('reports') }}" class="navbar-link {% if request.endpoint == 'reports' %}active{% endif %}">📈 Reports</a>
       {% endif %}
       <a href="{{ url_for('tasks') }}" class="navbar-link {% if request.endpoint in ['tasks','regular_tasks'] %}active{% endif %}">✅ Tasks</a>
       {% if user_role in ['admin', 'compliance'] %}
       <a href="{{ url_for('internal_docs') }}" class="navbar-link {% if request.endpoint == 'internal_docs' %}active{% endif %}">🗂️ Zewer Docs</a>
-      <a href="{{ url_for('clients') }}" class="navbar-link {% if request.endpoint == 'clients' %}active{% endif %}">👤 Clients</a>
       {% endif %}
     </div>
 
@@ -116,6 +116,7 @@
   {% block scripts %}{% endblock %}
 </body>
 </html>
+
 
 
 
