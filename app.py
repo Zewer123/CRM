@@ -278,6 +278,14 @@ def _sqlite_schema(conn):
         except: pass
     try: conn.execute('ALTER TABLE companies ADD COLUMN group_name TEXT')
     except: pass
+    # Ensure new tables exist (for existing deployments)
+    for sql in [
+        '''CREATE TABLE IF NOT EXISTS company_groups (id INTEGER PRIMARY KEY AUTOINCREMENT, group_name TEXT UNIQUE NOT NULL, description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''',
+        '''CREATE TABLE IF NOT EXISTS clients (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, phone TEXT, whatsapp_number TEXT, email TEXT, date_of_birth DATE, profession TEXT, address TEXT, notes TEXT, nationality TEXT, passport_no TEXT, passport_expiry DATE, emirates_id TEXT, emirates_id_expiry DATE, address_proof TEXT, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''',
+        '''CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''',
+    ]:
+        try: conn.executescript(sql) if not use_pg() else x(conn, sql)
+        except: pass
     for col in ['contact_person_name','contact_person_number','account_manager',
                 'whatsapp_number','deal_after_vat','registration_screening_tool']:
         try: conn.execute(f'ALTER TABLE companies ADD COLUMN {col} TEXT')
@@ -1447,7 +1455,7 @@ def clients():
         cl.append({**c, 'birthday_today': birthday_today, 'days_to_birthday': days_to_birthday})
     conn.close()
     birthdays_today = [c for c in cl if c['birthday_today']]
-    return render_template('clients.html', clients=cl, birthdays_today=birthdays_today, today=str(today))
+    return render_template('clients.html', clients=cl, birthdays_today=birthdays_today, today=str(today), days_left=days_left)
 
 @app.route('/api/client/add', methods=['POST'])
 @login_required
@@ -1456,10 +1464,14 @@ def api_add_client():
     try:
         conn = get_db()
         x(conn, '''INSERT INTO clients (name,phone,whatsapp_number,email,date_of_birth,
-            profession,address,notes,created_by) VALUES (?,?,?,?,?,?,?,?,?)''',
+            profession,address,notes,nationality,passport_no,passport_expiry,
+            emirates_id,emirates_id_expiry,address_proof,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
           (d.get('name'), d.get('phone'), d.get('whatsapp_number'), d.get('email'),
            d.get('date_of_birth') or None, d.get('profession'), d.get('address'),
-           d.get('notes'), session.get('user_id')))
+           d.get('notes'), d.get('nationality'), d.get('passport_no'),
+           d.get('passport_expiry') or None, d.get('emirates_id'),
+           d.get('emirates_id_expiry') or None, d.get('address_proof'),
+           session.get('user_id')))
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
@@ -1472,10 +1484,13 @@ def api_edit_client(id):
     try:
         conn = get_db()
         x(conn, '''UPDATE clients SET name=?,phone=?,whatsapp_number=?,email=?,date_of_birth=?,
-            profession=?,address=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?''',
+            profession=?,address=?,notes=?,nationality=?,passport_no=?,passport_expiry=?,
+            emirates_id=?,emirates_id_expiry=?,address_proof=?,updated_at=CURRENT_TIMESTAMP WHERE id=?''',
           (d.get('name'), d.get('phone'), d.get('whatsapp_number'), d.get('email'),
            d.get('date_of_birth') or None, d.get('profession'), d.get('address'),
-           d.get('notes'), id))
+           d.get('notes'), d.get('nationality'), d.get('passport_no'),
+           d.get('passport_expiry') or None, d.get('emirates_id'),
+           d.get('emirates_id_expiry') or None, d.get('address_proof'), id))
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
@@ -1630,4 +1645,5 @@ def api_groups_list():
     except: groups = []
     conn.close()
     return jsonify([g['group_name'] for g in groups])
+
 
