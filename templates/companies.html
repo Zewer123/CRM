@@ -1,22 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Companies - Zewer AML
-<!-- ACTION PASSWORD MODAL -->
-<div class="modal-overlay" id="actionPwModal">
-  <div class="modal-box" style="max-width:400px;">
-    <div class="modal-title">🔐 Action Password Required</div>
-    <div id="actionPwLabel" style="font-size:13px;color:var(--text-muted);margin-bottom:16px;"></div>
-    <div class="form-group">
-      <label>Password</label>
-      <input type="password" id="actionPwInput" placeholder="Enter action password" autofocus>
-    </div>
-    <div id="actionPwError" style="display:none;color:#fca5a5;font-size:12px;margin-top:-8px;margin-bottom:8px;">❌ Incorrect password</div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('actionPwModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitActionPw()">Confirm</button>
-    </div>
-  </div>
-</div>
-{% endblock %}
+{% block title %}Companies - Zewer AML{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -361,6 +344,7 @@ function importCompanies() {
 }
 </script>
 {% endblock %}
+
 
 
 
