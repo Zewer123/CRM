@@ -1,7 +1,12 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
 from werkzeug.security import check_password_hash, generate_password_hash
 import os, io, csv, sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+DUBAI_TZ = timezone(timedelta(hours=4))
+def dubai_today():
+    """Returns today's date in Dubai (UTC+4) regardless of server timezone."""
+    return datetime.now(DUBAI_TZ).date()
 from functools import wraps
 
 try:
@@ -142,7 +147,7 @@ def _run_migrations(conn):
                 'whatsapp_number','deal_after_vat','registration_screening_tool']:
         safe_alter('companies', col)
     safe_alter('dropdowns', 'description')
-    for col in ['nationality','passport_no','passport_expiry','emirates_id','emirates_id_expiry','address_proof']:
+    for col in ['nationality','passport_no','passport_expiry','emirates_id','emirates_id_expiry','address_proof','emirate','location']:
         coltype = 'DATE' if 'expiry' in col else 'TEXT'
         safe_alter('clients', col, coltype)
 
@@ -375,8 +380,8 @@ def days_left(d):
     if not d: return None
     try:
         if hasattr(d, 'year'):  # already a date object
-            return (d - datetime.now().date()).days
-        return (datetime.strptime(str(d)[:10],'%Y-%m-%d').date()-datetime.now().date()).days
+            return (d - dubai_today()).days
+        return (datetime.strptime(str(d)[:10],'%Y-%m-%d').date()-dubai_today()).days
     except: return None
 
 def exp_status(d):
@@ -445,7 +450,7 @@ def dashboard():
     if session.get('user_role') == 'staff':
         uid = session.get('user_id')
         conn = get_db()
-        today = datetime.now().date()
+        today = dubai_today()
         my_tasks = all_(conn, '''SELECT t.*,c.client_name as company_name,c.ac_code
             FROM tasks t LEFT JOIN companies c ON t.company_id=c.id
             WHERE t.assigned_to=? AND t.status NOT IN ('done')
@@ -465,7 +470,7 @@ def dashboard():
             todo_count=todo_c, inprogress_count=inprog_c,
             pending_count=pending_c, overdue_count=overdue_c, today=str(today))
 
-    conn=get_db(); today=datetime.now().date()
+    conn=get_db(); today=dubai_today()
     def c(sql,p=None): return cnt(conn,sql,p or [])
     total=c('SELECT COUNT(*) FROM companies')
     active=c('SELECT COUNT(*) FROM companies WHERE ac_status=?',('Active',))
@@ -571,7 +576,7 @@ def company_detail(id):
                    'emirates_id_expiry':str(u['emirates_id_expiry']) if u['emirates_id_expiry'] else None})
     return render_template('company_detail.html',company=co,ubos=ul,
         tl_days=tl,tl_status=exp_status(tl),ap_days=ap,ap_status=exp_status(ap),
-        today=str(datetime.now().date()))
+        today=str(dubai_today()))
 
 @app.route('/company/<int:id>/edit')
 @compliance_required
@@ -666,7 +671,7 @@ def api_delete_company(id):
 @app.route('/alerts')
 @compliance_required
 def alerts():
-    conn=get_db(); today=datetime.now().date()
+    conn=get_db(); today=dubai_today()
     # Build unified alert list from all document types
     all_alerts = []
 
@@ -745,7 +750,7 @@ def alerts():
 @app.route('/reports')
 @compliance_required
 def reports():
-    conn=get_db(); today=datetime.now().date()
+    conn=get_db(); today=dubai_today()
     df=request.args.get('from',''); dt=request.args.get('to','')
     w='1=1'; p=[]
     if df: w+=' AND created_at >= ?'; p.append(df)
@@ -841,7 +846,7 @@ def api_delete_dropdown(id):
 @login_required
 def tasks():
     conn=get_db(); uid=session.get('user_id'); role=session.get('user_role')
-    today=datetime.now().date()
+    today=dubai_today()
     active_tab=request.args.get('tab','temp')
 
     # ── TEMP TASKS ──
@@ -1336,7 +1341,7 @@ def internal_docs():
             FROM internal_documents d LEFT JOIN users u ON d.added_by=u.id
             ORDER BY CASE WHEN d.expiry_date IS NULL THEN 1 ELSE 0 END, d.expiry_date ASC, d.doc_category, d.doc_name''')
     except: docs = []
-    today = datetime.now().date()
+    today = dubai_today()
     doc_list = []
     for d in docs:
         dl = days_left(d['expiry_date'])
@@ -1414,7 +1419,7 @@ def api_export_company_docs(cid):
     for i, h in enumerate(headers, 1):
         c = ws.cell(row=1, column=i, value=h)
         c.font = hfont; c.fill = hf; c.alignment = Alignment(horizontal='center')
-    today = datetime.now().date()
+    today = dubai_today()
     def status(exp):
         if not exp: return '—'
         try:
@@ -1466,7 +1471,7 @@ def api_export_company_docs(cid):
 def clients():
     conn = get_db()
     rows = all_(conn, 'SELECT * FROM clients ORDER BY name')
-    today = datetime.now().date()
+    today = dubai_today()
     cl = []
     for c in rows:
         dob = c.get('date_of_birth')
@@ -1506,12 +1511,13 @@ def api_add_client():
         conn = get_db()
         x(conn, '''INSERT INTO clients (name,phone,whatsapp_number,email,date_of_birth,
             profession,address,notes,nationality,passport_no,passport_expiry,
-            emirates_id,emirates_id_expiry,address_proof,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            emirates_id,emirates_id_expiry,address_proof,emirate,location,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
           (d.get('name'), d.get('phone'), d.get('whatsapp_number'), d.get('email'),
            d.get('date_of_birth') or None, d.get('profession'), d.get('address'),
            d.get('notes'), d.get('nationality'), d.get('passport_no'),
            d.get('passport_expiry') or None, d.get('emirates_id'),
            d.get('emirates_id_expiry') or None, d.get('address_proof'),
+           d.get('emirate'), d.get('location'),
            session.get('user_id')))
         commit(conn); conn.close()
         return jsonify({'success': True})
@@ -1526,12 +1532,14 @@ def api_edit_client(id):
         conn = get_db()
         x(conn, '''UPDATE clients SET name=?,phone=?,whatsapp_number=?,email=?,date_of_birth=?,
             profession=?,address=?,notes=?,nationality=?,passport_no=?,passport_expiry=?,
-            emirates_id=?,emirates_id_expiry=?,address_proof=?,updated_at=CURRENT_TIMESTAMP WHERE id=?''',
+            emirates_id=?,emirates_id_expiry=?,address_proof=?,emirate=?,location=?,
+            updated_at=CURRENT_TIMESTAMP WHERE id=?''',
           (d.get('name'), d.get('phone'), d.get('whatsapp_number'), d.get('email'),
            d.get('date_of_birth') or None, d.get('profession'), d.get('address'),
            d.get('notes'), d.get('nationality'), d.get('passport_no'),
            d.get('passport_expiry') or None, d.get('emirates_id'),
-           d.get('emirates_id_expiry') or None, d.get('address_proof'), id))
+           d.get('emirates_id_expiry') or None, d.get('address_proof'),
+           d.get('emirate'), d.get('location'), id))
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
