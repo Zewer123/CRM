@@ -78,7 +78,7 @@
     </div>
     <div class="form-group">
       <label>File</label>
-      <input type="file" id="uploadFile">
+      <input type="file" id="uploadFile" multiple>
     </div>
     <div id="uploadStatus" style="display:none;font-size:12px;padding:8px;border-radius:6px;margin-bottom:8px;"></div>
     <div class="modal-actions">
@@ -114,24 +114,38 @@ function loadDocs() {
   });
 }
 
-function uploadDoc() {
-  const file = document.getElementById('uploadFile').files[0];
-  if (!file) { alert('Please select a file'); return; }
-  const fd = new FormData();
-  fd.append('file', file);
-  fd.append('doc_type', document.getElementById('uploadDocType').value);
+async function uploadDoc() {
+  const files = Array.from(document.getElementById('uploadFile').files);
+  if (!files.length) { alert('Please select at least one file'); return; }
+  const docType = document.getElementById('uploadDocType').value;
   const st = document.getElementById('uploadStatus');
   st.style.display = 'block'; st.style.background = 'var(--surface2)'; st.style.color = 'var(--text-muted)';
-  st.textContent = '⏳ Uploading...';
-  fetch(`/api/client/${CLIENT_ID}/upload`, {method:'POST', body: fd})
-    .then(r=>r.json()).then(d => {
-      if (d.success) {
-        st.style.color = '#86efac'; st.textContent = '✅ Uploaded successfully';
-        setTimeout(() => { closeModal('uploadModal'); loadDocs(); document.getElementById('uploadFile').value=''; st.style.display='none'; }, 1200);
-      } else {
-        st.style.color = '#fca5a5'; st.textContent = '❌ ' + d.error;
-      }
-    });
+
+  let successCount = 0, errors = [];
+  for (let i = 0; i < files.length; i++) {
+    st.textContent = `⏳ Uploading ${i+1} of ${files.length}: ${files[i].name}...`;
+    const fd = new FormData();
+    fd.append('file', files[i]);
+    fd.append('doc_type', docType);
+    try {
+      const res = await fetch(`/api/client/${CLIENT_ID}/upload`, {method:'POST', body: fd});
+      const d = await res.json();
+      if (d.success) successCount++;
+      else errors.push(`${files[i].name}: ${d.error}`);
+    } catch (e) {
+      errors.push(`${files[i].name}: ${e.message || e}`);
+    }
+  }
+
+  if (errors.length === 0) {
+    st.style.color = '#86efac'; st.textContent = `✅ Uploaded ${successCount} file(s) successfully`;
+    setTimeout(() => { closeModal('uploadModal'); loadDocs(); document.getElementById('uploadFile').value=''; st.style.display='none'; }, 1200);
+  } else if (successCount > 0) {
+    st.style.color = '#fcd34d'; st.textContent = `⚠️ ${successCount}/${files.length} uploaded. Errors: ` + errors.join('; ');
+    loadDocs();
+  } else {
+    st.style.color = '#fca5a5'; st.textContent = '❌ ' + errors.join('; ');
+  }
 }
 
 function deleteDoc(id) {
@@ -148,3 +162,4 @@ function editClient(id) {
 document.addEventListener('DOMContentLoaded', loadDocs);
 </script>
 {% endblock %}
+
