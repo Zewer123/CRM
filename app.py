@@ -97,7 +97,54 @@ def setup_db():
         commit(conn)
     else:
         _sqlite_schema(conn)
+    _run_migrations(conn)
+    commit(conn)
     conn.close()
+
+def _run_migrations(conn):
+    """Universal migrations that run for BOTH PostgreSQL and SQLite on every startup."""
+    pg = is_pg(conn)
+
+    # New tables (use x() which handles both DB types correctly)
+    new_tables = [
+        "company_groups (id {pk}, group_name TEXT UNIQUE NOT NULL, description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "clients (id {pk}, name TEXT NOT NULL, phone TEXT, whatsapp_number TEXT, email TEXT, date_of_birth DATE, profession TEXT, address TEXT, notes TEXT, nationality TEXT, passport_no TEXT, passport_expiry DATE, emirates_id TEXT, emirates_id_expiry DATE, address_proof TEXT, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "app_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "regular_task_templates (id {pk}, title TEXT NOT NULL, description TEXT, frequency TEXT DEFAULT 'daily', assigned_role TEXT DEFAULT 'all', assigned_user_id INTEGER, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "regular_task_logs (id {pk}, template_id INTEGER NOT NULL, user_id INTEGER NOT NULL, notes TEXT, status TEXT DEFAULT 'done', logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "internal_documents (id {pk}, doc_name TEXT NOT NULL, doc_category TEXT DEFAULT 'Staff', person_name TEXT, issuing_authority TEXT, issue_date DATE, expiry_date DATE, notes TEXT, added_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+    ]
+    pk = "SERIAL PRIMARY KEY" if pg else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    for t in new_tables:
+        sql = "CREATE TABLE IF NOT EXISTS " + t.format(pk=pk)
+        try:
+            x(conn, sql)
+            commit(conn)
+        except Exception as e:
+            print(f"Migration table error ({sql[:50]}...): {e}")
+            conn.rollback() if pg else None
+
+    # ALTER TABLE additions — each wrapped individually so one failure doesn't block the rest
+    def safe_alter(table, col, coltype='TEXT'):
+        try:
+            if pg:
+                x(conn, f'ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {coltype}')
+            else:
+                x(conn, f'ALTER TABLE {table} ADD COLUMN {col} {coltype}')
+            commit(conn)
+        except Exception:
+            if pg: conn.rollback()
+
+    for col in ['contact_number','mobile']:
+        safe_alter('users', col)
+    safe_alter('companies', 'group_name')
+    for col in ['contact_person_name','contact_person_number','account_manager',
+                'whatsapp_number','deal_after_vat','registration_screening_tool']:
+        safe_alter('companies', col)
+    safe_alter('dropdowns', 'description')
+    for col in ['nationality','passport_no','passport_expiry','emirates_id','emirates_id_expiry','address_proof']:
+        coltype = 'DATE' if 'expiry' in col else 'TEXT'
+        safe_alter('clients', col, coltype)
 
 def _pg_schema(conn):
     stmts = [
@@ -273,41 +320,7 @@ def _sqlite_schema(conn):
             key TEXT PRIMARY KEY, value TEXT,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
     ''')
-    for col in ['contact_number','mobile']:
-        try: conn.execute(f'ALTER TABLE users ADD COLUMN {col} TEXT')
-        except: pass
-    try: conn.execute('ALTER TABLE companies ADD COLUMN group_name TEXT')
-    except: pass
-    # Ensure new tables exist (for existing deployments)
-    # Ensure all new tables exist
-    new_tables_pg = [
-        """CREATE TABLE IF NOT EXISTS company_groups (id SERIAL PRIMARY KEY, group_name TEXT UNIQUE NOT NULL, description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
-        """CREATE TABLE IF NOT EXISTS clients (id SERIAL PRIMARY KEY, name TEXT NOT NULL, phone TEXT, whatsapp_number TEXT, email TEXT, date_of_birth DATE, profession TEXT, address TEXT, notes TEXT, nationality TEXT, passport_no TEXT, passport_expiry DATE, emirates_id TEXT, emirates_id_expiry DATE, address_proof TEXT, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
-        """CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
-        """CREATE TABLE IF NOT EXISTS regular_task_templates (id SERIAL PRIMARY KEY, title TEXT NOT NULL, description TEXT, frequency TEXT DEFAULT 'daily', assigned_role TEXT DEFAULT 'all', assigned_user_id INTEGER, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
-        """CREATE TABLE IF NOT EXISTS regular_task_logs (id SERIAL PRIMARY KEY, template_id INTEGER NOT NULL, user_id INTEGER NOT NULL, notes TEXT, status TEXT DEFAULT 'done', logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
-        """CREATE TABLE IF NOT EXISTS internal_documents (id SERIAL PRIMARY KEY, doc_name TEXT NOT NULL, doc_category TEXT DEFAULT 'Staff', person_name TEXT, issuing_authority TEXT, issue_date DATE, expiry_date DATE, notes TEXT, added_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
-    ]
-    new_tables_sq = [t.replace('SERIAL PRIMARY KEY','INTEGER PRIMARY KEY AUTOINCREMENT') for t in new_tables_pg]
-    for sql in (new_tables_pg if use_pg() else new_tables_sq):
-        try: x(conn, sql)
-        except: pass
-    # Add new columns to existing clients table if missing
-    client_cols = ['nationality','passport_no','passport_expiry','emirates_id','emirates_id_expiry','address_proof']
-    if use_pg():
-        for col in client_cols:
-            try: x(conn, f'ALTER TABLE clients ADD COLUMN IF NOT EXISTS {col} TEXT')
-            except: pass
-    else:
-        for col in client_cols:
-            try: conn.execute(f'ALTER TABLE clients ADD COLUMN {col} TEXT')
-            except: pass
-    for col in ['contact_person_name','contact_person_number','account_manager',
-                'whatsapp_number','deal_after_vat','registration_screening_tool']:
-        try: conn.execute(f'ALTER TABLE companies ADD COLUMN {col} TEXT')
-        except: pass
-    try: conn.execute('ALTER TABLE dropdowns ADD COLUMN description TEXT')
-    except: pass
+
     if not conn.execute('SELECT id FROM users WHERE email=?',('admin@zewer.ae',)).fetchone():
         conn.execute('INSERT INTO users (email,password_hash,name,role) VALUES (?,?,?,?)',
             ('admin@zewer.ae', generate_password_hash('Admin@123'), 'Administrator', 'admin'))
@@ -1669,6 +1682,7 @@ def api_groups_list():
     except: groups = []
     conn.close()
     return jsonify([g['group_name'] for g in groups])
+
 
 
 
