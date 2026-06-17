@@ -287,6 +287,7 @@ const CO = {
   ap_days: {{ ap_days if ap_days is not none else 'null' }},
   ap_type: {{ (company.address_proof_type or '') | tojson }},
 };
+let _actionType = null, _actionId = null;
 
 function sendWhatsApp() {
   let msg = `Dear ${CO.name},\n\nThis is a reminder from Zewer AML Compliance regarding your document status:\n\n`;
@@ -329,8 +330,15 @@ function submitAP() {
       } else {
         if (!confirm('Delete this company? This cannot be undone.')) return;
         fetch(`/api/company/${_actionId}/delete`,{method:'POST'})
-    .then(r=>r.json()).then(d=>{ if(d.success) window.location.href='/companies'; });
+          .then(r=>r.json()).then(dd=>{ if(dd.success) window.location.href='/companies'; else alert('Error: '+dd.error); });
+      }
+    } else {
+      document.getElementById('apError').style.display = 'block';
+    }
+  });
 }
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('apModal')?.classList.contains('open'))submitAP();});
+
 function loadDocs() {
   fetch(`/api/company/${CO.id}/documents`).then(r=>r.json()).then(docs=>{
     const el=document.getElementById('docsList');
@@ -422,6 +430,7 @@ loadDocs();
   </div>
 </div>
 {% endblock %}
+
 
 
 
