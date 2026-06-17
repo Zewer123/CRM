@@ -82,7 +82,7 @@
 {% for c in clients %}
 {% set has_docs = c.passport_no or c.emirates_id or c.address_proof %}
 <div class="client-row"
-  data-search="{{ (c.name ~ ' ' ~ (c.phone or '') ~ ' ' ~ (c.email or '') ~ ' ' ~ (c.profession or '') ~ ' ' ~ (c.nationality or ''))|lower }}"
+  data-search="{{ (c.name ~ ' ' ~ (c.phone or '') ~ ' ' ~ (c.email or '') ~ ' ' ~ (c.profession or '') ~ ' ' ~ (c.nationality or '') ~ ' ' ~ (c.emirate or '') ~ ' ' ~ (c.location or ''))|lower }}"
   data-bd-month="{{ c.date_of_birth[5:7] if c.date_of_birth else '' }}"
   data-bd-day="{{ c.date_of_birth[8:10] if c.date_of_birth else '' }}"
   data-bd-today="{{ 'yes' if c.birthday_today else 'no' }}"
@@ -101,15 +101,23 @@
     <div style="font-weight:600;color:var(--text);font-size:14px;">{% if c.birthday_today %}🎂 {% endif %}{{ c.name }}</div>
     {% if c.profession %}<div style="font-size:11px;color:var(--primary);margin-top:2px;">💼 {{ c.profession }}</div>{% endif %}
     {% if c.nationality %}<div style="font-size:11px;color:var(--text-dim);">🌍 {{ c.nationality }}</div>{% endif %}
-    {% if c.address %}<div style="font-size:11px;color:var(--text-dim);">📍 {{ c.address[:40] }}{% if c.address|length > 40 %}…{% endif %}</div>{% endif %}
+    {% if c.emirate or c.location %}
+    <div style="font-size:11px;color:var(--text-dim);">📍 {% if c.location %}{{ c.location }}{% endif %}{% if c.location and c.emirate %}, {% endif %}{% if c.emirate %}{{ c.emirate }}{% endif %}</div>
+    {% elif c.address %}
+    <div style="font-size:11px;color:var(--text-dim);">📍 {{ c.address[:40] }}{% if c.address|length > 40 %}…{% endif %}</div>
+    {% endif %}
   </div>
 
   <!-- CONTACT -->
   <div>
-    {% if c.phone %}<div style="font-size:12px;color:var(--text-muted);">📞 {{ c.phone }}</div>{% endif %}
-    {% if c.whatsapp_number %}
-    <a href="https://wa.me/{{ c.whatsapp_number|replace('+','')|replace(' ','')|replace('-','') }}" target="_blank"
-       style="font-size:11px;color:#25d366;text-decoration:none;">💬 {{ c.whatsapp_number }}</a>
+    {% if c.phone %}
+    <div style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;">
+      📞 {{ c.phone }}
+      {% if c.whatsapp_number %}
+      <a href="https://wa.me/{{ c.whatsapp_number|replace('+','')|replace(' ','')|replace('-','') }}" target="_blank"
+         class="btn btn-wa btn-sm btn-icon" style="width:20px;height:20px;padding:0;font-size:11px;" title="WhatsApp">💬</a>
+      {% endif %}
+    </div>
     {% endif %}
     {% if c.email %}<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">✉️ {{ c.email }}</div>{% endif %}
   </div>
@@ -183,12 +191,32 @@
     <div id="ctab-personal">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div class="form-group form-full"><label>Full Name *</label><input type="text" id="a_name" placeholder="Client full name"></div>
-        <div class="form-group"><label>Phone</label><input type="text" id="a_phone" placeholder="+971 50 123 4567"></div>
-        <div class="form-group"><label>WhatsApp</label><input type="text" id="a_wa" placeholder="+971 50 123 4567"></div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="text" id="a_phone" placeholder="+971 50 123 4567" oninput="syncWA('a')">
+        </div>
+        <div class="form-group">
+          <label>WhatsApp <button type="button" onclick="copyPhoneToWA('a')" class="btn btn-ghost btn-sm" style="padding:1px 8px;font-size:10px;margin-left:6px;">Same as Phone</button></label>
+          <input type="text" id="a_wa" placeholder="+971 50 123 4567">
+        </div>
         <div class="form-group form-full"><label>Email</label><input type="email" id="a_email" placeholder="email@example.com"></div>
         <div class="form-group"><label>Date of Birth</label><input type="date" id="a_dob"></div>
         <div class="form-group"><label>Nationality</label><input type="text" id="a_nationality" placeholder="e.g. Indian, UAE"></div>
         <div class="form-group"><label>Profession</label><input type="text" id="a_prof" placeholder="e.g. Business Owner"></div>
+        <div class="form-group">
+          <label>Emirate</label>
+          <select id="a_emirate">
+            <option value="">— Select Emirate —</option>
+            <option>Dubai</option>
+            <option>Abu Dhabi</option>
+            <option>Sharjah</option>
+            <option>Ajman</option>
+            <option>Ras Al Khaimah</option>
+            <option>Umm Al Quwain</option>
+            <option>Fujairah</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Location</label><input type="text" id="a_location" placeholder="e.g. Deira, Al Barsha, JLT"></div>
         <div class="form-group form-full"><label>Address</label><textarea id="a_addr" rows="2" placeholder="Full address..."></textarea></div>
         <div class="form-group form-full"><label>Notes</label><textarea id="a_notes" rows="2" placeholder="Any notes..."></textarea></div>
       </div>
@@ -236,11 +264,28 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div class="form-group form-full"><label>Full Name *</label><input type="text" id="e_name"></div>
         <div class="form-group"><label>Phone</label><input type="text" id="e_phone"></div>
-        <div class="form-group"><label>WhatsApp</label><input type="text" id="e_wa"></div>
+        <div class="form-group">
+          <label>WhatsApp <button type="button" onclick="copyPhoneToWA('e')" class="btn btn-ghost btn-sm" style="padding:1px 8px;font-size:10px;margin-left:6px;">Same as Phone</button></label>
+          <input type="text" id="e_wa">
+        </div>
         <div class="form-group form-full"><label>Email</label><input type="email" id="e_email"></div>
         <div class="form-group"><label>Date of Birth</label><input type="date" id="e_dob"></div>
         <div class="form-group"><label>Nationality</label><input type="text" id="e_nationality"></div>
         <div class="form-group"><label>Profession</label><input type="text" id="e_prof"></div>
+        <div class="form-group">
+          <label>Emirate</label>
+          <select id="e_emirate">
+            <option value="">— Select Emirate —</option>
+            <option>Dubai</option>
+            <option>Abu Dhabi</option>
+            <option>Sharjah</option>
+            <option>Ajman</option>
+            <option>Ras Al Khaimah</option>
+            <option>Umm Al Quwain</option>
+            <option>Fujairah</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Location</label><input type="text" id="e_location" placeholder="e.g. Deira, Al Barsha, JLT"></div>
         <div class="form-group form-full"><label>Address</label><textarea id="e_addr" rows="2"></textarea></div>
         <div class="form-group form-full"><label>Notes</label><textarea id="e_notes" rows="2"></textarea></div>
       </div>
@@ -283,6 +328,8 @@ const CLIENTS_DATA = {
     dob: {{ (c.date_of_birth or '')|tojson }},
     nationality: {{ (c.nationality or '')|tojson }},
     prof: {{ (c.profession or '')|tojson }},
+    emirate: {{ (c.emirate or '')|tojson }},
+    location: {{ (c.location or '')|tojson }},
     addr: {{ (c.address or '')|tojson }},
     notes: {{ (c.notes or '')|tojson }},
     passport_no: {{ (c.passport_no or '')|tojson }},
@@ -300,6 +347,11 @@ const CLIENTS_DATA = {
 <script>
 const TODAY_MONTH = '{{ today[5:7] }}';
 const TODAY_DAY   = '{{ today[8:10] }}';
+
+function copyPhoneToWA(prefix) {
+  const phone = document.getElementById(prefix + '_phone').value;
+  document.getElementById(prefix + '_wa').value = phone;
+}
 
 function switchClientTab(name, btn) {
   const modal = btn.closest('.modal-box');
@@ -353,6 +405,8 @@ function submitAddClient() {
       profession: document.getElementById('a_prof').value,
       address: document.getElementById('a_addr').value,
       notes: document.getElementById('a_notes').value,
+      emirate: document.getElementById('a_emirate').value,
+      location: document.getElementById('a_location').value,
       passport_no: document.getElementById('a_passport_no').value,
       passport_expiry: document.getElementById('a_passport_expiry').value || null,
       emirates_id: document.getElementById('a_eid').value,
@@ -376,6 +430,8 @@ function editClient(id) {
   document.getElementById('e_dob').value = c.dob;
   document.getElementById('e_nationality').value = c.nationality;
   document.getElementById('e_prof').value = c.prof;
+  document.getElementById('e_emirate').value = c.emirate;
+  document.getElementById('e_location').value = c.location;
   document.getElementById('e_addr').value = c.addr;
   document.getElementById('e_notes').value = c.notes;
   document.getElementById('e_passport_no').value = c.passport_no;
@@ -406,6 +462,8 @@ function submitEditClient() {
       profession: document.getElementById('e_prof').value,
       address: document.getElementById('e_addr').value,
       notes: document.getElementById('e_notes').value,
+      emirate: document.getElementById('e_emirate').value,
+      location: document.getElementById('e_location').value,
       passport_no: document.getElementById('e_passport_no').value,
       passport_expiry: document.getElementById('e_passport_expiry').value || null,
       emirates_id: document.getElementById('e_eid').value,
@@ -426,4 +484,5 @@ function deleteClient(id, name) {
 }
 </script>
 {% endblock %}
+
 
