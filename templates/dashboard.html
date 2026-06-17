@@ -166,6 +166,34 @@
   </div>
 </div>
 {% endif %}
+
+{% if upcoming_birthdays %}
+<div class="card" style="margin-top:20px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div class="card-title">🎂 Upcoming Client Birthdays</div>
+    <a href="{{ url_for('clients') }}" style="font-size:12px;color:var(--primary-light);text-decoration:none;">All Clients →</a>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    {% for b in upcoming_birthdays[:8] %}
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 16px;
+      display:flex;justify-content:space-between;align-items:center;
+      {% if b.is_today %}border-left:3px solid #d97706;{% endif %}">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;">{% if b.is_today %}🎂{% else %}🎈{% endif %}</span>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);">{{ b.name }}</div>
+          <div style="font-size:11px;color:{% if b.is_today %}#d97706{% else %}var(--text-dim){% endif %};font-weight:{% if b.is_today %}600{% else %}400{% endif %};">
+            {% if b.is_today %}Today! 🎉{% else %}{{ b.date_display }} · in {{ b.days_away }}d{% endif %}
+          </div>
+        </div>
+      </div>
+      {% if b.whatsapp_number %}
+      <a href="https://wa.me/{{ b.whatsapp_number|replace('+','')|replace(' ','')|replace('-','') }}?text={{ ('🎂 Happy Birthday ' ~ b.name ~ '! Wishing you joy and happiness! 💎 — Zewer Jewellery LLC')|urlencode }}"
+         target="_blank" class="btn btn-wa btn-sm">💬 Wish</a>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 {% endblock %}
-
-
