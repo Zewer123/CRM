@@ -351,7 +351,11 @@ function loadDocs() {
   }).catch(()=>{ document.getElementById('docsList').innerHTML='<div style="color:var(--text-dim);font-size:13px;padding:10px;">Could not load documents.</div>'; });
 }
 async function uploadDoc() {
-  const files = Array.from(document.getElementById('uploadFile').files);
+  console.log('uploadDoc() called');
+  const fileInput = document.getElementById('uploadFile');
+  console.log('fileInput element:', fileInput);
+  const files = Array.from(fileInput.files);
+  console.log('files selected:', files.length, files);
   if (!files.length) { alert('Please select at least one file'); return; }
   const docType = document.getElementById('uploadDocType').value;
   const notes = document.getElementById('uploadNotes').value;
@@ -361,16 +365,20 @@ async function uploadDoc() {
   let successCount = 0, errors = [];
   for (let i = 0; i < files.length; i++) {
     progress.textContent = `⏳ Uploading ${i+1} of ${files.length}: ${files[i].name}...`;
+    console.log('Uploading file', i, files[i].name, 'to', `/api/company/${CO.id}/upload`);
     const fd = new FormData();
     fd.append('file', files[i]);
     fd.append('doc_type', docType);
     fd.append('notes', notes);
     try {
       const res = await fetch(`/api/company/${CO.id}/upload`, {method:'POST', body: fd});
+      console.log('Response status:', res.status);
       const d = await res.json();
+      console.log('Response data:', d);
       if (d.success) successCount++;
       else errors.push(`${files[i].name}: ${d.error}`);
     } catch (e) {
+      console.error('Upload error:', e);
       errors.push(`${files[i].name}: ${e.message || e}`);
     }
   }
@@ -414,6 +422,7 @@ loadDocs();
   </div>
 </div>
 {% endblock %}
+
 
 
 
