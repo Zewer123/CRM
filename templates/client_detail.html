@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}{{ client.name }} - Zewer AML{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-breadcrumb"><a href="#" onclick="goBack('/clients');return false;">← Back</a></div>
+    <div class="page-title">👤 {{ client.name }}</div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    {% if client.whatsapp_number %}
+    <a href="https://wa.me/{{ client.whatsapp_number|replace('+','')|replace(' ','')|replace('-','') }}" target="_blank" class="btn btn-wa">💬 WhatsApp</a>
+    {% endif %}
+    <button class="btn btn-ghost" onclick="editClient({{ client.id }})">✏️ Edit</button>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+
+  <!-- PERSONAL INFO -->
+  <div class="card">
+    <div class="card-title" style="margin-bottom:14px;">👤 Personal Information</div>
+    <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;">
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim);">Phone</span><span style="color:var(--text);">{{ client.phone or '—' }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim);">WhatsApp</span><span style="color:var(--text);">{{ client.whatsapp_number or '—' }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim);">Email</span><span style="color:var(--text);">{{ client.email or '—' }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim);">Date of Birth</span><span style="color:var(--text);">{{ client.date_of_birth or '—' }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim);">Nationality</span><span style="color:var(--text);">{{ client.nationality or '—' }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim);">Profession</span><span style="color:var(--text);">{{ client.profession or '—' }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim);">Emirate</span><span style="color:var(--text);">{{ client.emirate or '—' }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim);">Location</span><span style="color:var(--text);">{{ client.location or '—' }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim);">Address</span><span style="color:var(--text);text-align:right;max-width:60%;">{{ client.address or '—' }}</span></div>
+      {% if client.notes %}
+      <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px;">
+        <div style="color:var(--text-dim);margin-bottom:4px;">Notes</div>
+        <div style="color:var(--text-muted);">{{ client.notes }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- DOCUMENT DETAILS -->
+  <div class="card">
+    <div class="card-title" style="margin-bottom:14px;">📄 Document Details</div>
+    <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;">
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim);">Passport No.</span><span style="color:var(--text);">{{ client.passport_no or '—' }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim);">Passport Expiry</span><span style="color:var(--text);">{{ client.passport_expiry or '—' }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim);">Emirates ID</span><span style="color:var(--text);">{{ client.emirates_id or '—' }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim);">EID Expiry</span><span style="color:var(--text);">{{ client.emirates_id_expiry or '—' }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim);">Address Proof Type</span><span style="color:var(--text);">{{ client.address_proof or '—' }}</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- DOCUMENT UPLOADS -->
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <div class="card-title">📎 Uploaded Documents</div>
+    <button class="btn btn-primary btn-sm" onclick="openModal('uploadModal')">⬆️ Upload Document</button>
+  </div>
+  <div id="docsList" style="display:flex;flex-direction:column;gap:8px;">
+    <div style="text-align:center;padding:20px;color:var(--text-dim);font-size:13px;">Loading documents...</div>
+  </div>
+</div>
+
+<!-- UPLOAD MODAL -->
+<div class="modal-overlay" id="uploadModal">
+  <div class="modal-box" style="max-width:440px;">
+    <div class="modal-title">⬆️ Upload Document</div>
+    <div class="form-group">
+      <label>Document Type</label>
+      <select id="uploadDocType">
+        <option>Passport Copy</option>
+        <option>Emirates ID</option>
+        <option>Address Proof</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>File</label>
+      <input type="file" id="uploadFile">
+    </div>
+    <div id="uploadStatus" style="display:none;font-size:12px;padding:8px;border-radius:6px;margin-bottom:8px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('uploadModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="uploadDoc()">Upload</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CLIENT_ID = {{ client.id }};
+
+function loadDocs() {
+  fetch(`/api/client/${CLIENT_ID}/documents`).then(r=>r.json()).then(docs => {
+    const list = document.getElementById('docsList');
+    if (!docs.length) {
+      list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-dim);font-size:13px;">No documents uploaded yet.</div>';
+      return;
+    }
+    list.innerHTML = docs.map(d => `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);">📄 ${d.doc_type}</div>
+          <div style="font-size:11px;color:var(--text-dim);">${d.file_name}</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <a href="${d.file_url}" target="_blank" class="btn btn-ghost btn-sm btn-icon" title="View">👁️</a>
+          <button class="btn btn-danger btn-sm btn-icon" onclick="deleteDoc(${d.id})" title="Delete">🗑️</button>
+        </div>
+      </div>`).join('');
+  });
+}
+
+function uploadDoc() {
+  const file = document.getElementById('uploadFile').files[0];
+  if (!file) { alert('Please select a file'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('doc_type', document.getElementById('uploadDocType').value);
+  const st = document.getElementById('uploadStatus');
+  st.style.display = 'block'; st.style.background = 'var(--surface2)'; st.style.color = 'var(--text-muted)';
+  st.textContent = '⏳ Uploading...';
+  fetch(`/api/client/${CLIENT_ID}/upload`, {method:'POST', body: fd})
+    .then(r=>r.json()).then(d => {
+      if (d.success) {
+        st.style.color = '#86efac'; st.textContent = '✅ Uploaded successfully';
+        setTimeout(() => { closeModal('uploadModal'); loadDocs(); document.getElementById('uploadFile').value=''; st.style.display='none'; }, 1200);
+      } else {
+        st.style.color = '#fca5a5'; st.textContent = '❌ ' + d.error;
+      }
+    });
+}
+
+function deleteDoc(id) {
+  if (!confirm('Delete this document?')) return;
+  fetch(`/api/client-document/${id}/delete`, {method:'POST'}).then(r=>r.json()).then(d => {
+    if (d.success) loadDocs(); else alert('Error: ' + d.error);
+  });
+}
+
+function editClient(id) {
+  window.location.href = '/clients?edit=' + id;
+}
+
+document.addEventListener('DOMContentLoaded', loadDocs);
+</script>
+{% endblock %}
