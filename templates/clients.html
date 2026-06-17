@@ -67,8 +67,8 @@
 </div>
 
 <!-- COLUMN HEADERS -->
-<div style="display:grid;grid-template-columns:1fr 160px 160px 120px 120px;gap:0;padding:6px 16px;margin-bottom:4px;align-items:center;">
-  {% for h in ['Client','Contact','Documents','Birthday','Actions'] %}
+<div style="display:grid;grid-template-columns:1fr 180px 140px 140px;gap:0;padding:6px 16px;margin-bottom:4px;align-items:center;">
+  {% for h in ['Name','Phone','Emirate','Actions'] %}
   <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;{% if loop.last %}text-align:right;{% endif %}">{{ h }}</div>
   {% endfor %}
 </div>
@@ -76,7 +76,6 @@
 <!-- CLIENT CARDS -->
 <div id="clientList" style="display:flex;flex-direction:column;gap:6px;">
 {% for c in clients %}
-{% set has_docs = c.passport_no or c.emirates_id or c.address_proof %}
 <div class="client-row"
   data-search="{{ (c.name ~ ' ' ~ (c.phone or ''))|lower }}"
   data-bd-month="{{ c.date_of_birth[5:7] if c.date_of_birth else '' }}"
@@ -84,7 +83,7 @@
   data-bd-today="{{ 'yes' if c.birthday_today else 'no' }}"
   data-emirate="{{ c.emirate or '' }}"
   style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 16px;
-    display:grid;grid-template-columns:1fr 160px 160px 120px 120px;gap:0;align-items:center;
+    display:grid;grid-template-columns:1fr 180px 140px 140px;gap:0;align-items:center;
     transition:all 0.15s;
     {% if c.birthday_today %}border-left:3px solid #d97706;
     {% elif c.days_to_birthday is not none and c.days_to_birthday <= 7 %}border-left:3px solid #fcd34d;
@@ -92,75 +91,42 @@
   onmouseover="this.style.borderColor='var(--primary)';this.style.background='var(--surface3)'"
   onmouseout="this.style.borderColor='{% if c.birthday_today %}#d97706{% elif c.days_to_birthday is not none and c.days_to_birthday <= 7 %}#fcd34d{% else %}var(--border){% endif %}';this.style.background='var(--surface)'">
 
-  <!-- CLIENT INFO -->
+  <!-- NAME -->
   <div style="padding-right:12px;">
     <div style="font-weight:600;color:var(--text);font-size:14px;">{% if c.birthday_today %}🎂 {% endif %}{{ c.name }}</div>
     {% if c.profession %}<div style="font-size:11px;color:var(--primary);margin-top:2px;">💼 {{ c.profession }}</div>{% endif %}
-    {% if c.nationality %}<div style="font-size:11px;color:var(--text-dim);">🌍 {{ c.nationality }}</div>{% endif %}
-    {% if c.emirate or c.location %}
-    <div style="font-size:11px;color:var(--text-dim);">📍 {% if c.location %}{{ c.location }}{% endif %}{% if c.location and c.emirate %}, {% endif %}{% if c.emirate %}{{ c.emirate }}{% endif %}</div>
-    {% elif c.address %}
-    <div style="font-size:11px;color:var(--text-dim);">📍 {{ c.address[:40] }}{% if c.address|length > 40 %}…{% endif %}</div>
-    {% endif %}
-  </div>
-
-  <!-- CONTACT -->
-  <div>
-    {% if c.phone %}
-    <div style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;">
-      📞 {{ c.phone }}
-      {% if c.whatsapp_number %}
-      <a href="https://wa.me/{{ c.whatsapp_number|replace('+','')|replace(' ','')|replace('-','') }}" target="_blank"
-         class="btn btn-wa btn-sm btn-icon" style="width:20px;height:20px;padding:0;font-size:11px;" title="WhatsApp">💬</a>
-      {% endif %}
-    </div>
-    {% endif %}
-    {% if c.email %}<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">✉️ {{ c.email }}</div>{% endif %}
-  </div>
-
-  <!-- DOCUMENTS -->
-  <div style="display:flex;flex-direction:column;gap:3px;">
-    {% if c.passport_no %}
-    <div style="font-size:11px;color:var(--text-muted);">🛂 Passport
-      {% if c.passport_expiry %}
-      <span style="color:{% if c.passport_expiry_status == 'expired' %}#fca5a5{% elif c.passport_expiry_status == 'warning' %}#fcd34d{% else %}#86efac{% endif %};">
-        ({{ c.passport_expiry }})
-      </span>
-      {% endif %}
-    </div>
-    {% endif %}
-    {% if c.emirates_id %}
-    <div style="font-size:11px;color:var(--text-muted);">🪪 EID
-      {% if c.emirates_id_expiry %}
-      <span style="color:{% if c.eid_expiry_status == 'expired' %}#fca5a5{% elif c.eid_expiry_status == 'warning' %}#fcd34d{% else %}#86efac{% endif %};">
-        ({{ c.emirates_id_expiry }})
-      </span>
-      {% endif %}
-    </div>
-    {% endif %}
-    {% if c.address_proof %}<div style="font-size:11px;color:var(--text-muted);">📄 {{ c.address_proof }}</div>{% endif %}
-    {% if not has_docs %}<div style="font-size:11px;color:var(--text-dim);">—</div>{% endif %}
-  </div>
-
-  <!-- BIRTHDAY -->
-  <div>
     {% if c.date_of_birth %}
-    <div style="font-size:12px;font-weight:{% if c.birthday_today or (c.days_to_birthday is not none and c.days_to_birthday <= 7) %}600{% else %}400{% endif %};
-      color:{% if c.birthday_today %}#d97706{% elif c.days_to_birthday is not none and c.days_to_birthday <= 7 %}#fcd34d{% else %}var(--text-dim){% endif %};">
-      🎂 {{ c.date_of_birth[5:] }}
+    <div style="font-size:11px;margin-top:2px;
+      color:{% if c.birthday_today %}#d97706{% elif c.days_to_birthday is not none and c.days_to_birthday <= 7 %}#fcd34d{% else %}var(--text-dim){% endif %};
+      font-weight:{% if c.birthday_today or (c.days_to_birthday is not none and c.days_to_birthday <= 7) %}600{% else %}400{% endif %};">
+      🎂 {{ c.date_of_birth[5:] }}{% if c.birthday_today %} · Today! 🎉{% elif c.days_to_birthday is not none and c.days_to_birthday <= 30 %} · {{ c.days_to_birthday }}d away{% endif %}
     </div>
-    {% if c.birthday_today %}<div style="font-size:10px;color:#d97706;">Today! 🎉</div>
-    {% elif c.days_to_birthday is not none and c.days_to_birthday <= 30 %}
-    <div style="font-size:10px;color:var(--text-dim);">{{ c.days_to_birthday }}d away</div>
     {% endif %}
+  </div>
+
+  <!-- PHONE -->
+  <div>
+    {% if c.phone %}<div style="font-size:12px;color:var(--text-muted);">📞 {{ c.phone }}</div>{% endif %}
+    {% if c.email %}<div style="font-size:11px;color:var(--text-dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">✉️ {{ c.email }}</div>{% endif %}
+    {% if not c.phone and not c.email %}<div style="font-size:12px;color:var(--text-dim);">—</div>{% endif %}
+  </div>
+
+  <!-- EMIRATE -->
+  <div>
+    {% if c.emirate %}
+    <div style="font-size:12px;color:var(--text-muted);">📍 {{ c.emirate }}</div>
+    {% if c.location %}<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">{{ c.location }}</div>{% endif %}
     {% else %}<div style="font-size:12px;color:var(--text-dim);">—</div>{% endif %}
   </div>
 
   <!-- ACTIONS -->
   <div style="display:flex;gap:5px;justify-content:flex-end;">
-    {% if c.whatsapp_number %}
-    <a href="https://wa.me/{{ c.whatsapp_number|replace('+','')|replace(' ','')|replace('-','') }}{% if c.birthday_today %}?text={{ ('🎂 Happy Birthday ' ~ c.name ~ '! Wishing you joy and happiness! 💎 — Zewer Jewellery LLC')|urlencode }}{% endif %}"
+    {% set wa_num = c.whatsapp_number or c.phone %}
+    {% if wa_num %}
+    <a href="https://wa.me/{{ wa_num|replace('+','')|replace(' ','')|replace('-','') }}{% if c.birthday_today %}?text={{ ('🎂 Happy Birthday ' ~ c.name ~ '! Wishing you joy and happiness! 💎 — Zewer Jewellery LLC')|urlencode }}{% endif %}"
        target="_blank" class="btn btn-wa btn-sm btn-icon" title="{% if c.birthday_today %}Send Birthday Wishes{% else %}WhatsApp{% endif %}">{% if c.birthday_today %}🎂{% else %}💬{% endif %}</a>
+    {% else %}
+    <button class="btn btn-ghost btn-sm btn-icon" disabled title="No phone/WhatsApp number" style="opacity:0.3;cursor:not-allowed;">💬</button>
     {% endif %}
     <a href="{{ url_for('client_detail', id=c.id) }}" class="btn btn-ghost btn-sm btn-icon" title="View">👁️</a>
     <button class="btn btn-ghost btn-sm btn-icon" title="Edit" onclick="editClient({{ c.id }})">✏️</button>
@@ -238,7 +204,7 @@
         </div>
       </div>
       <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-top:8px;font-size:12px;color:var(--text-dim);">
-        📎 Physical document file uploads will be available once Cloudinary is configured in Railway settings.
+        📎 To upload Passport, Emirates ID, or Address Proof files, save this client first then open their profile (👁️ View) and use the Upload Document button.
       </div>
     </div>
     <div class="modal-actions">
@@ -473,6 +439,7 @@ function deleteClient(id, name) {
 }
 </script>
 {% endblock %}
+
 
 
 
