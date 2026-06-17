@@ -118,6 +118,7 @@ def _run_migrations(conn):
         "regular_task_templates (id {pk}, title TEXT NOT NULL, description TEXT, frequency TEXT DEFAULT 'daily', assigned_role TEXT DEFAULT 'all', assigned_user_id INTEGER, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "regular_task_logs (id {pk}, template_id INTEGER NOT NULL, user_id INTEGER NOT NULL, notes TEXT, status TEXT DEFAULT 'done', logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "internal_documents (id {pk}, doc_name TEXT NOT NULL, doc_category TEXT DEFAULT 'Staff', person_name TEXT, issuing_authority TEXT, issue_date DATE, expiry_date DATE, notes TEXT, added_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "client_documents (id {pk}, client_id INTEGER NOT NULL, doc_type TEXT NOT NULL, file_name TEXT NOT NULL, file_url TEXT NOT NULL, public_id TEXT, uploaded_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
     ]
     pk = "SERIAL PRIMARY KEY" if pg else "INTEGER PRIMARY KEY AUTOINCREMENT"
     for t in new_tables:
@@ -513,13 +514,40 @@ def dashboard():
     try:
         staff_task_counts=all_(conn,"SELECT u.name,u.id,COUNT(t.id) as pending FROM users u LEFT JOIN tasks t ON t.assigned_to=u.id AND t.status NOT IN ('done') WHERE u.is_active=1 GROUP BY u.id,u.name ORDER BY pending DESC")
     except: staff_task_counts=[]
+
+    # Upcoming client birthdays (next 30 days)
+    upcoming_birthdays = []
+    try:
+        all_clients = all_(conn, "SELECT id,name,whatsapp_number,phone,date_of_birth FROM clients WHERE date_of_birth IS NOT NULL")
+        for cl in all_clients:
+            dob = cl.get('date_of_birth')
+            if not dob: continue
+            try:
+                d = datetime.strptime(str(dob)[:10], '%Y-%m-%d').date()
+                this_year = d.replace(year=today.year)
+                if this_year < today:
+                    this_year = d.replace(year=today.year+1)
+                days_away = (this_year - today).days
+                if days_away <= 30:
+                    upcoming_birthdays.append({
+                        'id': cl['id'], 'name': cl['name'],
+                        'whatsapp_number': cl.get('whatsapp_number') or cl.get('phone'),
+                        'days_away': days_away,
+                        'is_today': days_away == 0,
+                        'date_display': d.strftime('%b %d')
+                    })
+            except: pass
+        upcoming_birthdays.sort(key=lambda x: x['days_away'])
+    except: pass
+
     conn.close()
     return render_template('dashboard.html',total_companies=total,active_companies=active,
         expired_tl=etl,expiring_30_tl=e30tl,
         expired_ap=eap,expiring_30_ap=e30ap,expired_pass=epass,expiring_30_pass=e30p,
         risk_breakdown=risk_bd,doc_breakdown=doc_bd,urgent_companies=urgent,
         open_tasks=otasks,overdue_tasks=overtasks,due_today=dtasks,pending_close=ptasks,
-        urgent_tasks=utasks,today=str(today),days_left=days_left,staff_task_counts=staff_task_counts)
+        urgent_tasks=utasks,today=str(today),days_left=days_left,staff_task_counts=staff_task_counts,
+        upcoming_birthdays=upcoming_birthdays)
 
 @app.route('/companies')
 @compliance_required
@@ -1698,4 +1726,69 @@ def api_groups_list():
 
 
 
+
+
+
+# ════════════════════════════════════════════════════════════
+# CLIENT DOCUMENTS (Cloudinary)
+# ════════════════════════════════════════════════════════════
+@app.route('/api/client/<int:cid>/documents')
+@login_required
+def api_client_documents(cid):
+    conn = get_db()
+    docs = all_(conn, 'SELECT * FROM client_documents WHERE client_id=? ORDER BY created_at DESC', (cid,))
+    conn.close()
+    return jsonify(docs)
+
+@app.route('/api/client/<int:cid>/upload', methods=['POST'])
+@login_required
+def api_client_upload_document(cid):
+    if 'file' not in request.files: return jsonify({'success':False,'error':'No file'}),400
+    file = request.files['file']
+    if not file.filename: return jsonify({'success':False,'error':'No filename'}),400
+    if not HAS_CLD or not os.getenv('CLOUDINARY_CLOUD_NAME'):
+        return jsonify({'success':False,'error':'Cloudinary not configured'}),500
+    try:
+        r = cloudinary.uploader.upload(file, folder=f'zewer_crm/client_{cid}', resource_type='auto',
+                                        use_filename=True, unique_filename=True)
+        conn = get_db()
+        x(conn, 'INSERT INTO client_documents (client_id,doc_type,file_name,file_url,public_id,uploaded_by) VALUES (?,?,?,?,?,?)',
+          (cid, request.form.get('doc_type','General'), file.filename, r['secure_url'], r['public_id'], session.get('user_id')))
+        commit(conn); conn.close()
+        return jsonify({'success':True,'url':r['secure_url'],'name':file.filename})
+    except Exception as e:
+        return jsonify({'success':False,'error':str(e)}),500
+
+@app.route('/api/client-document/<int:did>/delete', methods=['POST'])
+@login_required
+def api_delete_client_document(did):
+    try:
+        conn = get_db()
+        doc = one(conn, 'SELECT public_id FROM client_documents WHERE id=?', (did,))
+        if doc and doc.get('public_id') and HAS_CLD and os.getenv('CLOUDINARY_CLOUD_NAME'):
+            try: cloudinary.uploader.destroy(doc['public_id'], resource_type='raw')
+            except: pass
+        x(conn, 'DELETE FROM client_documents WHERE id=?', (did,))
+        commit(conn); conn.close()
+        return jsonify({'success':True})
+    except Exception as e:
+        return jsonify({'success':False,'error':str(e)}),500
+
+@app.route('/client/<int:id>')
+@login_required
+def client_detail(id):
+    conn = get_db()
+    c = one(conn, 'SELECT * FROM clients WHERE id=?', (id,))
+    if not c:
+        conn.close()
+        return redirect(url_for('clients'))
+    docs = all_(conn, 'SELECT * FROM client_documents WHERE client_id=? ORDER BY created_at DESC', (id,))
+    conn.close()
+    dob = c.get('date_of_birth')
+    c['date_of_birth'] = str(dob)[:10] if dob else None
+    pe = c.get('passport_expiry')
+    c['passport_expiry'] = str(pe)[:10] if pe else None
+    ee = c.get('emirates_id_expiry')
+    c['emirates_id_expiry'] = str(ee)[:10] if ee else None
+    return render_template('client_detail.html', client=c, documents=docs)
 
