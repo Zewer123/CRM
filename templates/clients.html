@@ -35,23 +35,19 @@
 <div class="search-bar" style="margin-bottom:16px;">
   <div class="form-group search-input">
     <label>Search</label>
-    <input type="text" id="searchInput" placeholder="Name, phone, email, profession..." oninput="filterClients()">
+    <input type="text" id="searchInput" placeholder="Name, phone..." oninput="filterClients()">
   </div>
-  <div class="form-group" style="min-width:130px;">
-    <label>Birthday</label>
-    <select id="bdFilter" onchange="filterClients()">
-      <option value="">All</option>
-      <option value="today">🎂 Today</option>
-      <option value="week">This Week</option>
-      <option value="month">This Month</option>
-    </select>
-  </div>
-  <div class="form-group" style="min-width:120px;">
-    <label>Has Docs</label>
-    <select id="docFilter" onchange="filterClients()">
-      <option value="">All</option>
-      <option value="yes">Has Documents</option>
-      <option value="no">No Documents</option>
+  <div class="form-group" style="min-width:150px;">
+    <label>Emirate</label>
+    <select id="emirateFilter" onchange="filterClients()">
+      <option value="">All Emirates</option>
+      <option>Dubai</option>
+      <option>Abu Dhabi</option>
+      <option>Sharjah</option>
+      <option>Ajman</option>
+      <option>Ras Al Khaimah</option>
+      <option>Umm Al Quwain</option>
+      <option>Fujairah</option>
     </select>
   </div>
   <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear</button>
@@ -82,11 +78,11 @@
 {% for c in clients %}
 {% set has_docs = c.passport_no or c.emirates_id or c.address_proof %}
 <div class="client-row"
-  data-search="{{ (c.name ~ ' ' ~ (c.phone or '') ~ ' ' ~ (c.email or '') ~ ' ' ~ (c.profession or '') ~ ' ' ~ (c.nationality or '') ~ ' ' ~ (c.emirate or '') ~ ' ' ~ (c.location or ''))|lower }}"
+  data-search="{{ (c.name ~ ' ' ~ (c.phone or ''))|lower }}"
   data-bd-month="{{ c.date_of_birth[5:7] if c.date_of_birth else '' }}"
   data-bd-day="{{ c.date_of_birth[8:10] if c.date_of_birth else '' }}"
   data-bd-today="{{ 'yes' if c.birthday_today else 'no' }}"
-  data-has-docs="{{ 'yes' if has_docs else 'no' }}"
+  data-emirate="{{ c.emirate or '' }}"
   style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 16px;
     display:grid;grid-template-columns:1fr 160px 160px 120px 120px;gap:0;align-items:center;
     transition:all 0.15s;
@@ -162,10 +158,11 @@
 
   <!-- ACTIONS -->
   <div style="display:flex;gap:5px;justify-content:flex-end;">
-    {% if c.whatsapp_number and c.birthday_today %}
-    <a href="https://wa.me/{{ c.whatsapp_number|replace('+','')|replace(' ','')|replace('-','') }}?text={{ ('🎂 Happy Birthday ' ~ c.name ~ '! Wishing you joy and happiness! 💎 — Zewer Jewellery LLC')|urlencode }}"
-       target="_blank" class="btn btn-wa btn-sm btn-icon" title="Send Birthday Wishes">🎂</a>
+    {% if c.whatsapp_number %}
+    <a href="https://wa.me/{{ c.whatsapp_number|replace('+','')|replace(' ','')|replace('-','') }}{% if c.birthday_today %}?text={{ ('🎂 Happy Birthday ' ~ c.name ~ '! Wishing you joy and happiness! 💎 — Zewer Jewellery LLC')|urlencode }}{% endif %}"
+       target="_blank" class="btn btn-wa btn-sm btn-icon" title="{% if c.birthday_today %}Send Birthday Wishes{% else %}WhatsApp{% endif %}">{% if c.birthday_today %}🎂{% else %}💬{% endif %}</a>
     {% endif %}
+    <a href="{{ url_for('client_detail', id=c.id) }}" class="btn btn-ghost btn-sm btn-icon" title="View">👁️</a>
     <button class="btn btn-ghost btn-sm btn-icon" title="Edit" onclick="editClient({{ c.id }})">✏️</button>
     {% if user_role in ['admin','compliance'] %}
     <button class="btn btn-danger btn-sm btn-icon" title="Delete" onclick="deleteClient({{ c.id }},'{{ c.name|e }}')">🗑️</button>
@@ -346,6 +343,14 @@ const CLIENTS_DATA = {
 {% block scripts %}
 <script>
 const TODAY_MONTH = '{{ today[5:7] }}';
+
+// Auto-open edit modal if redirected from client detail page
+document.addEventListener('DOMContentLoaded', function() {
+  const editId = new URLSearchParams(window.location.search).get('edit');
+  if (editId && CLIENTS_DATA[editId]) {
+    editClient(parseInt(editId));
+  }
+});
 const TODAY_DAY   = '{{ today[8:10] }}';
 
 function copyPhoneToWA(prefix) {
@@ -362,32 +367,16 @@ function switchClientTab(name, btn) {
 }
 
 function filterClients() {
-  const s   = document.getElementById('searchInput').value.toLowerCase();
-  const bd  = document.getElementById('bdFilter').value;
-  const doc = document.getElementById('docFilter').value;
+  const s = document.getElementById('searchInput').value.toLowerCase();
+  const em = document.getElementById('emirateFilter').value;
   document.querySelectorAll('.client-row').forEach(row => {
-    const matchS   = !s || row.dataset.search.includes(s);
-    const matchDoc = !doc || row.dataset.hasDocs === doc;
-    let matchBD = true;
-    if (bd === 'today') {
-      matchBD = row.dataset.bdToday === 'yes';
-    } else if (bd === 'month') {
-      matchBD = row.dataset.bdMonth === TODAY_MONTH;
-    } else if (bd === 'week') {
-      const m = parseInt(row.dataset.bdMonth), d = parseInt(row.dataset.bdDay);
-      if (!m || !d) { matchBD = false; }
-      else {
-        const bday = new Date(new Date().getFullYear(), m-1, d);
-        const now  = new Date(); now.setHours(0,0,0,0);
-        if (bday < now) bday.setFullYear(bday.getFullYear()+1);
-        matchBD = (bday - now) / 86400000 <= 7;
-      }
-    }
-    row.style.display = (matchS && matchBD && matchDoc) ? '' : 'none';
+    const matchS  = !s || row.dataset.search.includes(s);
+    const matchEm = !em || row.dataset.emirate === em;
+    row.style.display = (matchS && matchEm) ? '' : 'none';
   });
 }
 function clearFilters() {
-  ['searchInput','bdFilter','docFilter'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['searchInput','emirateFilter'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   filterClients();
 }
 
@@ -484,5 +473,6 @@ function deleteClient(id, name) {
 }
 </script>
 {% endblock %}
+
 
 
