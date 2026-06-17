@@ -1487,7 +1487,11 @@ def clients():
             if dl < 0: return 'expired'
             if dl <= 90: return 'warning'
             return 'ok'
-        cl.append({**c, 'birthday_today': birthday_today, 'days_to_birthday': days_to_birthday,
+        cl.append({**c,
+                   'date_of_birth': str(dob)[:10] if dob else None,
+                   'passport_expiry': str(c.get('passport_expiry'))[:10] if c.get('passport_expiry') else None,
+                   'emirates_id_expiry': str(c.get('emirates_id_expiry'))[:10] if c.get('emirates_id_expiry') else None,
+                   'birthday_today': birthday_today, 'days_to_birthday': days_to_birthday,
                    'passport_expiry_status': expiry_status(c.get('passport_expiry')),
                    'eid_expiry_status': expiry_status(c.get('emirates_id_expiry'))})
     conn.close()
@@ -1682,6 +1686,7 @@ def api_groups_list():
     except: groups = []
     conn.close()
     return jsonify([g['group_name'] for g in groups])
+
 
 
 
