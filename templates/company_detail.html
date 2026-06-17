@@ -248,8 +248,8 @@
         </select>
       </div>
       <div class="form-group form-full">
-        <label>File * (PDF, JPG, PNG, DOCX)</label>
-        <input type="file" id="uploadFile" accept=".pdf,.jpg,.jpeg,.png,.docx,.doc,.xlsx" style="padding:7px;">
+        <label>File(s) * (PDF, JPG, PNG, DOCX) — you can select multiple</label>
+        <input type="file" id="uploadFile" accept=".pdf,.jpg,.jpeg,.png,.docx,.doc,.xlsx" multiple style="padding:7px;">
       </div>
       <div class="form-group form-full"><label>Notes</label><input type="text" id="uploadNotes" placeholder="Optional note"></div>
     </div>
@@ -350,15 +350,45 @@ function loadDocs() {
       </div>`).join('');
   }).catch(()=>{ document.getElementById('docsList').innerHTML='<div style="color:var(--text-dim);font-size:13px;padding:10px;">Could not load documents.</div>'; });
 }
-function uploadDoc() {
-  const file=document.getElementById('uploadFile').files[0];
-  if (!file) { alert('Please select a file'); return; }
-  const fd=new FormData();
-  fd.append('file',file); fd.append('doc_type',document.getElementById('uploadDocType').value); fd.append('notes',document.getElementById('uploadNotes').value);
-  document.getElementById('uploadProgress').style.display='block';
-  fetch(`/api/company/${CO.id}/upload`,{method:'POST',body:fd})
-    .then(r=>r.json()).then(d=>{ document.getElementById('uploadProgress').style.display='none'; if(d.success){closeModal('uploadModal');loadDocs();}else alert('Upload failed: '+d.error); })
-    .catch(e=>{ document.getElementById('uploadProgress').style.display='none'; alert('Error: '+e); });
+async function uploadDoc() {
+  const files = Array.from(document.getElementById('uploadFile').files);
+  if (!files.length) { alert('Please select at least one file'); return; }
+  const docType = document.getElementById('uploadDocType').value;
+  const notes = document.getElementById('uploadNotes').value;
+  const progress = document.getElementById('uploadProgress');
+  progress.style.display = 'block';
+
+  let successCount = 0, errors = [];
+  for (let i = 0; i < files.length; i++) {
+    progress.textContent = `⏳ Uploading ${i+1} of ${files.length}: ${files[i].name}...`;
+    const fd = new FormData();
+    fd.append('file', files[i]);
+    fd.append('doc_type', docType);
+    fd.append('notes', notes);
+    try {
+      const res = await fetch(`/api/company/${CO.id}/upload`, {method:'POST', body: fd});
+      const d = await res.json();
+      if (d.success) successCount++;
+      else errors.push(`${files[i].name}: ${d.error}`);
+    } catch (e) {
+      errors.push(`${files[i].name}: ${e.message || e}`);
+    }
+  }
+
+  progress.style.display = 'none';
+  progress.textContent = '⏳ Uploading...';
+
+  if (errors.length === 0) {
+    closeModal('uploadModal');
+    loadDocs();
+    document.getElementById('uploadFile').value = '';
+  } else if (successCount > 0) {
+    alert(`Uploaded ${successCount} of ${files.length} files.\n\nFailed:\n` + errors.join('\n'));
+    closeModal('uploadModal');
+    loadDocs();
+  } else {
+    alert('Upload failed:\n' + errors.join('\n'));
+  }
 }
 function deleteDoc(id) {
   if (!confirm('Delete this document?')) return;
@@ -384,6 +414,7 @@ loadDocs();
   </div>
 </div>
 {% endblock %}
+
 
 
 
