@@ -17,6 +17,7 @@
 <div class="tab-bar main-tabs" style="margin-bottom:20px;">
   <button class="tab-btn {% if active_tab == 'temp' %}active{% endif %}" onclick="switchMainTab('temp',this)">📋 Temp Tasks</button>
   <button class="tab-btn {% if active_tab == 'regular' %}active{% endif %}" onclick="switchMainTab('regular',this)">🔁 Regular Tasks</button>
+  <button class="tab-btn {% if active_tab == 'additional' %}active{% endif %}" onclick="switchMainTab('additional',this)">🚗 Additional Tasks</button>
 </div>
 
 <!-- TAB: TEMP TASKS -->
@@ -467,7 +468,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for l in logs %}
+        {% for l in rt_logs %}
         <tr>
           <td style="font-weight:500;color:var(--text);">{{ l.task_title }}</td>
           <td>
@@ -490,6 +491,120 @@
         {% endfor %}
       </tbody>
     </table>
+  </div>
+</div>
+
+</div><!-- end tab-regular -->
+
+<!-- TAB: ADDITIONAL TASKS -->
+<div id="tab-additional" {% if active_tab != 'additional' %}style="display:none;"{% endif %}>
+
+<div class="page-header" style="margin-bottom:16px;">
+  <div style="font-size:13px;color:var(--text-dim);">Log out-of-office work, field visits, bank runs, and any engagement that took you away from regular duties.</div>
+  <button class="btn btn-primary" onclick="openModal('addAdditionalModal')">+ New Additional Task</button>
+</div>
+
+<!-- FILTER ROW -->
+<div class="search-bar" style="margin-bottom:16px;">
+  {% if user_role == 'admin' %}
+  <div class="form-group" style="min-width:160px;">
+    <label>STAFF</label>
+    <select id="atFilterUser" onchange="filterAdditional()">
+      <option value="">All Staff</option>
+      {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endif %}
+  <div class="form-group" style="min-width:130px;">
+    <label>FROM DATE</label>
+    <input type="date" id="atFilterFrom" onchange="filterAdditional()">
+  </div>
+  <div class="form-group" style="min-width:130px;">
+    <label>TO DATE</label>
+    <input type="date" id="atFilterTo" onchange="filterAdditional()">
+  </div>
+  <div class="form-group" style="min-width:80px;display:flex;align-items:flex-end;">
+    <button class="btn btn-ghost btn-sm" onclick="clearAtFilters()">Clear</button>
+  </div>
+</div>
+
+<!-- STAT ROW -->
+<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+  <div class="stat-card" style="flex:1;min-width:120px;"><div class="stat-label">Total Logged</div><div class="stat-value" id="at-total">{{ add_tasks|length }}</div></div>
+  <div class="stat-card" style="flex:1;min-width:120px;"><div class="stat-label">This Month</div><div class="stat-value" id="at-month">—</div></div>
+</div>
+
+<!-- TASKS LIST -->
+<div id="additionalList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:32px;">
+  {% for t in add_tasks %}
+  <div class="at-row" data-user="{{ t.created_by }}" data-from="{{ t.from_datetime[:10] }}" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;border-left:3px solid var(--primary);">
+    <div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+        <span style="font-weight:700;font-size:14px;color:var(--text);">🚗 {{ t.title }}</span>
+        <span style="font-size:11px;padding:2px 10px;border-radius:20px;background:rgba(217,119,6,0.12);color:#fcd34d;">ADDITIONAL TASK</span>
+      </div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);margin-bottom:8px;">
+        <span>📅 <strong>From:</strong> {{ t.from_datetime }}</span>
+        <span>📅 <strong>To:</strong> {{ t.to_datetime }}</span>
+        {% if user_role == 'admin' %}<span>👤 {{ t.staff_name or '—' }}</span>{% endif %}
+        <span style="color:var(--text-dim);">Logged: {{ t.created_at }}</span>
+      </div>
+      {% if t.task_details %}
+      <div style="font-size:12px;color:var(--text-muted);background:var(--surface2);padding:8px 12px;border-radius:6px;margin-bottom:6px;">
+        <strong style="color:var(--text);">Task Details:</strong> {{ t.task_details }}
+      </div>
+      {% endif %}
+      {% if t.remarks %}
+      <div style="font-size:12px;color:var(--text-dim);padding:4px 0;">
+        <strong>Remarks:</strong> {{ t.remarks }}
+      </div>
+      {% endif %}
+    </div>
+    <div>
+      {% if user_role == 'admin' or t.created_by == current_user_id %}
+      <button class="btn btn-danger btn-sm btn-icon" onclick="deleteAdditionalTask({{ t.id }})">🗑️</button>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:60px;color:var(--text-dim);background:var(--surface);border-radius:10px;border:1px solid var(--border);">
+    No additional tasks logged yet. <a href="#" onclick="openModal('addAdditionalModal');return false;" style="color:var(--primary);">Log one now?</a>
+  </div>
+  {% endfor %}
+</div>
+
+</div><!-- end tab-additional -->
+
+<!-- ADD ADDITIONAL TASK MODAL -->
+<div class="modal-overlay" id="addAdditionalModal">
+  <div class="modal-box" style="max-width:520px;">
+    <div class="modal-title">🚗 Log Additional Task</div>
+    <div class="form-group">
+      <label>Task Title *</label>
+      <input type="text" id="atTitle" placeholder="e.g. Bank visit - Emirates NBD, Client meeting - DIFC">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group">
+        <label>From Date & Time *</label>
+        <input type="datetime-local" id="atFrom">
+      </div>
+      <div class="form-group">
+        <label>To Date & Time *</label>
+        <input type="datetime-local" id="atTo">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Task Details</label>
+      <textarea id="atDetails" rows="3" placeholder="What was the purpose? What was done? Any outcome..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>Remarks</label>
+      <textarea id="atRemarks" rows="2" placeholder="Any notes for management review..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('addAdditionalModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAdditionalTask()">✅ Log Task</button>
+    </div>
   </div>
 </div>
 
@@ -923,19 +1038,116 @@ function switchMainTab(tab, btn) {
   btn.classList.add('active');
   document.getElementById('tab-temp').style.display = tab === 'temp' ? '' : 'none';
   document.getElementById('tab-regular').style.display = tab === 'regular' ? '' : 'none';
+  document.getElementById('tab-additional').style.display = tab === 'additional' ? '' : 'none';
   document.getElementById('btnNewTask').style.display = tab === 'temp' ? '' : 'none';
   document.getElementById('btnNewRegular').style.display = tab === 'regular' ? '' : 'none';
-  // Update URL without reload
   const url = new URL(window.location);
   url.searchParams.set('tab', tab);
   window.history.replaceState({}, '', url);
 }
-// Init button visibility
 document.addEventListener('DOMContentLoaded', function() {
   const tab = new URLSearchParams(window.location.search).get('tab') || 'temp';
   document.getElementById('btnNewTask').style.display = tab === 'temp' ? '' : 'none';
   document.getElementById('btnNewRegular').style.display = tab === 'regular' ? '' : 'none';
+
+  // Auto-set current datetime for additional task modal
+  function setNowDatetime() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    document.getElementById('atFrom').value = fmt(now);
+    document.getElementById('atTo').value = fmt(now);
+  }
+  document.getElementById('addAdditionalModal').addEventListener('click', function(e) {
+    if (e.target === this) return;
+  });
+  document.getElementById('addAdditionalModal').querySelector('.modal-box').addEventListener('click', function(){});
+  // Set datetime when modal opens
+  const origOpen = window.openModal;
+  window.openModal = function(id) {
+    if (id === 'addAdditionalModal') setNowDatetime();
+    origOpen(id);
+  };
+
+  // Calc "this month" count
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  let monthCount = 0;
+  document.querySelectorAll('.at-row').forEach(r => {
+    if ((r.dataset.from || '').startsWith(thisMonth)) monthCount++;
+  });
+  const el = document.getElementById('at-month');
+  if (el) el.textContent = monthCount;
 });
+
+function filterAdditional() {
+  const userFilter = document.getElementById('atFilterUser') ? document.getElementById('atFilterUser').value : '';
+  const fromFilter = document.getElementById('atFilterFrom').value;
+  const toFilter = document.getElementById('atFilterTo').value;
+
+  let total = 0;
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  let monthCount = 0;
+
+  document.querySelectorAll('.at-row').forEach(row => {
+    const rowUser = row.dataset.user;
+    const rowFrom = row.dataset.from;
+    let show = true;
+    if (userFilter && rowUser !== userFilter) show = false;
+    if (fromFilter && rowFrom < fromFilter) show = false;
+    if (toFilter && rowFrom > toFilter) show = false;
+    row.style.display = show ? '' : 'none';
+    if (show) {
+      total++;
+      if (rowFrom.startsWith(thisMonth)) monthCount++;
+    }
+  });
+  document.getElementById('at-total').textContent = total;
+  document.getElementById('at-month').textContent = monthCount;
+}
+
+function clearAtFilters() {
+  const uf = document.getElementById('atFilterUser');
+  if (uf) uf.value = '';
+  document.getElementById('atFilterFrom').value = '';
+  document.getElementById('atFilterTo').value = '';
+  filterAdditional();
+}
+
+function submitAdditionalTask() {
+  const title = document.getElementById('atTitle').value.trim();
+  const from_dt = document.getElementById('atFrom').value;
+  const to_dt = document.getElementById('atTo').value;
+  if (!title) { alert('Title is required'); return; }
+  if (!from_dt) { alert('From date/time is required'); return; }
+  if (!to_dt) { alert('To date/time is required'); return; }
+  if (to_dt < from_dt) { alert('To date/time must be after From date/time'); return; }
+
+  fetch('/api/additional-task/add', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      title,
+      from_datetime: from_dt,
+      to_datetime: to_dt,
+      task_details: document.getElementById('atDetails').value.trim(),
+      remarks: document.getElementById('atRemarks').value.trim()
+    })
+  }).then(r => r.json()).then(d => {
+    if (d.success) { closeModal('addAdditionalModal'); location.reload(); }
+    else alert('Error: ' + d.error);
+  });
+}
+
+function deleteAdditionalTask(id) {
+  if (!confirm('Delete this additional task log?')) return;
+  fetch(`/api/additional-task/${id}/delete`, {method: 'POST'})
+    .then(r => r.json()).then(d => {
+      if (d.success) location.reload();
+      else alert('Error: ' + d.error);
+    });
+}
 </script>
 {% endblock %}
 

@@ -119,6 +119,7 @@ def _run_migrations(conn):
         "regular_task_logs (id {pk}, template_id INTEGER NOT NULL, user_id INTEGER NOT NULL, notes TEXT, status TEXT DEFAULT 'done', logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "internal_documents (id {pk}, doc_name TEXT NOT NULL, doc_category TEXT DEFAULT 'Staff', person_name TEXT, issuing_authority TEXT, issue_date DATE, expiry_date DATE, notes TEXT, added_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "client_documents (id {pk}, client_id INTEGER NOT NULL, doc_type TEXT NOT NULL, file_name TEXT NOT NULL, file_url TEXT NOT NULL, public_id TEXT, uploaded_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "additional_tasks (id {pk}, title TEXT NOT NULL, task_details TEXT, remarks TEXT, from_datetime TIMESTAMP NOT NULL, to_datetime TIMESTAMP NOT NULL, created_by INTEGER NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
     ]
     pk = "SERIAL PRIMARY KEY" if pg else "INTEGER PRIMARY KEY AUTOINCREMENT"
     for t in new_tables:
@@ -256,6 +257,12 @@ def _pg_schema(conn):
         """CREATE TABLE IF NOT EXISTS app_settings (
             key TEXT PRIMARY KEY, value TEXT,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS additional_tasks (
+            id SERIAL PRIMARY KEY, title TEXT NOT NULL,
+            task_details TEXT, remarks TEXT,
+            from_datetime TIMESTAMP NOT NULL, to_datetime TIMESTAMP NOT NULL,
+            created_by INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
     ]
     for s in stmts:
         x(conn, s)
@@ -1069,10 +1076,29 @@ def tasks():
             }
         except: task_status[t['id']]={'overdue_count':0,'is_due_today':False,'next_due':str(today),'last_logged':None,'missed_dates':[]}
 
+    # ── ADDITIONAL TASKS ──
+    try:
+        if role == 'admin':
+            add_tasks = all_(conn, '''SELECT at.*,u.name as staff_name
+                FROM additional_tasks at LEFT JOIN users u ON at.created_by=u.id
+                ORDER BY at.from_datetime DESC''')
+        else:
+            add_tasks = all_(conn, '''SELECT at.*,u.name as staff_name
+                FROM additional_tasks at LEFT JOIN users u ON at.created_by=u.id
+                WHERE at.created_by=?
+                ORDER BY at.from_datetime DESC''', (uid,))
+        add_tasks = [{**t,
+            'from_datetime': str(t['from_datetime'])[:16] if t['from_datetime'] else '',
+            'to_datetime': str(t['to_datetime'])[:16] if t['to_datetime'] else '',
+            'created_at': str(t['created_at'])[:10] if t['created_at'] else ''
+        } for t in add_tasks]
+    except: add_tasks = []
+
     conn.close()
     return render_template('tasks.html',tasks=tl,all_users=users,all_companies=cos,task_templates=tmpls,
                            rt_templates=rt_templates,rt_logs=rt_logs,task_status=task_status,
-                           active_tab=active_tab,today=str(today))
+                           active_tab=active_tab,today=str(today),add_tasks=add_tasks,
+                           current_user_id=uid)
 
 @app.route('/api/task/add',methods=['POST'])
 @login_required
@@ -1545,6 +1571,41 @@ def api_log_regular_task(id):
         x(conn, '''INSERT INTO regular_task_logs (template_id, user_id, notes, status)
             VALUES (?,?,?,?)''',
           (id, session.get('user_id'), d.get('notes', ''), d.get('status', 'done')))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ════════════════════════════════════════════════════════════
+# ADDITIONAL TASKS
+# ════════════════════════════════════════════════════════════
+@app.route('/api/additional-task/add', methods=['POST'])
+@login_required
+def api_add_additional_task():
+    d = request.get_json()
+    try:
+        conn = get_db()
+        x(conn, '''INSERT INTO additional_tasks
+            (title, task_details, remarks, from_datetime, to_datetime, created_by)
+            VALUES (?,?,?,?,?,?)''',
+          (d.get('title'), d.get('task_details'), d.get('remarks'),
+           d.get('from_datetime'), d.get('to_datetime'), session.get('user_id')))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/additional-task/<int:id>/delete', methods=['POST'])
+@login_required
+def api_delete_additional_task(id):
+    try:
+        conn = get_db()
+        uid = session.get('user_id'); role = session.get('user_role')
+        task = one(conn, 'SELECT created_by FROM additional_tasks WHERE id=?', (id,))
+        if not task: return jsonify({'success': False, 'error': 'Not found'}), 404
+        if role != 'admin' and task['created_by'] != uid:
+            return jsonify({'success': False, 'error': 'Not allowed'}), 403
+        x(conn, 'DELETE FROM additional_tasks WHERE id=?', (id,))
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
