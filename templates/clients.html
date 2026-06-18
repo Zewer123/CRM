@@ -149,6 +149,7 @@
     <div class="tab-bar" style="margin-bottom:16px;">
       <button class="tab-btn active" onclick="switchClientTab('personal',this)">👤 Personal</button>
       <button class="tab-btn" onclick="switchClientTab('docs',this)">📄 Documents</button>
+      <button class="tab-btn" onclick="switchClientTab('compliance',this)">🛡️ Compliance</button>
     </div>
     <!-- PERSONAL TAB -->
     <div id="ctab-personal">
@@ -207,6 +208,73 @@
         📎 To upload Passport, Emirates ID, or Address Proof files, save this client first then open their profile (👁️ View) and use the Upload Document button.
       </div>
     </div>
+    <!-- COMPLIANCE TAB -->
+    <div id="ctab-compliance" style="display:none;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group"><label>Account Number</label><input type="text" id="a_account_number" placeholder="e.g. ACC-10234"></div>
+        <div class="form-group">
+          <label>Mode of Account</label>
+          <select id="a_mode_of_ac">
+            <option value="">— Select —</option>
+            {% for m in modes %}<option>{{ m }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Account Status</label>
+          <select id="a_ac_status">
+            <option value="">— Select —</option>
+            {% for s in ac_statuses %}<option>{{ s }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>ID Type</label>
+          <select id="a_id_type">
+            <option value="">— Select —</option>
+            {% for t in id_types %}<option>{{ t }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>PEP Status</label>
+          <select id="a_pep_status">
+            <option value="">— Select —</option>
+            <option>Yes</option>
+            <option>No</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Risk Status</label>
+          <select id="a_risk_status">
+            <option value="">— Select —</option>
+            {% for r in risk_statuses %}<option>{{ r }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>KYC Status</label>
+          <select id="a_kyc_status">
+            <option value="">— Select —</option>
+            <option>Not Required</option>
+            <option>Not Updated</option>
+            {% for k in kyc_statuses %}<option>{{ k }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>KYC Expiry Date <span style="color:var(--text-dim);font-weight:400;">(max 2 years)</span></label>
+          <input type="date" id="a_kyc_expiry_date">
+        </div>
+        <div class="form-group">
+          <label>Screening Registration Status</label>
+          <select id="a_screening_status">
+            <option value="">— Select —</option>
+            {% for s in screening_statuses %}<option>{{ s }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Screening Registration Date</label>
+          <input type="date" id="a_screening_date">
+        </div>
+      </div>
+      <div id="a_kycError" style="display:none;color:#fca5a5;font-size:12px;margin-top:6px;"></div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('addClientModal')">Cancel</button>
       <button class="btn btn-primary" onclick="submitAddClient()">💾 Save Client</button>
@@ -222,6 +290,7 @@
     <div class="tab-bar" style="margin-bottom:16px;">
       <button class="tab-btn active" onclick="switchClientTab('epersonal',this)">👤 Personal</button>
       <button class="tab-btn" onclick="switchClientTab('edocs',this)">📄 Documents</button>
+      <button class="tab-btn" onclick="switchClientTab('ecompliance',this)">🛡️ Compliance</button>
     </div>
     <div id="ctab-epersonal">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -272,6 +341,73 @@
         </div>
       </div>
     </div>
+    <!-- COMPLIANCE TAB -->
+    <div id="ctab-ecompliance" style="display:none;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group"><label>Account Number</label><input type="text" id="e_account_number"></div>
+        <div class="form-group">
+          <label>Mode of Account</label>
+          <select id="e_mode_of_ac">
+            <option value="">— Select —</option>
+            {% for m in modes %}<option>{{ m }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Account Status</label>
+          <select id="e_ac_status">
+            <option value="">— Select —</option>
+            {% for s in ac_statuses %}<option>{{ s }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>ID Type</label>
+          <select id="e_id_type">
+            <option value="">— Select —</option>
+            {% for t in id_types %}<option>{{ t }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>PEP Status</label>
+          <select id="e_pep_status">
+            <option value="">— Select —</option>
+            <option>Yes</option>
+            <option>No</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Risk Status</label>
+          <select id="e_risk_status">
+            <option value="">— Select —</option>
+            {% for r in risk_statuses %}<option>{{ r }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>KYC Status</label>
+          <select id="e_kyc_status">
+            <option value="">— Select —</option>
+            <option>Not Required</option>
+            <option>Not Updated</option>
+            {% for k in kyc_statuses %}<option>{{ k }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>KYC Expiry Date <span style="color:var(--text-dim);font-weight:400;">(max 2 years)</span></label>
+          <input type="date" id="e_kyc_expiry_date">
+        </div>
+        <div class="form-group">
+          <label>Screening Registration Status</label>
+          <select id="e_screening_status">
+            <option value="">— Select —</option>
+            {% for s in screening_statuses %}<option>{{ s }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Screening Registration Date</label>
+          <input type="date" id="e_screening_date">
+        </div>
+      </div>
+      <div id="e_kycError" style="display:none;color:#fca5a5;font-size:12px;margin-top:6px;"></div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('editClientModal')">Cancel</button>
       <button class="btn btn-primary" onclick="submitEditClient()">💾 Save</button>
@@ -295,6 +431,16 @@ const CLIENTS_DATA = {
     location: {{ (c.location or '')|tojson }},
     addr: {{ (c.address or '')|tojson }},
     notes: {{ (c.notes or '')|tojson }},
+    account_number: {{ (c.account_number or '')|tojson }},
+    mode_of_ac: {{ (c.mode_of_ac or '')|tojson }},
+    ac_status: {{ (c.ac_status or '')|tojson }},
+    id_type: {{ (c.id_type or '')|tojson }},
+    pep_status: {{ (c.pep_status or '')|tojson }},
+    kyc_status: {{ (c.kyc_status or '')|tojson }},
+    kyc_expiry_date: {{ (c.kyc_expiry_date or '')|tojson }},
+    risk_status: {{ (c.risk_status or '')|tojson }},
+    screening_status: {{ (c.screening_status or '')|tojson }},
+    screening_date: {{ (c.screening_date or '')|tojson }},
     passport_no: {{ (c.passport_no or '')|tojson }},
     passport_expiry: {{ (c.passport_expiry or '')|tojson }},
     eid: {{ (c.emirates_id or '')|tojson }},
@@ -346,9 +492,27 @@ function clearFilters() {
   filterClients();
 }
 
+function maxKycDate() {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 2);
+  return d.toISOString().split('T')[0];
+}
+function validateKycField(prefix) {
+  const val = document.getElementById(prefix + '_kyc_expiry_date').value;
+  const errEl = document.getElementById(prefix + '_kycError');
+  if (val && val > maxKycDate()) {
+    errEl.textContent = '⚠️ KYC expiry date cannot be more than 2 years from today.';
+    errEl.style.display = 'block';
+    return false;
+  }
+  errEl.style.display = 'none';
+  return true;
+}
+
 function submitAddClient() {
   const name = document.getElementById('a_name').value.trim();
   if (!name) { alert('Name is required'); return; }
+  if (!validateKycField('a')) return;
   fetch('/api/client/add', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
@@ -366,7 +530,17 @@ function submitAddClient() {
       passport_expiry: document.getElementById('a_passport_expiry').value || null,
       emirates_id: document.getElementById('a_eid').value,
       emirates_id_expiry: document.getElementById('a_eid_expiry').value || null,
-      address_proof: document.getElementById('a_addr_proof').value
+      address_proof: document.getElementById('a_addr_proof').value,
+      account_number: document.getElementById('a_account_number').value,
+      mode_of_ac: document.getElementById('a_mode_of_ac').value,
+      ac_status: document.getElementById('a_ac_status').value,
+      id_type: document.getElementById('a_id_type').value,
+      pep_status: document.getElementById('a_pep_status').value,
+      kyc_status: document.getElementById('a_kyc_status').value,
+      kyc_expiry_date: document.getElementById('a_kyc_expiry_date').value || null,
+      risk_status: document.getElementById('a_risk_status').value,
+      screening_status: document.getElementById('a_screening_status').value,
+      screening_date: document.getElementById('a_screening_date').value || null
     })
   }).then(r=>r.json()).then(d=>{
     if(d.success){ closeModal('addClientModal'); location.reload(); }
@@ -394,6 +568,16 @@ function editClient(id) {
   document.getElementById('e_eid').value = c.eid;
   document.getElementById('e_eid_expiry').value = c.eid_expiry;
   document.getElementById('e_addr_proof').value = c.addr_proof;
+  document.getElementById('e_account_number').value = c.account_number || '';
+  document.getElementById('e_mode_of_ac').value = c.mode_of_ac || '';
+  document.getElementById('e_ac_status').value = c.ac_status || '';
+  document.getElementById('e_id_type').value = c.id_type || '';
+  document.getElementById('e_pep_status').value = c.pep_status || '';
+  document.getElementById('e_kyc_status').value = c.kyc_status || '';
+  document.getElementById('e_kyc_expiry_date').value = c.kyc_expiry_date || '';
+  document.getElementById('e_risk_status').value = c.risk_status || '';
+  document.getElementById('e_screening_status').value = c.screening_status || '';
+  document.getElementById('e_screening_date').value = c.screening_date || '';
   // Reset to personal tab
   document.querySelectorAll('#editClientModal .tab-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('#editClientModal .tab-btn')[0].classList.add('active');
@@ -406,6 +590,7 @@ function submitEditClient() {
   const id = document.getElementById('e_id').value;
   const name = document.getElementById('e_name').value.trim();
   if (!name) { alert('Name required'); return; }
+  if (!validateKycField('e')) return;
   fetch('/api/client/'+id+'/edit', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
@@ -423,7 +608,17 @@ function submitEditClient() {
       passport_expiry: document.getElementById('e_passport_expiry').value || null,
       emirates_id: document.getElementById('e_eid').value,
       emirates_id_expiry: document.getElementById('e_eid_expiry').value || null,
-      address_proof: document.getElementById('e_addr_proof').value
+      address_proof: document.getElementById('e_addr_proof').value,
+      account_number: document.getElementById('e_account_number').value,
+      mode_of_ac: document.getElementById('e_mode_of_ac').value,
+      ac_status: document.getElementById('e_ac_status').value,
+      id_type: document.getElementById('e_id_type').value,
+      pep_status: document.getElementById('e_pep_status').value,
+      kyc_status: document.getElementById('e_kyc_status').value,
+      kyc_expiry_date: document.getElementById('e_kyc_expiry_date').value || null,
+      risk_status: document.getElementById('e_risk_status').value,
+      screening_status: document.getElementById('e_screening_status').value,
+      screening_date: document.getElementById('e_screening_date').value || null
     })
   }).then(r=>r.json()).then(d=>{
     if(d.success){ closeModal('editClientModal'); location.reload(); }
@@ -439,6 +634,7 @@ function deleteClient(id, name) {
 }
 </script>
 {% endblock %}
+
 
 
 
