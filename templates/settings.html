@@ -294,6 +294,19 @@
         📥 Download Full Backup
       </a>
     </div>
+
+    <div class="card" style="margin-top:16px;border:1px solid rgba(239,68,68,0.3);">
+      <div class="card-title" style="margin-bottom:8px;color:#fca5a5;">⚠️ Restore from Backup</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">
+        Upload a previously downloaded backup file to restore data. <strong style="color:#fca5a5;">Only missing records will be added — existing records will not be overwritten.</strong> Users and passwords are never restored from backup.
+      </div>
+      <div class="form-group">
+        <label>Select Backup File (.xlsx)</label>
+        <input type="file" id="restoreFile" accept=".xlsx" style="color:var(--text);">
+      </div>
+      <button class="btn btn-danger" onclick="startRestore()">⚠️ Restore Data</button>
+      <div id="restoreResult" style="display:none;margin-top:16px;background:var(--surface2);border-radius:8px;padding:14px;font-size:12px;"></div>
+    </div>
   </div>
 </div>
 
@@ -596,6 +609,42 @@ function deleteDropdown(id, val) {
   if (!confirm(`Remove "${val}" from dropdowns?`)) return;
   fetch(`/api/dropdown/${id}/delete`, { method:'POST' })
     .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
+}
+
+function startRestore() {
+  const fileInput = document.getElementById('restoreFile');
+  if (!fileInput.files.length) { alert('Please select a backup file first'); return; }
+  if (!confirm('This will add missing records from the backup file. Existing records will NOT be changed.\n\nProceed?')) return;
+
+  const btn = event.target;
+  btn.textContent = '⏳ Restoring...';
+  btn.disabled = true;
+
+  const fd = new FormData();
+  fd.append('file', fileInput.files[0]);
+
+  fetch('/admin/restore', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(d => {
+      btn.textContent = '⚠️ Restore Data';
+      btn.disabled = false;
+      const box = document.getElementById('restoreResult');
+      box.style.display = 'block';
+      if (d.success) {
+        let html = '<div style="color:#86efac;font-weight:700;margin-bottom:10px;">✅ Restore Complete</div>';
+        for (const [sheet, msg] of Object.entries(d.results)) {
+          html += `<div style="margin-bottom:4px;"><span style="color:var(--text-muted);min-width:120px;display:inline-block;">${sheet}:</span> ${msg}</div>`;
+        }
+        box.innerHTML = html;
+      } else {
+        box.innerHTML = `<div style="color:#fca5a5;">❌ Error: ${d.error}</div>`;
+      }
+    })
+    .catch(e => {
+      btn.textContent = '⚠️ Restore Data';
+      btn.disabled = false;
+      alert('Network error: ' + e);
+    });
 }
 </script>
 {% endblock %}

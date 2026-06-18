@@ -325,7 +325,7 @@
 
 <!-- SUMMARY STATS -->
 {% set ns = namespace(total=0, overdue=0, due_today=0, ok=0) %}
-{% for t in templates %}
+{% for t in rt_templates %}
   {% set s = task_status.get(t.id, {}) %}
   {% set ns.total = ns.total + 1 %}
   {% if s.get('overdue_count', 0) > 0 %}{% set ns.overdue = ns.overdue + 1 %}
@@ -349,7 +349,7 @@
 
 <!-- TASK CARDS -->
 <div id="taskGrid" style="display:flex;flex-direction:column;gap:10px;margin-bottom:32px;">
-  {% for t in templates %}
+  {% for t in rt_templates %}
   {% set s = task_status.get(t.id, {}) %}
   {% set overdue = s.get('overdue_count', 0) %}
   {% set is_due = s.get('is_due_today', false) %}

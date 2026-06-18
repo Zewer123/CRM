@@ -1977,6 +1977,71 @@ def admin_backup():
                      as_attachment=True, download_name=fname)
 
 # ════════════════════════════════════════════════════════════
+# RESTORE FROM BACKUP
+# ════════════════════════════════════════════════════════════
+@app.route('/admin/restore', methods=['POST'])
+@login_required
+def admin_restore():
+    if session.get('user_role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin only'}), 403
+    if not HAS_XL:
+        return jsonify({'success': False, 'error': 'openpyxl not installed'}), 500
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+    try:
+        f = request.files['file']
+        wb = openpyxl.load_workbook(f)
+        conn = get_db()
+        results = {}
+
+        def restore_sheet(sheet_name, table, pk='id', skip_cols=None):
+            if sheet_name not in wb.sheetnames:
+                results[sheet_name] = 'Sheet not found — skipped'
+                return
+            ws = wb[sheet_name]
+            headers = [cell.value for cell in ws[1]]
+            if not headers or not headers[0]:
+                results[sheet_name] = 'Empty — skipped'
+                return
+            skip = set(skip_cols or [])
+            use_headers = [h for h in headers if h and h not in skip]
+            inserted = 0; skipped = 0
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                rd = {headers[i]: row[i] for i in range(len(headers)) if headers[i]}
+                pk_val = rd.get(pk)
+                if pk_val is None: continue
+                # Check if record already exists
+                try:
+                    existing = one(conn, f'SELECT {pk} FROM {table} WHERE {pk}=?', (pk_val,))
+                    if existing: skipped += 1; continue
+                except: skipped += 1; continue
+                cols = [h for h in use_headers if h != pk]
+                vals = [rd.get(h) or None for h in cols]
+                placeholders = ','.join(['?' for _ in cols])
+                try:
+                    x(conn, f"INSERT INTO {table} ({','.join(cols)}) VALUES ({placeholders})", vals)
+                    inserted += 1
+                except: skipped += 1
+            commit(conn)
+            results[sheet_name] = f'{inserted} restored, {skipped} skipped'
+
+        restore_sheet('Companies',    'companies',              pk='id')
+        restore_sheet('UBOs',         'ubos',                   pk='id')
+        restore_sheet('Clients',      'clients',                pk='id')
+        restore_sheet('Tasks',        'tasks',                  pk='id')
+        restore_sheet('InternalDocs', 'internal_documents',     pk='id')
+        restore_sheet('RegularTasks', 'regular_task_templates', pk='id')
+        restore_sheet('TaskLogs',     'regular_task_logs',      pk='id')
+        restore_sheet('Groups',       'company_groups',         pk='id')
+        restore_sheet('Dropdowns',    'dropdowns',              pk='id')
+        # Skip Users sheet — don't overwrite passwords/accounts from backup
+
+        conn.close()
+        return jsonify({'success': True, 'results': results})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ════════════════════════════════════════════════════════════
 # GROUPS API for companies form
 # ════════════════════════════════════════════════════════════
 @app.route('/api/groups/list')
