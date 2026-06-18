@@ -1078,6 +1078,24 @@ def tasks():
 
     # ── ADDITIONAL TASKS ──
     try:
+        # Ensure table exists on Railway PG
+        if is_pg(conn):
+            x(conn, '''CREATE TABLE IF NOT EXISTS additional_tasks (
+                id SERIAL PRIMARY KEY, title TEXT NOT NULL,
+                task_details TEXT, remarks TEXT,
+                from_datetime TIMESTAMP NOT NULL, to_datetime TIMESTAMP NOT NULL,
+                created_by INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        else:
+            x(conn, '''CREATE TABLE IF NOT EXISTS additional_tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL,
+                task_details TEXT, remarks TEXT,
+                from_datetime TIMESTAMP NOT NULL, to_datetime TIMESTAMP NOT NULL,
+                created_by INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+        commit(conn)
+    except: pass
+    try:
         if role == 'admin':
             add_tasks = all_(conn, '''SELECT at.*,u.name as staff_name
                 FROM additional_tasks at LEFT JOIN users u ON at.created_by=u.id
@@ -1585,6 +1603,24 @@ def api_add_additional_task():
     d = request.get_json()
     try:
         conn = get_db()
+        # Ensure table exists (Railway PG may not have run migration yet)
+        try:
+            if is_pg(conn):
+                x(conn, '''CREATE TABLE IF NOT EXISTS additional_tasks (
+                    id SERIAL PRIMARY KEY, title TEXT NOT NULL,
+                    task_details TEXT, remarks TEXT,
+                    from_datetime TIMESTAMP NOT NULL, to_datetime TIMESTAMP NOT NULL,
+                    created_by INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+            else:
+                x(conn, '''CREATE TABLE IF NOT EXISTS additional_tasks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL,
+                    task_details TEXT, remarks TEXT,
+                    from_datetime TIMESTAMP NOT NULL, to_datetime TIMESTAMP NOT NULL,
+                    created_by INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+            commit(conn)
+        except: pass
         x(conn, '''INSERT INTO additional_tasks
             (title, task_details, remarks, from_datetime, to_datetime, created_by)
             VALUES (?,?,?,?,?,?)''',
