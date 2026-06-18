@@ -167,6 +167,34 @@
 </div>
 {% endif %}
 
+{% if kyc_alerts %}
+<div class="card" style="margin-top:20px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div class="card-title">🛡️ Client KYC Expiring</div>
+    <a href="{{ url_for('clients') }}" style="font-size:12px;color:var(--primary-light);text-decoration:none;">All Clients →</a>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:6px;">
+    {% for k in kyc_alerts[:8] %}
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 16px;
+      display:flex;justify-content:space-between;align-items:center;
+      {% if k.is_expired %}border-left:3px solid #ef4444;{% elif k.days_left <= 30 %}border-left:3px solid #fb923c;{% else %}border-left:3px solid #fcd34d;{% endif %}">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);">{{ k.name }}</div>
+        <div style="font-size:11px;color:var(--text-dim);">{{ k.kyc_status or '—' }}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:12px;font-weight:600;
+          color:{% if k.is_expired %}#fca5a5{% elif k.days_left <= 30 %}#fb923c{% else %}#fcd34d{% endif %};">
+          {% if k.is_expired %}Expired {{ k.days_left|abs }}d ago{% else %}{{ k.days_left }}d left{% endif %}
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);">{{ k.kyc_expiry_date }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 {% if upcoming_birthdays %}
 <div class="card" style="margin-top:20px;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
