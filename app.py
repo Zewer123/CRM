@@ -594,6 +594,7 @@ def dashboard():
     return render_template('dashboard.html',total_companies=total,active_companies=active,total_clients=total_clients,pep_count=pep_count,eid_exp=eid_exp,
         expired_tl=etl,expiring_30_tl=e30tl,
         expired_ap=eap,expiring_30_ap=e30ap,expired_pass=epass,expiring_30_pass=e30p,
+        exp_30=exp_30,exp_60=exp_60,exp_90=exp_90,
         risk_breakdown=risk_bd,doc_breakdown=doc_bd,urgent_companies=urgent,
         open_tasks=otasks,overdue_tasks=overtasks,due_today=dtasks,pending_close=ptasks,
         urgent_tasks=utasks,today=str(today),days_left=days_left,staff_task_counts=staff_task_counts,
