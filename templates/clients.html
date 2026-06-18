@@ -27,8 +27,8 @@
 
 <!-- PAGE HEADER -->
 <div class="page-header">
-  <div class="page-title">👤 Clients</div>
-  <button class="btn btn-primary" onclick="openModal('addClientModal')">+ Add Client</button>
+  <div class="page-title">👤 Individuals</div>
+  <button class="btn btn-primary" onclick="openModal('addClientModal')">+ Add Individual</button>
 </div>
 
 <!-- FILTERS -->
@@ -44,17 +44,12 @@
       {% for m in modes %}<option>{{ m }}</option>{% endfor %}
     </select>
   </div>
-  <div class="form-group" style="min-width:130px;">
-    <label>Emirate</label>
-    <select id="emirateFilter" onchange="filterClients()">
-      <option value="">All Emirates</option>
-      <option>Dubai</option>
-      <option>Abu Dhabi</option>
-      <option>Sharjah</option>
-      <option>Ajman</option>
-      <option>Ras Al Khaimah</option>
-      <option>Umm Al Quwain</option>
-      <option>Fujairah</option>
+  <div class="form-group" style="min-width:140px;">
+    <label>Resident Status</label>
+    <select id="residentFilter" onchange="filterClients()">
+      <option value="">All</option>
+      <option value="resident">Resident</option>
+      <option value="non-resident">Non-Resident</option>
     </select>
   </div>
   <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear</button>
@@ -90,6 +85,7 @@
   data-bd-today="{{ 'yes' if c.birthday_today else 'no' }}"
   data-emirate="{{ c.emirate or '' }}"
   data-mode="{{ c.mode_of_ac or '' }}"
+  data-resident="{{ 'resident' if c.is_resident else 'non-resident' }}"
   style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 16px;
     display:grid;grid-template-columns:1fr 160px 140px 140px 130px;gap:0;align-items:center;
     transition:all 0.15s;
@@ -159,7 +155,7 @@
 <!-- ADD CLIENT MODAL -->
 <div class="modal-overlay" id="addClientModal">
   <div class="modal-box" style="max-width:600px;">
-    <div class="modal-title">➕ Add Client</div>
+    <div class="modal-title">➕ Add Individual</div>
     <div class="tab-bar" style="margin-bottom:16px;">
       <button class="tab-btn active" onclick="switchClientTab('personal',this)">👤 Personal</button>
       <button class="tab-btn" onclick="switchClientTab('compliance',this)">🛡️ Compliance</button>
@@ -168,7 +164,12 @@
     <!-- PERSONAL TAB -->
     <div id="ctab-personal">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="form-group form-full"><label>Full Name *</label><input type="text" id="a_name" placeholder="Client full name"></div>
+        <div class="form-group form-full"><label>Account Number *</label><input type="text" id="a_account_number" placeholder="e.g. ACC-10234"></div>
+        <div class="form-group form-full"><label>Full Name *</label><input type="text" id="a_name" placeholder="Individual full name"></div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="a_is_resident" onchange="handleResidentChange()"> <span>Resident</span></label>
+          <small style="color:var(--text-dim);">Check if UAE resident</small>
+        </div>
         <div class="form-group">
           <label>Phone *</label>
           <input type="text" id="a_phone" placeholder="+971 50 123 4567" required oninput="syncWA('a')">
@@ -182,8 +183,8 @@
         <div class="form-group"><label>Nationality</label><input type="text" id="a_nationality" placeholder="e.g. Indian, UAE"></div>
         <div class="form-group"><label>Profession</label><input type="text" id="a_prof" placeholder="e.g. Business Owner"></div>
         <div class="form-group">
-          <label>Emirate *</label>
-          <select id="a_emirate" required>
+          <label>Emirate</label>
+          <select id="a_emirate">
             <option value="">— Select Emirate —</option>
             <option>Dubai</option>
             <option>Abu Dhabi</option>
@@ -202,30 +203,53 @@
     <!-- DOCS TAB -->
     <div id="ctab-docs" style="display:none;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="form-group"><label>Passport Number</label><input type="text" id="a_passport_no" placeholder="A1234567"></div>
-        <div class="form-group"><label>Passport Expiry</label><input type="date" id="a_passport_expiry"></div>
-        <div class="form-group"><label>Emirates ID</label><input type="text" id="a_eid" placeholder="784-XXXX-XXXXXXX-X"></div>
-        <div class="form-group"><label>Emirates ID Expiry</label><input type="date" id="a_eid_expiry"></div>
-        <div class="form-group form-full">
-          <label>Address Proof Type</label>
-          <select id="a_addr_proof">
-            <option value="">— Select —</option>
-            <option>Utility Bill</option>
-            <option>Bank Statement</option>
-            <option>Tenancy Contract</option>
-            <option>Government Letter</option>
-            <option>Other</option>
-          </select>
+        <!-- RESIDENT DOCUMENTS -->
+        <div id="residentDocs" style="grid-column:1/-1;">
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--primary);">
+            📋 <strong>Resident - Documents Required</strong>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group"><label>Emirates ID</label><input type="text" id="a_eid" placeholder="784-XXXX-XXXXXXX-X"></div>
+            <div class="form-group"><label>Emirates ID Expiry</label><input type="date" id="a_eid_expiry"></div>
+          </div>
+        </div>
+        <!-- NON-RESIDENT DOCUMENTS -->
+        <div id="nonResidentDocs" style="grid-column:1/-1;display:none;">
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--primary);">
+            📋 <strong>Non-Resident - Documents Required</strong>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group"><label>Passport Number</label><input type="text" id="a_passport_no" placeholder="A1234567"></div>
+            <div class="form-group"><label>Passport Expiry</label><input type="date" id="a_passport_expiry"></div>
+          </div>
+        </div>
+        <!-- COMMON DOCUMENTS -->
+        <div style="grid-column:1/-1;">
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--text-dim);">
+            📋 <strong>Address Proof</strong>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group form-full">
+              <label>Address Proof Type</label>
+              <select id="a_addr_proof">
+                <option value="">— Select —</option>
+                <option>Utility Bill</option>
+                <option>Bank Statement</option>
+                <option>Tenancy Contract</option>
+                <option>Government Letter</option>
+                <option>Other</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
       <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-top:8px;font-size:12px;color:var(--text-dim);">
-        📎 To upload Passport, Emirates ID, or Address Proof files, save this client first then open their profile (👁️ View) and use the Upload Document button.
+        📎 To upload document files, save this individual first then open their profile (👁️ View) and use the Upload Document button.
       </div>
     </div>
     <!-- COMPLIANCE TAB -->
     <div id="ctab-compliance" style="display:none;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="form-group"><label>Account Number</label><input type="text" id="a_account_number" placeholder="e.g. ACC-10234"></div>
         <div class="form-group">
           <label>Mode of Account *</label>
           <select id="a_mode_of_ac" required>
@@ -492,19 +516,33 @@ function switchClientTab(name, btn) {
   document.getElementById('ctab-' + name).style.display = '';
 }
 
+function handleResidentChange() {
+  const isResident = document.getElementById('a_is_resident').checked;
+  const residentDocs = document.getElementById('residentDocs');
+  const nonResidentDocs = document.getElementById('nonResidentDocs');
+  
+  if (isResident) {
+    residentDocs.style.display = '';
+    nonResidentDocs.style.display = 'none';
+  } else {
+    residentDocs.style.display = 'none';
+    nonResidentDocs.style.display = '';
+  }
+}
+
 function filterClients() {
   const s  = document.getElementById('searchInput').value.toLowerCase();
-  const em = document.getElementById('emirateFilter').value;
+  const rs = document.getElementById('residentFilter').value;
   const md = document.getElementById('modeFilter').value;
   document.querySelectorAll('.client-row').forEach(row => {
     const matchS  = !s  || row.dataset.search.includes(s);
-    const matchEm = !em || row.dataset.emirate === em;
+    const matchRs = !rs || row.dataset.resident === rs;
     const matchMd = !md || row.dataset.mode === md;
-    row.style.display = (matchS && matchEm && matchMd) ? '' : 'none';
+    row.style.display = (matchS && matchRs && matchMd) ? '' : 'none';
   });
 }
 function clearFilters() {
-  ['searchInput','emirateFilter','modeFilter'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['searchInput','residentFilter','modeFilter'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   filterClients();
 }
 
@@ -530,7 +568,6 @@ function submitAddClient() {
   if (!name) { alert('Name is required'); return; }
   if (!document.getElementById('a_phone').value.trim()) { alert('Phone number is required'); return; }
   if (!document.getElementById('a_mode_of_ac').value) { alert('Mode of Account is required — please fill in the Compliance tab'); return; }
-  if (!document.getElementById('a_emirate').value) { alert('Emirate is required'); return; }
   if (!validateKycField('a')) return;
   fetch('/api/client/add', {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -543,8 +580,9 @@ function submitAddClient() {
       profession: document.getElementById('a_prof').value,
       address: document.getElementById('a_addr').value,
       notes: document.getElementById('a_notes').value,
-      emirate: document.getElementById('a_emirate').value,
+      emirate: document.getElementById('a_emirate').value || null,
       location: document.getElementById('a_location').value,
+      is_resident: document.getElementById('a_is_resident').checked,
       passport_no: document.getElementById('a_passport_no').value,
       passport_expiry: document.getElementById('a_passport_expiry').value || null,
       emirates_id: document.getElementById('a_eid').value,

@@ -157,8 +157,8 @@ def _run_migrations(conn):
                 'whatsapp_number','deal_after_vat','registration_screening_tool']:
         safe_alter('companies', col)
     safe_alter('dropdowns', 'description')
-    for col in ['nationality','passport_no','passport_expiry','emirates_id','emirates_id_expiry','address_proof','emirate','location','account_number','mode_of_ac','ac_status','id_type','pep_status','kyc_status','kyc_expiry_date','risk_status','screening_status','screening_date']:
-        coltype = 'DATE' if ('expiry' in col or col == 'screening_date') else 'TEXT'
+    for col in ['nationality','passport_no','passport_expiry','emirates_id','emirates_id_expiry','address_proof','emirate','location','account_number','mode_of_ac','ac_status','id_type','pep_status','kyc_status','kyc_expiry_date','risk_status','screening_status','screening_date','is_resident']:
+        coltype = 'DATE' if ('expiry' in col or col == 'screening_date') else ('BOOLEAN DEFAULT FALSE' if col == 'is_resident' else 'TEXT')
         safe_alter('clients', col, coltype)
     # Force-insert new dropdown values on existing DBs
     new_dd = [
@@ -1670,8 +1670,8 @@ def api_add_client():
             profession,address,notes,nationality,passport_no,passport_expiry,
             emirates_id,emirates_id_expiry,address_proof,emirate,location,
             account_number,mode_of_ac,ac_status,id_type,pep_status,kyc_status,kyc_expiry_date,
-            risk_status,screening_status,screening_date,created_by)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            risk_status,screening_status,screening_date,is_resident,created_by)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
           (d.get('name'), d.get('phone'), d.get('whatsapp_number'), d.get('email'),
            d.get('date_of_birth') or None, d.get('profession'), d.get('address'),
            d.get('notes'), d.get('nationality'), d.get('passport_no'),
@@ -1682,6 +1682,7 @@ def api_add_client():
            d.get('id_type'), d.get('pep_status'), d.get('kyc_status'),
            d.get('kyc_expiry_date') or None, d.get('risk_status'),
            d.get('screening_status'), d.get('screening_date') or None,
+           d.get('is_resident', False),
            session.get('user_id')))
         commit(conn)
         row = one(conn, 'SELECT id FROM clients ORDER BY id DESC LIMIT 1')
@@ -1703,7 +1704,7 @@ def api_edit_client(id):
             profession=?,address=?,notes=?,nationality=?,passport_no=?,passport_expiry=?,
             emirates_id=?,emirates_id_expiry=?,address_proof=?,emirate=?,location=?,
             account_number=?,mode_of_ac=?,ac_status=?,id_type=?,pep_status=?,kyc_status=?,
-            kyc_expiry_date=?,risk_status=?,screening_status=?,screening_date=?,
+            kyc_expiry_date=?,risk_status=?,screening_status=?,screening_date=?,is_resident=?,
             updated_at=CURRENT_TIMESTAMP WHERE id=?''',
           (d.get('name'), d.get('phone'), d.get('whatsapp_number'), d.get('email'),
            d.get('date_of_birth') or None, d.get('profession'), d.get('address'),
@@ -1714,7 +1715,8 @@ def api_edit_client(id):
            d.get('account_number'), d.get('mode_of_ac'), d.get('ac_status'),
            d.get('id_type'), d.get('pep_status'), d.get('kyc_status'),
            d.get('kyc_expiry_date') or None, d.get('risk_status'),
-           d.get('screening_status'), d.get('screening_date') or None, id))
+           d.get('screening_status'), d.get('screening_date') or None,
+           d.get('is_resident', False), id))
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
