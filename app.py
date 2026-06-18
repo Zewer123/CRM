@@ -493,12 +493,16 @@ def dashboard():
     def c(sql,p=None): return cnt(conn,sql,p or [])
     total=c('SELECT COUNT(*) FROM companies')
     active=c('SELECT COUNT(*) FROM companies WHERE ac_status=?',('Active',))
+    total_clients=c('SELECT COUNT(*) FROM clients')
+    pep_count=(c("SELECT COUNT(*) FROM companies WHERE pep='Yes'") +
+               c("SELECT COUNT(*) FROM clients WHERE pep_status='Yes'"))
     etl=c('SELECT COUNT(*) FROM companies WHERE trade_license_expiry<?',(today,))
     e30tl=c('SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ?',(today,today+timedelta(days=30)))
     eap=c('SELECT COUNT(*) FROM companies WHERE address_proof_expiry<?',(today,))
     e30ap=c('SELECT COUNT(*) FROM companies WHERE address_proof_expiry BETWEEN ? AND ?',(today,today+timedelta(days=30)))
     epass=c('SELECT COUNT(*) FROM ubos WHERE passport_expiry<?',(today,))
     e30p=c('SELECT COUNT(*) FROM ubos WHERE passport_expiry BETWEEN ? AND ?',(today,today+timedelta(days=30)))
+    eid_exp=c('SELECT COUNT(*) FROM ubos WHERE emirates_id_expiry<?',(today,))
     risk_rows=all_(conn,'SELECT risk_status,COUNT(*) as c FROM companies GROUP BY risk_status')
     risk_bd={r['risk_status']:r['c'] for r in risk_rows}
     doc_rows=all_(conn,'SELECT doc_status,COUNT(*) as c FROM companies GROUP BY doc_status')
@@ -587,7 +591,7 @@ def dashboard():
     except: pass
 
     conn.close()
-    return render_template('dashboard.html',total_companies=total,active_companies=active,
+    return render_template('dashboard.html',total_companies=total,active_companies=active,total_clients=total_clients,pep_count=pep_count,eid_exp=eid_exp,
         expired_tl=etl,expiring_30_tl=e30tl,
         expired_ap=eap,expiring_30_ap=e30ap,expired_pass=epass,expiring_30_pass=e30p,
         risk_breakdown=risk_bd,doc_breakdown=doc_bd,urgent_companies=urgent,
@@ -1888,6 +1892,7 @@ def client_detail(id):
     c['screening_date'] = str(sd)[:10] if sd else None
     c['kyc_expiry_status'] = exp_status(days_left(ke)) if ke else 'unknown'
     return render_template('client_detail.html', client=c, documents=docs)
+
 
 
 
