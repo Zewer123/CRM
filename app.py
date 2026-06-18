@@ -1595,8 +1595,11 @@ def api_add_client():
            d.get('kyc_expiry_date') or None, d.get('risk_status'),
            d.get('screening_status'), d.get('screening_date') or None,
            session.get('user_id')))
-        commit(conn); conn.close()
-        return jsonify({'success': True})
+        commit(conn)
+        row = one(conn, 'SELECT id FROM clients ORDER BY id DESC LIMIT 1')
+        client_id = row['id'] if row else None
+        conn.close()
+        return jsonify({'success': True, 'client_id': client_id})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -1852,5 +1855,6 @@ def client_detail(id):
     c['screening_date'] = str(sd)[:10] if sd else None
     c['kyc_expiry_status'] = exp_status(days_left(ke)) if ke else 'unknown'
     return render_template('client_detail.html', client=c, documents=docs)
+
 
 
