@@ -37,7 +37,14 @@
     <label>Search</label>
     <input type="text" id="searchInput" placeholder="Name, phone..." oninput="filterClients()">
   </div>
-  <div class="form-group" style="min-width:150px;">
+  <div class="form-group" style="min-width:140px;">
+    <label>Mode of Account</label>
+    <select id="modeFilter" onchange="filterClients()">
+      <option value="">All</option>
+      {% for m in modes %}<option>{{ m }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="form-group" style="min-width:130px;">
     <label>Emirate</label>
     <select id="emirateFilter" onchange="filterClients()">
       <option value="">All Emirates</option>
@@ -67,8 +74,8 @@
 </div>
 
 <!-- COLUMN HEADERS -->
-<div style="display:grid;grid-template-columns:1fr 180px 140px 140px;gap:0;padding:6px 16px;margin-bottom:4px;align-items:center;">
-  {% for h in ['Name','Phone','Emirate','Actions'] %}
+<div style="display:grid;grid-template-columns:1fr 160px 140px 140px 130px;gap:0;padding:6px 16px;margin-bottom:4px;align-items:center;">
+  {% for h in ['Customer Name','Contact No','Mode of Account','Emirate','Actions'] %}
   <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;{% if loop.last %}text-align:right;{% endif %}">{{ h }}</div>
   {% endfor %}
 </div>
@@ -82,8 +89,9 @@
   data-bd-day="{{ c.date_of_birth[8:10] if c.date_of_birth else '' }}"
   data-bd-today="{{ 'yes' if c.birthday_today else 'no' }}"
   data-emirate="{{ c.emirate or '' }}"
+  data-mode="{{ c.mode_of_ac or '' }}"
   style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 16px;
-    display:grid;grid-template-columns:1fr 180px 140px 140px;gap:0;align-items:center;
+    display:grid;grid-template-columns:1fr 160px 140px 140px 130px;gap:0;align-items:center;
     transition:all 0.15s;
     {% if c.birthday_today %}border-left:3px solid #d97706;
     {% elif c.days_to_birthday is not none and c.days_to_birthday <= 7 %}border-left:3px solid #fcd34d;
@@ -91,7 +99,7 @@
   onmouseover="this.style.borderColor='var(--primary)';this.style.background='var(--surface3)'"
   onmouseout="this.style.borderColor='{% if c.birthday_today %}#d97706{% elif c.days_to_birthday is not none and c.days_to_birthday <= 7 %}#fcd34d{% else %}var(--border){% endif %}';this.style.background='var(--surface)'">
 
-  <!-- NAME -->
+  <!-- CUSTOMER NAME -->
   <div style="padding-right:12px;">
     <div style="font-weight:600;color:var(--text);font-size:14px;">{% if c.birthday_today %}🎂 {% endif %}{{ c.name }}</div>
     {% if c.profession %}<div style="font-size:11px;color:var(--primary);margin-top:2px;">💼 {{ c.profession }}</div>{% endif %}
@@ -104,11 +112,17 @@
     {% endif %}
   </div>
 
-  <!-- PHONE -->
+  <!-- CONTACT NO -->
   <div>
-    {% if c.phone %}<div style="font-size:12px;color:var(--text-muted);">📞 {{ c.phone }}</div>{% endif %}
+    {% if c.phone %}<div style="font-size:12px;color:var(--text-muted);">📞 {{ c.phone }}</div>{% else %}<div style="font-size:12px;color:#fca5a5;">⚠️ Not set</div>{% endif %}
     {% if c.email %}<div style="font-size:11px;color:var(--text-dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">✉️ {{ c.email }}</div>{% endif %}
-    {% if not c.phone and not c.email %}<div style="font-size:12px;color:var(--text-dim);">—</div>{% endif %}
+  </div>
+
+  <!-- MODE OF ACCOUNT -->
+  <div>
+    {% if c.mode_of_ac %}
+    <span style="font-size:11px;padding:2px 10px;border-radius:20px;font-weight:600;background:var(--primary-bg);color:var(--primary);">{{ c.mode_of_ac }}</span>
+    {% else %}<div style="font-size:12px;color:#fca5a5;">⚠️ Not set</div>{% endif %}
   </div>
 
   <!-- EMIRATE -->
@@ -116,7 +130,7 @@
     {% if c.emirate %}
     <div style="font-size:12px;color:var(--text-muted);">📍 {{ c.emirate }}</div>
     {% if c.location %}<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">{{ c.location }}</div>{% endif %}
-    {% else %}<div style="font-size:12px;color:var(--text-dim);">—</div>{% endif %}
+    {% else %}<div style="font-size:12px;color:#fca5a5;">⚠️ Not set</div>{% endif %}
   </div>
 
   <!-- ACTIONS -->
@@ -156,8 +170,8 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div class="form-group form-full"><label>Full Name *</label><input type="text" id="a_name" placeholder="Client full name"></div>
         <div class="form-group">
-          <label>Phone</label>
-          <input type="text" id="a_phone" placeholder="+971 50 123 4567" oninput="syncWA('a')">
+          <label>Phone *</label>
+          <input type="text" id="a_phone" placeholder="+971 50 123 4567" required oninput="syncWA('a')">
         </div>
         <div class="form-group">
           <label>WhatsApp <button type="button" onclick="copyPhoneToWA('a')" class="btn btn-ghost btn-sm" style="padding:1px 8px;font-size:10px;margin-left:6px;">Same as Phone</button></label>
@@ -168,8 +182,8 @@
         <div class="form-group"><label>Nationality</label><input type="text" id="a_nationality" placeholder="e.g. Indian, UAE"></div>
         <div class="form-group"><label>Profession</label><input type="text" id="a_prof" placeholder="e.g. Business Owner"></div>
         <div class="form-group">
-          <label>Emirate</label>
-          <select id="a_emirate">
+          <label>Emirate *</label>
+          <select id="a_emirate" required>
             <option value="">— Select Emirate —</option>
             <option>Dubai</option>
             <option>Abu Dhabi</option>
@@ -213,8 +227,8 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div class="form-group"><label>Account Number</label><input type="text" id="a_account_number" placeholder="e.g. ACC-10234"></div>
         <div class="form-group">
-          <label>Mode of Account</label>
-          <select id="a_mode_of_ac">
+          <label>Mode of Account *</label>
+          <select id="a_mode_of_ac" required>
             <option value="">— Select —</option>
             {% for m in modes %}<option>{{ m }}</option>{% endfor %}
           </select>
@@ -479,16 +493,18 @@ function switchClientTab(name, btn) {
 }
 
 function filterClients() {
-  const s = document.getElementById('searchInput').value.toLowerCase();
+  const s  = document.getElementById('searchInput').value.toLowerCase();
   const em = document.getElementById('emirateFilter').value;
+  const md = document.getElementById('modeFilter').value;
   document.querySelectorAll('.client-row').forEach(row => {
-    const matchS  = !s || row.dataset.search.includes(s);
+    const matchS  = !s  || row.dataset.search.includes(s);
     const matchEm = !em || row.dataset.emirate === em;
-    row.style.display = (matchS && matchEm) ? '' : 'none';
+    const matchMd = !md || row.dataset.mode === md;
+    row.style.display = (matchS && matchEm && matchMd) ? '' : 'none';
   });
 }
 function clearFilters() {
-  ['searchInput','emirateFilter'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['searchInput','emirateFilter','modeFilter'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   filterClients();
 }
 
@@ -512,6 +528,9 @@ function validateKycField(prefix) {
 function submitAddClient() {
   const name = document.getElementById('a_name').value.trim();
   if (!name) { alert('Name is required'); return; }
+  if (!document.getElementById('a_phone').value.trim()) { alert('Phone number is required'); return; }
+  if (!document.getElementById('a_mode_of_ac').value) { alert('Mode of Account is required — please fill in the Compliance tab'); return; }
+  if (!document.getElementById('a_emirate').value) { alert('Emirate is required'); return; }
   if (!validateKycField('a')) return;
   fetch('/api/client/add', {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -634,6 +653,7 @@ function deleteClient(id, name) {
 }
 </script>
 {% endblock %}
+
 
 
 
