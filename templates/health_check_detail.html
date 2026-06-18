@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+{% block title %}Health Check — {{ company.client_name }} - Zewer AML{% endblock %}
+{% block content %}
+
+<!-- HEADER -->
+<div class="page-header" style="margin-bottom:24px;">
+  <div>
+    <a href="{{ url_for('health_check') }}" style="color:var(--text-dim);font-size:12px;text-decoration:none;">← Health Check</a>
+    <div class="page-title" style="margin-top:4px;">🏥 {{ company.client_name }}</div>
+    <div style="font-size:12px;color:var(--primary);margin-top:2px;">{{ company.ac_code }}</div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ Print</button>
+    <button class="btn btn-ghost btn-sm" onclick="saveReport()">💾 Save Note</button>
+    <button class="btn btn-ghost btn-sm" id="btnEmail" onclick="emailReport()">📧 Email</button>
+    {% set wa = company.whatsapp_number or company.mobile %}
+    {% if wa %}
+    <a id="btnWhatsApp" href="#" onclick="shareWhatsApp(event)"
+       class="btn btn-wa btn-sm">💬 WhatsApp</a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- TOP ROW: Score + Company Info + Risk -->
+<div style="display:grid;grid-template-columns:220px 1fr auto;gap:18px;margin-bottom:20px;align-items:start;">
+
+  <!-- SCORE DONUT -->
+  <div class="card" style="text-align:center;padding:24px 16px;">
+    <div style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Health Score</div>
+    <div style="position:relative;width:140px;height:140px;margin:0 auto 16px;">
+      <svg viewBox="0 0 140 140" style="transform:rotate(-90deg);">
+        <circle cx="70" cy="70" r="58" fill="none" stroke="var(--surface3)" stroke-width="14"/>
+        <circle cx="70" cy="70" r="58" fill="none" stroke="{{ grade_color }}" stroke-width="14"
+          stroke-dasharray="{{ (score / 100 * 364)|round(1) }} 364"
+          stroke-linecap="round"/>
+      </svg>
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;">
+        <div style="font-size:32px;font-weight:800;color:{{ grade_color }};line-height:1;">{{ score }}</div>
+        <div style="font-size:11px;color:var(--text-dim);">/ 100</div>
+      </div>
+    </div>
+    <div style="font-size:18px;font-weight:700;color:{{ grade_color }};">{{ grade }}</div>
+    <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">{{ today }}</div>
+    {% if deductions %}
+    <div style="margin-top:16px;text-align:left;background:var(--surface2);border-radius:8px;padding:10px;">
+      <div style="font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:6px;">DEDUCTIONS</div>
+      {% for d in deductions %}
+      <div style="font-size:11px;color:#fca5a5;margin-bottom:3px;">− {{ d }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- COMPANY INFO -->
+  <div class="card" style="padding:20px;">
+    <div style="font-size:12px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Company Details</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13px;">
+      {% for label, val in [
+        ('AC Code', company.ac_code),
+        ('Status', company.ac_status),
+        ('Type', company.type_of_client),
+        ('Nature', company.nature),
+        ('Region', company.region),
+        ('Mode of AC', company.mode_of_ac),
+        ('Account Manager', company.account_manager),
+        ('Contact Person', company.contact_person_name),
+        ('Phone', company.contact_person_number or company.mobile),
+        ('Email', company.email_id),
+        ('Trade License No.', company.trade_license_no),
+        ('Issuing Authority', company.issuing_authority),
+        ('TRN', company.tax_no_trn),
+        ('Country', company.country_of_incorporation),
+      ] %}
+      {% if val %}
+      <div>
+        <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">{{ label }}</div>
+        <div style="color:var(--text);font-weight:500;margin-top:1px;">{{ val }}</div>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- RISK & COMPLIANCE BADGES -->
+  <div class="card" style="padding:20px;min-width:170px;">
+    <div style="font-size:12px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Compliance</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      {% set risk_color = '#ef4444' if company.risk_status=='High' else '#f59e0b' if company.risk_status=='Medium' else '#22c55e' if company.risk_status=='Low' else '#78716c' %}
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+        <span style="color:var(--text-dim);">Risk</span>
+        <span style="font-weight:700;color:{{ risk_color }};background:{{ risk_color }}22;padding:2px 10px;border-radius:20px;">{{ company.risk_status or '—' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+        <span style="color:var(--text-dim);">KYC</span>
+        <span style="font-weight:600;color:var(--text-muted);">{{ company.kyc_status or '—' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+        <span style="color:var(--text-dim);">Docs</span>
+        <span style="font-weight:600;color:{% if company.doc_status=='Completed' %}#22c55e{% else %}#f59e0b{% endif %};">{{ company.doc_status or '—' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+        <span style="color:var(--text-dim);">PEP</span>
+        <span style="font-weight:600;color:{% if company.pep=='Yes' %}#ef4444{% else %}#22c55e{% endif %};">{{ company.pep or 'No' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+        <span style="color:var(--text-dim);">Screening</span>
+        <span style="font-weight:600;color:var(--text-muted);">{{ company.registration_screening_tool or '—' }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+        <span style="color:var(--text-dim);">Source of Funds</span>
+        <span style="font-weight:600;color:var(--text-muted);">{{ company.source_of_fund or '—' }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DOCUMENT STATUS TABLE -->
+<div class="card" style="margin-bottom:20px;padding:0;overflow:hidden;">
+  <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+    <span style="font-size:16px;">📄</span>
+    <span style="font-weight:700;color:var(--text);">Document Status</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Document</th>
+          <th>Category</th>
+          <th>Reference</th>
+          <th>Expiry Date</th>
+          <th>Days Left</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in docs %}
+        <tr>
+          <td style="font-weight:600;color:var(--text);">{{ d.name }}</td>
+          <td style="font-size:12px;color:var(--text-dim);">{{ d.category }}</td>
+          <td style="font-size:12px;color:var(--text-muted);">{{ d.ref or '—' }}</td>
+          <td style="font-size:12px;color:var(--text-muted);">{{ d.expiry or '—' }}</td>
+          <td>
+            {% if d.days is not none %}
+              {% if d.days < 0 %}
+              <span style="color:#fca5a5;font-weight:700;">{{ d.days|abs }}d overdue</span>
+              {% elif d.days <= 30 %}
+              <span style="color:#fb923c;font-weight:700;">{{ d.days }}d</span>
+              {% elif d.days <= 90 %}
+              <span style="color:#fcd34d;font-weight:600;">{{ d.days }}d</span>
+              {% else %}
+              <span style="color:#86efac;">{{ d.days }}d</span>
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if d.status == 'ok' %}
+            <span class="badge badge-active">✅ Valid</span>
+            {% elif d.status == 'warning' %}
+            <span style="font-size:11px;padding:2px 10px;border-radius:20px;background:rgba(245,158,11,0.12);color:#fcd34d;font-weight:600;">⚠️ Expiring</span>
+            {% elif d.status == 'critical' %}
+            <span style="font-size:11px;padding:2px 10px;border-radius:20px;background:rgba(239,68,68,0.12);color:#fca5a5;font-weight:700;">🔴 Critical</span>
+            {% elif d.status == 'expired' %}
+            <span style="font-size:11px;padding:2px 10px;border-radius:20px;background:rgba(239,68,68,0.2);color:#ef4444;font-weight:700;">❌ Expired</span>
+            {% else %}
+            <span style="font-size:11px;color:var(--text-dim);">— Missing</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- UBO SECTION -->
+{% if ubos %}
+<div class="card" style="margin-bottom:20px;padding:0;overflow:hidden;">
+  <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+    <span style="font-size:16px;">👤</span>
+    <span style="font-weight:700;color:var(--text);">Beneficial Owners / Authorized Persons</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th><th>Position</th><th>Share %</th><th>Nationality</th>
+          <th>Passport</th><th>Passport Expiry</th><th>Emirates ID Expiry</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in ubos %}
+        <tr>
+          <td style="font-weight:600;color:var(--text);">{{ u.person_name }}</td>
+          <td style="font-size:12px;color:var(--text-dim);">{{ u.position or '—' }}</td>
+          <td style="color:var(--text-muted);">{{ u.share_percentage or '—' }}{% if u.share_percentage %}%{% endif %}</td>
+          <td style="font-size:12px;color:var(--text-muted);">{{ u.nationality or '—' }}</td>
+          <td style="font-size:12px;color:var(--text-muted);">{{ u.passport_no or '—' }}</td>
+          <td style="font-size:12px;">
+            {% if u.passport_expiry %}
+              {% set pp_days = (u.passport_expiry|string)[:10] %}
+              <span style="color:{% if u.passport_expiry|string < today %}#fca5a5{% else %}var(--text-muted){% endif %};">
+                {{ pp_days }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td style="font-size:12px;">
+            {% if u.emirates_id_expiry %}
+              <span style="color:{% if u.emirates_id_expiry|string < today %}#fca5a5{% else %}var(--text-muted){% endif %};">
+                {{ u.emirates_id_expiry|string|truncate(10,True,'') }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if u.doc_status == 'Completed' %}<span class="badge badge-active">✅ Complete</span>
+            {% else %}<span style="font-size:11px;color:#fcd34d;">⚠️ {{ u.doc_status or 'Pending' }}</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- NOTES / REMARKS -->
+<div class="card" style="margin-bottom:20px;">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+    <span style="font-size:16px;">📝</span>
+    <span style="font-weight:700;color:var(--text);">Notes & Remarks</span>
+    <span style="font-size:11px;color:var(--text-dim);margin-left:auto;">Saved to company record</span>
+  </div>
+  <textarea id="healthNote" rows="4" placeholder="Add compliance notes, action items, follow-up remarks for this company..."
+    style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+      color:var(--text);padding:12px;font-size:13px;resize:vertical;font-family:inherit;">{{ company.health_note or '' }}</textarea>
+  <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+    <button class="btn btn-primary btn-sm" onclick="saveNote()">💾 Save Note</button>
+  </div>
+  <div id="noteSaved" style="display:none;color:#86efac;font-size:12px;margin-top:6px;text-align:right;">✅ Note saved</div>
+</div>
+
+<!-- PRINT STYLES -->
+<style>
+@media print {
+  .navbar, .page-header button, .btn, #healthNote, textarea, .modal-overlay { display:none!important; }
+  body { background:#fff!important; color:#000!important; }
+  .card { border:1px solid #ccc!important; background:#fff!important; page-break-inside:avoid; }
+  * { color:#000!important; }
+  table { border-collapse:collapse; }
+  th, td { border:1px solid #ddd!important; padding:6px!important; font-size:11px!important; }
+  .page-title { color:#000!important; font-size:20px!important; }
+}
+</style>
+
+{% endblock %}
+{% block scripts %}
+<script>
+const CO_ID = {{ company.id }};
+const CO_NAME = {{ company.client_name|tojson }};
+const CO_AC = {{ company.ac_code|tojson }};
+const SCORE = {{ score }};
+const GRADE = {{ grade|tojson }};
+const WA_NUMBER = {{ (company.whatsapp_number or company.mobile or '')|tojson }};
+const TODAY = {{ today|tojson }};
+
+function saveNote() {
+  const note = document.getElementById('healthNote').value;
+  fetch(`/api/company/${CO_ID}/health-note`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({note})
+  }).then(r => r.json()).then(d => {
+    if (d.success) {
+      document.getElementById('noteSaved').style.display = 'block';
+      setTimeout(() => document.getElementById('noteSaved').style.display = 'none', 3000);
+    } else alert('Error: ' + d.error);
+  });
+}
+
+function saveReport() {
+  saveNote();
+}
+
+function buildReportText() {
+  const note = document.getElementById('healthNote').value;
+  let txt = `*ZEWER AML CRM — HEALTH CHECK REPORT*\n`;
+  txt += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+  txt += `🏢 *${CO_NAME}*\n`;
+  txt += `AC Code: ${CO_AC}\n`;
+  txt += `Date: ${TODAY}\n\n`;
+  txt += `🏥 *Health Score: ${SCORE}/100 — ${GRADE}*\n\n`;
+  txt += `📄 *Document Status:*\n`;
+  document.querySelectorAll('tbody tr').forEach(row => {
+    const cells = row.querySelectorAll('td');
+    if (cells.length >= 6) {
+      const docName = cells[0].textContent.trim();
+      const expiry = cells[3].textContent.trim();
+      const status = cells[5].textContent.trim();
+      if (docName) txt += `  • ${docName}: ${expiry} — ${status}\n`;
+    }
+  });
+  if (note) txt += `\n📝 *Notes:*\n${note}`;
+  txt += `\n\n_Zewer Jewellery LLC — AML Compliance_`;
+  return txt;
+}
+
+function shareWhatsApp(e) {
+  e.preventDefault();
+  if (!WA_NUMBER) { alert('No WhatsApp number found for this company'); return; }
+  const clean = WA_NUMBER.replace(/[^0-9]/g,'');
+  const msg = buildReportText();
+  window.open(`https://wa.me/${clean}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+function emailReport() {
+  const note = document.getElementById('healthNote').value;
+  const email = {{ (company.email_id or '')|tojson }};
+  const subject = encodeURIComponent(`Health Check Report — ${CO_NAME} — ${TODAY}`);
+  const body = encodeURIComponent(buildReportText().replace(/\*/g,'').replace(/━/g,'-'));
+  window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+}
+</script>
+{% endblock %}

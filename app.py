@@ -163,6 +163,7 @@ def _run_migrations(conn):
     safe_alter('companies', 'group_name')
     safe_alter('companies', 'kyc_expiry_date', 'DATE')
     safe_alter('companies', 'id_type')
+    safe_alter('companies', 'health_note')
     for col in ['contact_person_name','contact_person_number','account_manager',
                 'whatsapp_number','deal_after_vat','registration_screening_tool']:
         safe_alter('companies', col)
@@ -894,6 +895,118 @@ def alerts():
     return render_template('alerts.html', all_alerts=all_alerts, managers=managers,
         all_users=all_users, today=str(today))
 
+@app.route('/health-check')
+@compliance_required
+def health_check():
+    conn = get_db()
+    companies = all_(conn, 'SELECT id, ac_code, client_name FROM companies ORDER BY client_name')
+    conn.close()
+    return render_template('health_check.html', companies=companies)
+
+@app.route('/health-check/<int:id>')
+@compliance_required
+def health_check_detail(id):
+    conn = get_db()
+    co = one(conn, 'SELECT * FROM companies WHERE id=?', (id,))
+    if not co: conn.close(); return redirect(url_for('health_check'))
+    ubos = all_(conn, 'SELECT * FROM ubos WHERE company_id=? ORDER BY share_percentage DESC', (id,))
+    conn.close()
+    today = dubai_today()
+
+    def doc_status(expiry):
+        dl = days_left(expiry)
+        if expiry is None: return 'missing', None
+        if dl is None: return 'missing', None
+        if dl < 0: return 'expired', dl
+        if dl <= 30: return 'critical', dl
+        if dl <= 90: return 'warning', dl
+        return 'ok', dl
+
+    # Build document list
+    docs = []
+
+    # Trade License
+    tl_st, tl_dl = doc_status(co.get('trade_license_expiry'))
+    docs.append({'name': 'Trade License', 'ref': co.get('trade_license_no'), 'expiry': str(co.get('trade_license_expiry',''))[:10] if co.get('trade_license_expiry') else None, 'days': tl_dl, 'status': tl_st, 'category': 'Company'})
+
+    # Address Proof
+    ap_st, ap_dl = doc_status(co.get('address_proof_expiry'))
+    docs.append({'name': 'Address Proof', 'ref': co.get('address_proof_type'), 'expiry': str(co.get('address_proof_expiry',''))[:10] if co.get('address_proof_expiry') else None, 'days': ap_dl, 'status': ap_st, 'category': 'Company'})
+
+    # UBO documents
+    for u in ubos:
+        pp_st, pp_dl = doc_status(u.get('passport_expiry'))
+        docs.append({'name': f"Passport — {u['person_name']}", 'ref': u.get('passport_no'), 'expiry': str(u.get('passport_expiry',''))[:10] if u.get('passport_expiry') else None, 'days': pp_dl, 'status': pp_st, 'category': u.get('position','UBO')})
+        eid_st, eid_dl = doc_status(u.get('emirates_id_expiry'))
+        docs.append({'name': f"Emirates ID — {u['person_name']}", 'ref': u.get('emirates_id'), 'expiry': str(u.get('emirates_id_expiry',''))[:10] if u.get('emirates_id_expiry') else None, 'days': eid_dl, 'status': eid_st, 'category': u.get('position','UBO')})
+
+    # KYC expiry
+    kyc_st, kyc_dl = doc_status(co.get('kyc_expiry_date'))
+    docs.append({'name': 'KYC Review', 'ref': co.get('kyc_status'), 'expiry': str(co.get('kyc_expiry_date',''))[:10] if co.get('kyc_expiry_date') else None, 'days': kyc_dl, 'status': kyc_st, 'category': 'Compliance'})
+
+    # ── HEALTH SCORE CALCULATION ──────────────────────────────
+    # Start at 100, deduct for issues
+    score = 100
+    deductions = []
+
+    # Document issues
+    for d in docs:
+        if d['status'] == 'expired':
+            score -= 15
+            deductions.append(f"{d['name']} expired")
+        elif d['status'] == 'critical':
+            score -= 8
+            deductions.append(f"{d['name']} expiring in {d['days']}d")
+        elif d['status'] == 'warning':
+            score -= 4
+            deductions.append(f"{d['name']} expiring in {d['days']}d")
+        elif d['status'] == 'missing':
+            score -= 5
+            deductions.append(f"{d['name']} missing")
+
+    # Risk level
+    risk = (co.get('risk_status') or '').lower()
+    if risk == 'high': score -= 10; deductions.append('High risk client')
+    elif risk == 'medium': score -= 5; deductions.append('Medium risk client')
+
+    # KYC status
+    kyc = (co.get('kyc_status') or '').lower()
+    if 'not' in kyc or 'pending' in kyc: score -= 8; deductions.append('KYC not completed')
+    elif 'expired' in kyc: score -= 10; deductions.append('KYC expired')
+
+    # Doc status
+    if co.get('doc_status') == 'Incompleted': score -= 5; deductions.append('Documents incomplete')
+
+    # PEP
+    if (co.get('pep') or '').lower() == 'yes': score -= 5; deductions.append('PEP flagged')
+
+    score = max(0, min(100, score))
+
+    if score >= 90: grade = 'Excellent'; grade_color = '#22c55e'
+    elif score >= 70: grade = 'Good'; grade_color = '#86efac'
+    elif score >= 50: grade = 'Average'; grade_color = '#f59e0b'
+    else: grade = 'Poor'; grade_color = '#ef4444'
+
+    return render_template('health_check_detail.html',
+        company=co, ubos=ubos, docs=docs,
+        score=score, grade=grade, grade_color=grade_color,
+        deductions=deductions, today=str(today))
+
+@app.route('/api/company/<int:id>/health-note', methods=['POST'])
+@compliance_required
+def api_save_health_note(id):
+    d = request.get_json()
+    try:
+        conn = get_db()
+        x(conn, 'UPDATE companies SET health_note=? WHERE id=?', (d.get('note',''), id))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f'Error saving health note: {e}')
+        try: conn.close()
+        except: pass
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/reports')
 @compliance_required
 def reports():
@@ -1536,9 +1649,45 @@ def export_report():
             filtered.append(row)
         
         rows = filtered
-    elif rt=='kyc': rows=all_(conn,'SELECT ac_code,client_name,kyc_status,doc_status,risk_status,verified_by,verified_date FROM companies ORDER BY kyc_status')
-    elif rt=='risk': rows=all_(conn,'SELECT ac_code,client_name,risk_status,doc_status,kyc_status,region,account_manager FROM companies ORDER BY risk_status')
-    else: rows=all_(conn,'SELECT * FROM companies ORDER BY client_name')
+    elif rt=='kyc':
+        w='1=1'; p=[]
+        df=request.args.get('from',''); dt=request.args.get('to','')
+        if df: w+=' AND created_at >= ?'; p.append(df)
+        if dt: w+=' AND created_at <= ?'; p.append(dt+' 23:59:59')
+        rows=all_(conn,f'SELECT ac_code,client_name,kyc_status,kyc_expiry_date,doc_status,risk_status,verified_by,verified_date,followup_details FROM companies WHERE {w} ORDER BY kyc_status',p or None)
+    elif rt=='risk':
+        w='1=1'; p=[]
+        df=request.args.get('from',''); dt=request.args.get('to','')
+        if df: w+=' AND created_at >= ?'; p.append(df)
+        if dt: w+=' AND created_at <= ?'; p.append(dt+' 23:59:59')
+        rows=all_(conn,f'SELECT ac_code,client_name,risk_status,doc_status,kyc_status,pep,source_of_fund,moa,undertaking,registration_screening_tool,region,account_manager FROM companies WHERE {w} ORDER BY risk_status',p or None)
+    elif rt=='ubo':
+        rows=all_(conn,'''SELECT c.ac_code,c.client_name,u.person_name,u.position,u.share_percentage,
+            u.nationality,u.residential_status,u.passport_no,u.passport_expiry,
+            u.emirates_id,u.emirates_id_expiry,u.doc_status,u.verified_by,u.verified_date
+            FROM ubos u JOIN companies c ON u.company_id=c.id
+            ORDER BY c.ac_code,u.share_percentage DESC''')
+    elif rt=='tasks':
+        status_f=request.args.get('status','all')
+        w='1=1'; p=[]
+        if status_f and status_f!='all': w+=' AND t.status=?'; p.append(status_f)
+        df=request.args.get('from',''); dt=request.args.get('to','')
+        if df: w+=' AND t.created_at >= ?'; p.append(df)
+        if dt: w+=' AND t.created_at <= ?'; p.append(dt+' 23:59:59')
+        rows=all_(conn,f'''SELECT t.title,t.description,t.priority,t.status,t.due_date,
+            t.created_at,u.name as assigned_to,cu.name as created_by,c.ac_code,c.client_name as company
+            FROM tasks t LEFT JOIN users u ON t.assigned_to=u.id
+            LEFT JOIN users cu ON t.created_by=cu.id
+            LEFT JOIN companies c ON t.company_id=c.id
+            WHERE {w} ORDER BY t.priority,t.due_date''', p or None)
+    elif rt=='all':
+        w='1=1'; p=[]
+        df=request.args.get('from',''); dt=request.args.get('to','')
+        if df: w+=' AND created_at >= ?'; p.append(df)
+        if dt: w+=' AND created_at <= ?'; p.append(dt+' 23:59:59')
+        rows=all_(conn,f'SELECT ac_code,client_name,ac_status,nature,type_of_client,mode_of_ac,region,telephone,mobile,email_id,contact_person_name,account_manager,risk_status,doc_status,kyc_status,trade_license_no,trade_license_expiry,address_proof_expiry,created_at FROM companies WHERE {w} ORDER BY client_name',p or None)
+    else:
+        rows=all_(conn,'SELECT * FROM companies ORDER BY client_name')
     conn.close()
     fname=f'report_{rt}_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
     if fmt=='xlsx' and HAS_XL:
