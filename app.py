@@ -144,6 +144,8 @@ def _run_migrations(conn):
     for col in ['contact_number','mobile']:
         safe_alter('users', col)
     safe_alter('companies', 'group_name')
+    safe_alter('companies', 'kyc_expiry_date', 'DATE')
+    safe_alter('companies', 'id_type')
     for col in ['contact_person_name','contact_person_number','account_manager',
                 'whatsapp_number','deal_after_vat','registration_screening_tool']:
         safe_alter('companies', col)
@@ -153,7 +155,7 @@ def _run_migrations(conn):
         safe_alter('clients', col, coltype)
     # Force-insert new dropdown values on existing DBs
     new_dd = [
-        ('ID TYPE','National ID'),('ID TYPE','Passport'),('ID TYPE','Emirates ID'),('ID TYPE','Visa No'),
+        ('ID TYPE','National ID'),('ID TYPE','Passport'),('ID TYPE','Emirates ID'),('ID TYPE','Visa No'),('ID TYPE','Other'),
         ('SCREENING REGISTRATION STATUS','Yes'),('SCREENING REGISTRATION STATUS','No'),
         ('SCREENING REGISTRATION STATUS','Not Required'),('SCREENING REGISTRATION STATUS','Pending'),
     ]
@@ -191,7 +193,7 @@ def _pg_schema(conn):
             doc_status TEXT DEFAULT 'Incompleted', screening_date DATE,
             registration_screening_tool TEXT, risk_status TEXT DEFAULT 'Unspecified',
             verified_by TEXT, verified_date DATE, followup_details TEXT,
-            crowe_feedback TEXT, zewer_comments TEXT, group_name TEXT, created_by INTEGER,
+            crowe_feedback TEXT, zewer_comments TEXT, group_name TEXT, kyc_expiry_date DATE, id_type TEXT, created_by INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
         """CREATE TABLE IF NOT EXISTS ubos (
@@ -283,7 +285,7 @@ def _sqlite_schema(conn):
             doc_status TEXT DEFAULT 'Incompleted', screening_date DATE,
             registration_screening_tool TEXT, risk_status TEXT DEFAULT 'Unspecified',
             verified_by TEXT, verified_date DATE, followup_details TEXT,
-            crowe_feedback TEXT, zewer_comments TEXT, group_name TEXT, created_by INTEGER,
+            crowe_feedback TEXT, zewer_comments TEXT, group_name TEXT, kyc_expiry_date DATE, id_type TEXT, created_by INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         CREATE TABLE IF NOT EXISTS ubos (
@@ -560,6 +562,8 @@ def dashboard():
     kyc_alerts = []
     try:
         kyc_clients = all_(conn, "SELECT id,name,kyc_expiry_date,kyc_status FROM clients WHERE kyc_expiry_date IS NOT NULL")
+        # Also add companies with expiring KYC
+        kyc_cos = all_(conn, "SELECT id,client_name as name,kyc_expiry_date,kyc_status FROM companies WHERE kyc_expiry_date IS NOT NULL")
         for cl in kyc_clients:
             ke = cl.get('kyc_expiry_date')
             if not ke: continue
@@ -571,6 +575,14 @@ def dashboard():
                     'days_left': dl, 'is_expired': dl < 0,
                     'kyc_status': cl.get('kyc_status')
                 })
+        for co in kyc_cos:
+            ke = co.get('kyc_expiry_date')
+            if not ke: continue
+            dl = days_left(ke)
+            if dl is not None and dl <= 90:
+                kyc_alerts.append({'id': co['id'], 'name': co['name'] + ' (Co)',
+                    'kyc_expiry_date': str(ke)[:10], 'days_left': dl,
+                    'is_expired': dl < 0, 'kyc_status': co.get('kyc_status'), 'type': 'company'})
         kyc_alerts.sort(key=lambda x: x['days_left'])
     except: pass
 
@@ -619,7 +631,8 @@ def company_new():
     conn=get_db()
     staff=all_(conn,'SELECT id,name FROM users WHERE is_active=1 ORDER BY name')
     conn.close()
-    return render_template('company_form.html',dropdown_data=dropdowns(),company=None,ubos=[],edit=False,staff_users=staff)
+    max_kyc = (dubai_today().replace(year=dubai_today().year+2)).isoformat()
+    return render_template('company_form.html',dropdown_data=dropdowns(),company=None,ubos=[],edit=False,staff_users=staff,max_kyc_date=max_kyc)
 
 @app.route('/company/<int:id>')
 @compliance_required
@@ -649,7 +662,8 @@ def company_edit(id):
     ubos=all_(conn,'SELECT * FROM ubos WHERE company_id=? ORDER BY share_percentage DESC',(id,))
     staff=all_(conn,'SELECT id,name FROM users WHERE is_active=1 ORDER BY name')
     conn.close()
-    return render_template('company_form.html',dropdown_data=dropdowns(),company=co,ubos=ubos,edit=True,staff_users=staff)
+    max_kyc = (dubai_today().replace(year=dubai_today().year+2)).isoformat()
+    return render_template('company_form.html',dropdown_data=dropdowns(),company=co,ubos=ubos,edit=True,staff_users=staff,max_kyc_date=max_kyc)
 
 def _cv(d):
     return (d.get('ac_opening_date') or None,d.get('ac_status','Active'),d.get('active_till_year'),
@@ -664,7 +678,8 @@ def _cv(d):
         d.get('moa'),d.get('pep'),d.get('undertaking'),d.get('source_of_fund'),
         d.get('software_updation'),d.get('doc_status','Incompleted'),d.get('screening_date') or None,
         d.get('registration_screening_tool'),d.get('risk_status','Unspecified'),d.get('verified_by'),
-        d.get('verified_date') or None,d.get('followup_details'),d.get('crowe_feedback'),d.get('zewer_comments'))
+        d.get('verified_date') or None,d.get('followup_details'),d.get('crowe_feedback'),d.get('zewer_comments'),
+           d.get('kyc_expiry_date') or None, d.get('id_type'))
 
 def _save_ubos(conn,cid,ubos):
     x(conn,'DELETE FROM ubos WHERE company_id=?',(cid,))
@@ -682,6 +697,8 @@ def _save_ubos(conn,cid,ubos):
 @compliance_required
 def api_add_company():
     d=request.get_json()
+    kyc_err = _validate_kyc_expiry(d.get('kyc_expiry_date'))
+    if kyc_err: return jsonify({'success':False,'error':kyc_err}),400
     try:
         conn=get_db()
         x(conn,'''INSERT INTO companies (ac_code,client_name,ac_opening_date,ac_status,active_till_year,
@@ -691,8 +708,8 @@ def api_add_company():
             incorporation_date,trade_license_expiry,tax_no_trn,vat_cert,vat_declaration,deal_after_vat,
             num_beneficial_owners,moa,pep,undertaking,source_of_fund,software_updation,doc_status,
             screening_date,registration_screening_tool,risk_status,verified_by,verified_date,
-            followup_details,crowe_feedback,zewer_comments,created_by)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            followup_details,crowe_feedback,zewer_comments,kyc_expiry_date,id_type,created_by)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
             (d.get('ac_code'),d.get('client_name'))+_cv(d)+(session.get('user_id'),))
         cid=lastid(conn)
         _save_ubos(conn,cid,d.get('ubos',[]))
@@ -704,6 +721,8 @@ def api_add_company():
 @compliance_required
 def api_edit_company(id):
     d=request.get_json()
+    kyc_err = _validate_kyc_expiry(d.get('kyc_expiry_date'))
+    if kyc_err: return jsonify({'success':False,'error':kyc_err}),400
     try:
         conn=get_db()
         x(conn,'''UPDATE companies SET client_name=?,ac_opening_date=?,ac_status=?,active_till_year=?,
@@ -714,7 +733,7 @@ def api_edit_company(id):
             trade_license_expiry=?,tax_no_trn=?,vat_cert=?,vat_declaration=?,deal_after_vat=?,
             num_beneficial_owners=?,moa=?,pep=?,undertaking=?,source_of_fund=?,software_updation=?,
             doc_status=?,screening_date=?,registration_screening_tool=?,risk_status=?,verified_by=?,
-            verified_date=?,followup_details=?,crowe_feedback=?,zewer_comments=?,
+            verified_date=?,followup_details=?,crowe_feedback=?,zewer_comments=?,kyc_expiry_date=?,id_type=?,
             updated_at=CURRENT_TIMESTAMP WHERE id=?''',
             (d.get('client_name'),)+_cv(d)+(id,))
         _save_ubos(conn,id,d.get('ubos',[]))
@@ -1869,6 +1888,7 @@ def client_detail(id):
     c['screening_date'] = str(sd)[:10] if sd else None
     c['kyc_expiry_status'] = exp_status(days_left(ke)) if ke else 'unknown'
     return render_template('client_detail.html', client=c, documents=docs)
+
 
 
 
