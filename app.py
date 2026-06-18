@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
 from werkzeug.security import check_password_hash, generate_password_hash
-import os, io, csv, sqlite3
+import os, io, csv, sqlite3, logging
 from datetime import datetime, timedelta, timezone
 
 DUBAI_TZ = timezone(timedelta(hours=4))
@@ -24,6 +24,15 @@ except: HAS_CLD = False
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'zewer-aml-secret-2026')
+
+# ── SESSION & SECURITY CONFIG ────────────────────────────────
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)  # auto logout after 8h idle
+app.config['SESSION_COOKIE_HTTPONLY'] = True   # JS cannot read session cookie
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+
+# ── LOGGING ──────────────────────────────────────────────────
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+logger = logging.getLogger('zewer_crm')
 
 DATABASE_URL = os.getenv('DATABASE_URL', '')
 
@@ -469,8 +478,11 @@ def login():
         u=one(conn,'SELECT * FROM users WHERE username=? OR email=?',(login_id,login_id))
         conn.close()
         if u and check_password_hash(u['password_hash'],d.get('password','')) and u['is_active']:
+            session.permanent = True  # enables PERMANENT_SESSION_LIFETIME timeout
             session.update(user_id=u['id'],user_email=u['email'],user_name=u['name'],user_role=u['role'],user_permissions=(u.get('permissions') or ''))
+            logger.info(f"Login: {u['email']} (role={u['role']})")
             return jsonify({'success':True})
+        logger.warning(f"Failed login attempt for: {login_id}")
         return jsonify({'success':False,'error':'Invalid credentials'}),401
     return render_template('login.html')
 
@@ -629,7 +641,12 @@ def companies():
     if rgf: q+=' AND region=?'; p.append(rgf)
     if modf: q+=' AND mode_of_ac=?'; p.append(modf)
     if grpf: q+=' AND group_name=?'; p.append(grpf)
-    rows=all_(conn,q+' ORDER BY created_at DESC',p or None)
+
+    page = max(1, int(request.args.get('page', 1)))
+    per_page = 100
+    total_count = cnt(conn, f"SELECT COUNT(*) FROM companies WHERE {q.split('WHERE')[1]}", p or None)
+    rows=all_(conn,q+f' ORDER BY created_at DESC LIMIT {per_page} OFFSET {(page-1)*per_page}',p or None)
+    total_pages = max(1, (total_count + per_page - 1) // per_page)
     dd=dropdowns()
     try: groups=all_(conn,'SELECT group_name FROM company_groups ORDER BY group_name')
     except: groups=[]
@@ -643,7 +660,8 @@ def companies():
     return render_template('companies.html',companies=cl,search=s,
         status_filter=sf,region_filter=rgf,mode_filter=modf,group_filter=grpf,
         regions=dd.get('REGION',[]),modes=dd.get('MODE OF AC',[]),
-        groups=[g['group_name'] for g in groups])
+        groups=[g['group_name'] for g in groups],
+        page=page, total_pages=total_pages, total_count=total_count, per_page=per_page)
 
 @app.route('/company/new')
 @compliance_required
@@ -735,7 +753,9 @@ def api_add_company():
         _save_ubos(conn,cid,d.get('ubos',[]))
         commit(conn); conn.close()
         return jsonify({'success':True,'id':cid})
-    except Exception as e: return jsonify({'success':False,'error':str(e)}),500
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/api/company/<int:id>/edit', methods=['POST'])
 @compliance_required
@@ -759,7 +779,9 @@ def api_edit_company(id):
         _save_ubos(conn,id,d.get('ubos',[]))
         commit(conn); conn.close()
         return jsonify({'success':True})
-    except Exception as e: return jsonify({'success':False,'error':str(e)}),500
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/api/company/<int:id>/delete', methods=['POST'])
 @compliance_required
@@ -767,7 +789,9 @@ def api_delete_company(id):
     try:
         conn=get_db(); x(conn,'DELETE FROM companies WHERE id=?',(id,))
         commit(conn); conn.close(); return jsonify({'success':True})
-    except Exception as e: return jsonify({'success':False,'error':str(e)}),500
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/alerts')
 @compliance_required
@@ -917,7 +941,9 @@ def api_add_user():
         x(conn,'INSERT INTO users (email,password_hash,name,role,contact_number,username,permissions,is_active) VALUES (?,?,?,?,?,?,?,1)',
           (d.get('email',''),generate_password_hash(d.get('password','')),d.get('name'),d.get('role','staff'),d.get('contact_number'),username or None,d.get('permissions','')))
         commit(conn); conn.close(); return jsonify({'success':True})
-    except Exception as e: return jsonify({'success':False,'error':str(e)}),500
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/api/user/<int:id>/edit',methods=['POST'])
 @admin_required
@@ -936,7 +962,9 @@ def api_edit_user(id):
             x(conn,'UPDATE users SET name=?,email=?,role=?,contact_number=?,username=?,permissions=? WHERE id=?',
               (d.get('name'),d.get('email'),d.get('role'),d.get('contact_number'),username,d.get('permissions',''),id))
         commit(conn); conn.close(); return jsonify({'success':True})
-    except Exception as e: return jsonify({'success':False,'error':str(e)}),500
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/api/user/<int:id>/toggle',methods=['POST'])
 @admin_required
@@ -945,7 +973,9 @@ def api_toggle_user(id):
         conn=get_db(); u=one(conn,'SELECT is_active FROM users WHERE id=?',(id,))
         if u: x(conn,'UPDATE users SET is_active=? WHERE id=?',(0 if u['is_active'] else 1,id))
         commit(conn); conn.close(); return jsonify({'success':True})
-    except Exception as e: return jsonify({'success':False,'error':str(e)}),500
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/api/user/<int:id>/delete',methods=['POST'])
 @admin_required
@@ -953,7 +983,9 @@ def api_delete_user(id):
     try:
         conn=get_db(); x(conn,'DELETE FROM users WHERE id=?',(id,))
         commit(conn); conn.close(); return jsonify({'success':True})
-    except Exception as e: return jsonify({'success':False,'error':str(e)}),500
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/api/dropdown/add',methods=['POST'])
 @admin_required
@@ -963,7 +995,9 @@ def api_add_dropdown():
         conn=get_db()
         x(conn,'INSERT INTO dropdowns (field_name,value,is_active) VALUES (?,?,1)',(d.get('field_name'),d.get('value')))
         commit(conn); conn.close(); return jsonify({'success':True})
-    except Exception as e: return jsonify({'success':False,'error':str(e)}),500
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/api/dropdown/<int:id>/delete',methods=['POST'])
 @admin_required
@@ -971,7 +1005,9 @@ def api_delete_dropdown(id):
     try:
         conn=get_db(); x(conn,'DELETE FROM dropdowns WHERE id=?',(id,))
         commit(conn); conn.close(); return jsonify({'success':True})
-    except Exception as e: return jsonify({'success':False,'error':str(e)}),500
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/tasks')
 @login_required
@@ -1128,7 +1164,9 @@ def api_add_task():
           (d.get('title'),d.get('description'),d.get('assigned_to') or None,session.get('user_id'),
            d.get('company_id') or None,d.get('priority','normal'),d.get('due_date') or None,'todo'))
         commit(conn); conn.close(); return jsonify({'success':True})
-    except Exception as e: return jsonify({'success':False,'error':str(e)}),500
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/api/task/<int:id>/edit',methods=['POST'])
 @login_required
@@ -1140,7 +1178,9 @@ def api_edit_task(id):
           (d.get('title'),d.get('description'),d.get('assigned_to') or None,d.get('company_id') or None,
            d.get('priority','normal'),d.get('due_date') or None,id))
         commit(conn); conn.close(); return jsonify({'success':True})
-    except Exception as e: return jsonify({'success':False,'error':str(e)}),500
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/api/task/<int:id>/status',methods=['POST'])
 @login_required
@@ -1150,7 +1190,9 @@ def api_task_status(id):
         conn=get_db()
         x(conn,'UPDATE tasks SET status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',(d.get('status'),id))
         commit(conn); conn.close(); return jsonify({'success':True})
-    except Exception as e: return jsonify({'success':False,'error':str(e)}),500
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/api/task/<int:id>/delete',methods=['POST'])
 @login_required
@@ -1160,7 +1202,9 @@ def api_delete_task(id):
     try:
         conn=get_db(); x(conn,'DELETE FROM tasks WHERE id=?',(id,))
         commit(conn); conn.close(); return jsonify({'success':True})
-    except Exception as e: return jsonify({'success':False,'error':str(e)}),500
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/api/company/<int:cid>/documents')
 @compliance_required
@@ -1185,7 +1229,9 @@ def api_upload_document(cid):
           (cid,request.form.get('doc_type','General'),file.filename,r['secure_url'],r['public_id'],session.get('user_id'),request.form.get('notes','')))
         commit(conn); conn.close()
         return jsonify({'success':True,'url':r['secure_url'],'name':file.filename})
-    except Exception as e: return jsonify({'success':False,'error':str(e)}),500
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/api/document/<int:did>/delete',methods=['POST'])
 @compliance_required
@@ -1197,7 +1243,9 @@ def api_delete_document(did):
             except: pass
         x(conn,'DELETE FROM documents WHERE id=?',(did,))
         commit(conn); conn.close(); return jsonify({'success':True})
-    except Exception as e: return jsonify({'success':False,'error':str(e)}),500
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/export/template')
 @compliance_required
@@ -1534,7 +1582,9 @@ def api_import_companies():
             except: skipped+=1
         commit(conn); conn.close()
         return jsonify({'success':True,'imported':imported,'skipped':skipped})
-    except Exception as e: return jsonify({'success':False,'error':str(e)}),500
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
 
 if __name__=='__main__':
     app.run(debug=False,host='0.0.0.0',port=int(os.getenv('PORT',8000)))
@@ -1826,8 +1876,31 @@ def api_save_role_permissions():
 @login_required
 def clients():
     conn = get_db()
-    rows = all_(conn, 'SELECT * FROM clients ORDER BY name')
     today = dubai_today()
+
+    # SQL-level filtering — only fetch what's needed
+    s = request.args.get('search', '').strip()
+    resident_f = request.args.get('resident', '')
+    mode_f = request.args.get('mode', '')
+    page = max(1, int(request.args.get('page', 1)))
+    per_page = 100
+
+    q = 'SELECT * FROM clients WHERE 1=1'; p = []
+    if s:
+        q += ' AND (name LIKE ? OR phone LIKE ? OR account_number LIKE ? OR email LIKE ?)'
+        p += [f'%{s}%'] * 4
+    if resident_f == 'resident':
+        q += ' AND is_resident=?'; p.append(True)
+    elif resident_f == 'non-resident':
+        q += ' AND (is_resident IS NULL OR is_resident=?)'; p.append(False)
+    if mode_f:
+        q += ' AND mode_of_ac=?'; p.append(mode_f)
+
+    total_count = cnt(conn, f"SELECT COUNT(*) FROM clients WHERE {q.split('WHERE')[1]}", p or None)
+    q += ' ORDER BY name LIMIT ? OFFSET ?'
+    p += [per_page, (page - 1) * per_page]
+
+    rows = all_(conn, q, p)
     cl = []
     for c in rows:
         dob = c.get('date_of_birth')
@@ -1861,10 +1934,13 @@ def clients():
     conn.close()
     birthdays_today = [c for c in cl if c['birthday_today']]
     dd = dropdowns()
+    total_pages = max(1, (total_count + per_page - 1) // per_page)
     return render_template('clients.html', clients=cl, birthdays_today=birthdays_today, today=str(today), days_left=days_left,
         modes=dd.get('MODE OF AC',[]), ac_statuses=dd.get('AC STATUS',[]), id_types=dd.get('ID TYPE',[]),
         kyc_statuses=dd.get('KYC STATUS',[]), risk_statuses=dd.get('RISK STATUS',[]),
-        screening_statuses=dd.get('SCREENING REGISTRATION STATUS',[]))
+        screening_statuses=dd.get('SCREENING REGISTRATION STATUS',[]),
+        search=s, resident_filter=resident_f, mode_filter=mode_f,
+        page=page, total_pages=total_pages, total_count=total_count, per_page=per_page)
 
 def _validate_kyc_expiry(kyc_expiry):
     """KYC expiry must not be more than 2 years from today."""
