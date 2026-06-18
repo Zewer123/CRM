@@ -980,7 +980,10 @@ def tasks():
         LEFT JOIN users cu ON t.created_by=cu.id
         LEFT JOIN companies c ON t.company_id=c.id'''
     order=" ORDER BY CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3 ELSE 4 END,t.due_date"
-    rows=all_(conn,base+order)
+    if role == 'admin':
+        rows=all_(conn,base+order)
+    else:
+        rows=all_(conn,base+" WHERE (t.assigned_to=? OR t.created_by=?)"+order,(uid,uid))
     users=all_(conn,'SELECT id,name,role,mobile FROM users WHERE is_active=1 ORDER BY name')
     cos=all_(conn,'SELECT id,ac_code,client_name FROM companies ORDER BY client_name')
     tmpls=all_(conn,"SELECT value,description FROM dropdowns WHERE field_name='TASK TEMPLATE' AND is_active=1 ORDER BY value")

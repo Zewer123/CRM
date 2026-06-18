@@ -24,12 +24,12 @@
 
 <!-- STATS -->
 <div class="stat-grid" style="margin-bottom:20px;">
-  <div class="stat-card purple"><div class="stat-label">Total</div><div class="stat-value">{{ tasks|length }}</div></div>
-  <div class="stat-card danger"><div class="stat-label">Overdue</div><div class="stat-value">{{ tasks|selectattr('is_overdue')|list|length }}</div></div>
-  <div class="stat-card warning"><div class="stat-label">In Progress</div><div class="stat-value">{{ tasks|selectattr('status','eq','inprogress')|list|length }}</div></div>
-  <div class="stat-card"><div class="stat-label">To Do</div><div class="stat-value">{{ tasks|selectattr('status','eq','todo')|list|length }}</div></div>
-  <div class="stat-card warning"><div class="stat-label">Awaiting Close</div><div class="stat-value">{{ tasks|selectattr('status','eq','pending_close')|list|length }}</div></div>
-  <div class="stat-card success"><div class="stat-label">Closed</div><div class="stat-value">{{ tasks|selectattr('status','eq','done')|list|length }}</div></div>
+  <div class="stat-card purple"><div class="stat-label">Total</div><div class="stat-value" id="sc-total">{{ tasks|length }}</div></div>
+  <div class="stat-card danger"><div class="stat-label">Overdue</div><div class="stat-value" id="sc-overdue">{{ tasks|selectattr('is_overdue')|list|length }}</div></div>
+  <div class="stat-card warning"><div class="stat-label">In Progress</div><div class="stat-value" id="sc-inprogress">{{ tasks|selectattr('status','eq','inprogress')|list|length }}</div></div>
+  <div class="stat-card"><div class="stat-label">To Do</div><div class="stat-value" id="sc-todo">{{ tasks|selectattr('status','eq','todo')|list|length }}</div></div>
+  <div class="stat-card warning"><div class="stat-label">Awaiting Close</div><div class="stat-value" id="sc-pending">{{ tasks|selectattr('status','eq','pending_close')|list|length }}</div></div>
+  <div class="stat-card success"><div class="stat-label">Closed</div><div class="stat-value" id="sc-done">{{ tasks|selectattr('status','eq','done')|list|length }}</div></div>
 </div>
 
 <!-- FILTERS -->
@@ -51,6 +51,13 @@
       {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
     </select>
   </div>
+  <div class="form-group" style="min-width:160px;">
+    <label>ASSIGNED BY</label>
+    <select id="filterCreatedBy" onchange="filterTasks()">
+      <option value="">Everyone</option>
+      {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+    </select>
+  </div>
   <div class="form-group" style="min-width:130px;">
     <label>PRIORITY</label>
     <select id="filterPriority" onchange="filterTasks()">
@@ -60,6 +67,17 @@
       <option value="normal">Normal</option>
       <option value="low">Low</option>
     </select>
+  </div>
+  <div class="form-group" style="min-width:130px;">
+    <label>DUE FROM</label>
+    <input type="date" id="filterDateFrom" onchange="filterTasks()">
+  </div>
+  <div class="form-group" style="min-width:130px;">
+    <label>DUE TO</label>
+    <input type="date" id="filterDateTo" onchange="filterTasks()">
+  </div>
+  <div class="form-group" style="min-width:80px;display:flex;align-items:flex-end;">
+    <button class="btn btn-ghost btn-sm" onclick="clearTaskFilters()">Clear</button>
   </div>
 </div>
 
@@ -80,7 +98,7 @@
       </thead>
       <tbody>
         {% for t in tasks %}
-        <tr data-status="{{ t.status }}" data-user="{{ t.assigned_to or '' }}" data-priority="{{ t.priority }}">
+        <tr data-status="{{ t.status }}" data-user="{{ t.assigned_to or '' }}" data-priority="{{ t.priority }}" data-created-by="{{ t.created_by or '' }}" data-due="{{ t.due_date[:10] if t.due_date else '' }}" data-overdue="{{ 'yes' if t.is_overdue else 'no' }}">
           <td>
             <div style="font-weight:600;color:var(--text);">📋 {{ t.title }}</div>
             {% if t.description %}<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">{{ t.description[:80] }}{% if t.description|length > 80 %}…{% endif %}</div>{% endif %}
@@ -751,13 +769,51 @@ function sendTaskWA(mobile, name, title, due, priority) {
 function filterTasks() {
   const status = document.getElementById('filterStatus').value;
   const user = document.getElementById('filterUser').value;
+  const createdBy = document.getElementById('filterCreatedBy').value;
   const priority = document.getElementById('filterPriority').value;
+  const dateFrom = document.getElementById('filterDateFrom').value;
+  const dateTo = document.getElementById('filterDateTo').value;
+
+  let total=0, overdue=0, inprogress=0, todo=0, pending=0, done=0;
+
   document.querySelectorAll('#taskTable tbody tr[data-status]').forEach(row => {
-    const show = (!status || row.dataset.status === status) &&
-                 (!user || row.dataset.user === user) &&
-                 (!priority || row.dataset.priority === priority);
+    const rowDue = row.dataset.due;
+    let show = true;
+
+    if (status && row.dataset.status !== status) show = false;
+    if (user && row.dataset.user !== user) show = false;
+    if (createdBy && row.dataset.createdBy !== createdBy) show = false;
+    if (priority && row.dataset.priority !== priority) show = false;
+    if (dateFrom && rowDue && rowDue < dateFrom) show = false;
+    if (dateTo && rowDue && rowDue > dateTo) show = false;
+    if ((dateFrom || dateTo) && !rowDue) show = false;
+
     row.style.display = show ? '' : 'none';
+
+    if (show) {
+      total++;
+      const s = row.dataset.status;
+      const isOverdue = row.dataset.overdue === 'yes' && s !== 'done' && s !== 'pending_close';
+      if (isOverdue) overdue++;
+      if (s === 'inprogress') inprogress++;
+      if (s === 'todo') todo++;
+      if (s === 'pending_close') pending++;
+      if (s === 'done') done++;
+    }
   });
+
+  document.getElementById('sc-total').textContent = total;
+  document.getElementById('sc-overdue').textContent = overdue;
+  document.getElementById('sc-inprogress').textContent = inprogress;
+  document.getElementById('sc-todo').textContent = todo;
+  document.getElementById('sc-pending').textContent = pending;
+  document.getElementById('sc-done').textContent = done;
+}
+
+function clearTaskFilters() {
+  ['filterStatus','filterUser','filterCreatedBy','filterPriority'].forEach(id => document.getElementById(id).value = '');
+  ['filterDateFrom','filterDateTo'].forEach(id => document.getElementById(id).value = '');
+  filterTasks();
 }
 </script>
 
