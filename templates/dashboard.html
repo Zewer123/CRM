@@ -7,38 +7,36 @@
   <div style="color:var(--text-muted);font-size:13px;">{{ today }}</div>
 </div>
 
-<!-- COMPANIES SECTION -->
-<div style="margin-bottom:8px;display:flex;align-items:center;gap:8px;">
-  <span style="font-size:16px;font-weight:700;color:var(--primary-light);">🏢 Companies</span>
-</div>
-<div class="stat-grid" style="margin-bottom:20px;">
+<!-- ROW 1: KEY STATS -->
+<div class="stat-grid" style="margin-bottom:20px;grid-template-columns:repeat(5,1fr);">
   <div class="stat-card purple">
     <div class="stat-label">Total Companies</div>
     <div class="stat-value">{{ total_companies }}</div>
     <div class="stat-sub">{{ active_companies }} active</div>
   </div>
-  <div class="stat-card danger">
+  <div class="stat-card">
+    <div class="stat-label">Total Clients</div>
+    <div class="stat-value">{{ total_clients }}</div>
+    <div class="stat-sub">individual clients</div>
+  </div>
+  <div class="stat-card {% if pep_count > 0 %}danger{% endif %}">
+    <div class="stat-label">PEP</div>
+    <div class="stat-value">{{ pep_count }}</div>
+    <div class="stat-sub">companies + clients</div>
+  </div>
+  <div class="stat-card {% if expired_tl > 0 %}danger{% endif %}">
     <div class="stat-label">Trade Lic. Expired</div>
     <div class="stat-value">{{ expired_tl }}</div>
-    <div class="stat-sub">Immediate action needed</div>
+    <div class="stat-sub">immediate action</div>
   </div>
-  <div class="stat-card warning">
-    <div class="stat-label">Expiring in 30 Days</div>
-    <div class="stat-value">{{ expiring_30_tl }}</div>
-    <div class="stat-sub">Trade licenses</div>
-  </div>
-  <div class="stat-card danger">
-    <div class="stat-label">Addr. Proof Expired</div>
-    <div class="stat-value">{{ expired_ap }}</div>
-    <div class="stat-sub">{{ expiring_30_ap }} expiring in 30d</div>
-  </div>
-  <div class="stat-card danger">
-    <div class="stat-label">UBO Passports Exp.</div>
-    <div class="stat-value">{{ expired_pass }}</div>
-    <div class="stat-sub">{{ expiring_30_pass }} expiring in 30d</div>
+  <div class="stat-card {% if eid_exp > 0 %}danger{% endif %}">
+    <div class="stat-label">Emirates ID Expired</div>
+    <div class="stat-value">{{ eid_exp }}</div>
+    <div class="stat-sub">UBO / Auth Persons</div>
   </div>
 </div>
 
+<!-- ROW 2: RISK + DOCUMENT STATUS -->
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:24px;">
   <div class="card">
     <div class="card-header"><div class="card-title">⚠️ Risk Distribution</div></div>
@@ -84,42 +82,46 @@
   </div>
 </div>
 
-<!-- EXPIRY SUMMARY CARDS -->
+<!-- ROW 3: EXPIRY WINDOWS (counts only) -->
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px;">
   <a href="{{ url_for('alerts') }}" style="text-decoration:none;">
-    <div class="card" style="border-left:3px solid #fca5a5;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor='#ef4444'" onmouseout="this.style.borderColor='#fca5a5'">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-        <div style="font-size:13px;font-weight:600;color:var(--text);">Expiring in 30 Days</div>
-        <span style="font-size:22px;">🔴</span>
+    <div class="card" style="border-left:3px solid #fca5a5;cursor:pointer;transition:all 0.15s;"
+      onmouseover="this.style.borderColor='#ef4444';this.style.background='var(--surface3)'"
+      onmouseout="this.style.borderColor='#fca5a5';this.style.background='var(--surface)'">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:600;color:var(--text);">🔴 Expiring in 30 Days</div>
       </div>
-      <div style="font-size:40px;font-weight:700;color:#fca5a5;line-height:1;">{{ exp_30 }}</div>
-      <div style="font-size:12px;color:var(--text-dim);margin-top:6px;">documents need urgent attention</div>
-      <div style="margin-top:12px;font-size:11px;color:#fca5a5;font-weight:600;">View in Alerts →</div>
+      <div style="font-size:44px;font-weight:700;color:#fca5a5;line-height:1;">{{ exp_30 }}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">documents need urgent attention</div>
+      <div style="margin-top:10px;font-size:11px;color:#fca5a5;font-weight:600;">View in Alerts →</div>
     </div>
   </a>
   <a href="{{ url_for('alerts') }}" style="text-decoration:none;">
-    <div class="card" style="border-left:3px solid #fb923c;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor='#ea580c'" onmouseout="this.style.borderColor='#fb923c'">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-        <div style="font-size:13px;font-weight:600;color:var(--text);">Expiring in 60 Days</div>
-        <span style="font-size:22px;">🟠</span>
+    <div class="card" style="border-left:3px solid #fb923c;cursor:pointer;transition:all 0.15s;"
+      onmouseover="this.style.borderColor='#ea580c';this.style.background='var(--surface3)'"
+      onmouseout="this.style.borderColor='#fb923c';this.style.background='var(--surface)'">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:600;color:var(--text);">🟠 Expiring in 60 Days</div>
       </div>
-      <div style="font-size:40px;font-weight:700;color:#fb923c;line-height:1;">{{ exp_60 }}</div>
-      <div style="font-size:12px;color:var(--text-dim);margin-top:6px;">documents require follow-up</div>
-      <div style="margin-top:12px;font-size:11px;color:#fb923c;font-weight:600;">View in Alerts →</div>
+      <div style="font-size:44px;font-weight:700;color:#fb923c;line-height:1;">{{ exp_60 }}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">documents require follow-up</div>
+      <div style="margin-top:10px;font-size:11px;color:#fb923c;font-weight:600;">View in Alerts →</div>
     </div>
   </a>
   <a href="{{ url_for('alerts') }}" style="text-decoration:none;">
-    <div class="card" style="border-left:3px solid #fcd34d;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor='#d97706'" onmouseout="this.style.borderColor='#fcd34d'">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-        <div style="font-size:13px;font-weight:600;color:var(--text);">Expiring in 90 Days</div>
-        <span style="font-size:22px;">🟡</span>
+    <div class="card" style="border-left:3px solid #fcd34d;cursor:pointer;transition:all 0.15s;"
+      onmouseover="this.style.borderColor='#d97706';this.style.background='var(--surface3)'"
+      onmouseout="this.style.borderColor='#fcd34d';this.style.background='var(--surface)'">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:600;color:var(--text);">🟡 Expiring in 90 Days</div>
       </div>
-      <div style="font-size:40px;font-weight:700;color:#fcd34d;line-height:1;">{{ exp_90 }}</div>
-      <div style="font-size:12px;color:var(--text-dim);margin-top:6px;">documents to plan ahead</div>
-      <div style="margin-top:12px;font-size:11px;color:#fcd34d;font-weight:600;">View in Alerts →</div>
+      <div style="font-size:44px;font-weight:700;color:#fcd34d;line-height:1;">{{ exp_90 }}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">documents to plan ahead</div>
+      <div style="margin-top:10px;font-size:11px;color:#fcd34d;font-weight:600;">View in Alerts →</div>
     </div>
   </a>
 </div>
+
 <!-- TASKS SECTION -->
 <div style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
   <span style="font-size:16px;font-weight:700;color:var(--primary-light);">✅ Tasks</span>
@@ -225,4 +227,5 @@
 </div>
 {% endif %}
 {% endblock %}
+
 
