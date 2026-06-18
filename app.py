@@ -148,8 +148,8 @@ def _run_migrations(conn):
                 'whatsapp_number','deal_after_vat','registration_screening_tool']:
         safe_alter('companies', col)
     safe_alter('dropdowns', 'description')
-    for col in ['nationality','passport_no','passport_expiry','emirates_id','emirates_id_expiry','address_proof','emirate','location']:
-        coltype = 'DATE' if 'expiry' in col else 'TEXT'
+    for col in ['nationality','passport_no','passport_expiry','emirates_id','emirates_id_expiry','address_proof','emirate','location','account_number','mode_of_ac','ac_status','id_type','pep_status','kyc_status','kyc_expiry_date','risk_status','screening_status','screening_date']:
+        coltype = 'DATE' if ('expiry' in col or col == 'screening_date') else 'TEXT'
         safe_alter('clients', col, coltype)
 
 def _pg_schema(conn):
@@ -358,6 +358,8 @@ def _seed(conn):
         'RESIDENTIAL STATUS':['Resident','Non Resident'],
         'COUNTRY':['United Arab Emirates','Saudi Arabia','Kuwait','Qatar','Bahrain','Oman','India','Pakistan','Bangladesh','Sri Lanka','Philippines','Malaysia','Singapore','China','Hong Kong','Jordan','Lebanon','Syria','Iraq','Yemen','Egypt','Libya','Nigeria','Ethiopia','Republic Of Congo','Turkey','Iran','Afghanistan','Algeria','Canada','United Kingdom','United States of America','France','Ireland','Italy','Germany','Armenia','Belize'],
         'TASK TEMPLATE':['Collect Updated Trade License','KYC Update Required','Address Proof Renewal','Passport Renewal Follow-up','Emirates ID Update','VAT Certificate Collection','Screening Review','MOA Collection','Undertaking Form','Source of Funds Verification','Risk Assessment Review','Annual KYC Review'],
+        'ID TYPE':['Passport','Emirates ID','National ID'],
+        'SCREENING REGISTRATION STATUS':['Done','Not Done','Not Required'],
     }
     pg = is_pg(conn)
     for field, vals in data.items():
@@ -540,6 +542,24 @@ def dashboard():
         upcoming_birthdays.sort(key=lambda x: x['days_away'])
     except: pass
 
+    # Client KYC expiry alerts (expired or expiring within 90 days)
+    kyc_alerts = []
+    try:
+        kyc_clients = all_(conn, "SELECT id,name,kyc_expiry_date,kyc_status FROM clients WHERE kyc_expiry_date IS NOT NULL")
+        for cl in kyc_clients:
+            ke = cl.get('kyc_expiry_date')
+            if not ke: continue
+            dl = days_left(ke)
+            if dl is not None and dl <= 90:
+                kyc_alerts.append({
+                    'id': cl['id'], 'name': cl['name'],
+                    'kyc_expiry_date': str(ke)[:10],
+                    'days_left': dl, 'is_expired': dl < 0,
+                    'kyc_status': cl.get('kyc_status')
+                })
+        kyc_alerts.sort(key=lambda x: x['days_left'])
+    except: pass
+
     conn.close()
     return render_template('dashboard.html',total_companies=total,active_companies=active,
         expired_tl=etl,expiring_30_tl=e30tl,
@@ -547,7 +567,7 @@ def dashboard():
         risk_breakdown=risk_bd,doc_breakdown=doc_bd,urgent_companies=urgent,
         open_tasks=otasks,overdue_tasks=overtasks,due_today=dtasks,pending_close=ptasks,
         urgent_tasks=utasks,today=str(today),days_left=days_left,staff_task_counts=staff_task_counts,
-        upcoming_birthdays=upcoming_birthdays)
+        upcoming_birthdays=upcoming_birthdays,kyc_alerts=kyc_alerts)
 
 @app.route('/companies')
 @compliance_required
@@ -1524,28 +1544,56 @@ def clients():
                    'date_of_birth': str(dob)[:10] if dob else None,
                    'passport_expiry': str(c.get('passport_expiry'))[:10] if c.get('passport_expiry') else None,
                    'emirates_id_expiry': str(c.get('emirates_id_expiry'))[:10] if c.get('emirates_id_expiry') else None,
+                   'kyc_expiry_date': str(c.get('kyc_expiry_date'))[:10] if c.get('kyc_expiry_date') else None,
+                   'screening_date': str(c.get('screening_date'))[:10] if c.get('screening_date') else None,
                    'birthday_today': birthday_today, 'days_to_birthday': days_to_birthday,
                    'passport_expiry_status': expiry_status(c.get('passport_expiry')),
-                   'eid_expiry_status': expiry_status(c.get('emirates_id_expiry'))})
+                   'eid_expiry_status': expiry_status(c.get('emirates_id_expiry')),
+                   'kyc_expiry_status': expiry_status(c.get('kyc_expiry_date'))})
     conn.close()
     birthdays_today = [c for c in cl if c['birthday_today']]
-    return render_template('clients.html', clients=cl, birthdays_today=birthdays_today, today=str(today), days_left=days_left)
+    dd = dropdowns()
+    return render_template('clients.html', clients=cl, birthdays_today=birthdays_today, today=str(today), days_left=days_left,
+        modes=dd.get('MODE OF AC',[]), ac_statuses=dd.get('AC STATUS',[]), id_types=dd.get('ID TYPE',[]),
+        kyc_statuses=dd.get('KYC STATUS',[]), risk_statuses=dd.get('RISK STATUS',[]),
+        screening_statuses=dd.get('SCREENING REGISTRATION STATUS',[]))
+
+def _validate_kyc_expiry(kyc_expiry):
+    """KYC expiry must not be more than 2 years from today."""
+    if not kyc_expiry: return None
+    try:
+        d = datetime.strptime(str(kyc_expiry)[:10], '%Y-%m-%d').date()
+        max_allowed = dubai_today().replace(year=dubai_today().year + 2)
+        if d > max_allowed:
+            return f"KYC expiry date cannot be more than 2 years from today (max: {max_allowed})"
+    except Exception:
+        return None
+    return None
 
 @app.route('/api/client/add', methods=['POST'])
 @login_required
 def api_add_client():
     d = request.get_json()
+    err = _validate_kyc_expiry(d.get('kyc_expiry_date'))
+    if err: return jsonify({'success': False, 'error': err}), 400
     try:
         conn = get_db()
         x(conn, '''INSERT INTO clients (name,phone,whatsapp_number,email,date_of_birth,
             profession,address,notes,nationality,passport_no,passport_expiry,
-            emirates_id,emirates_id_expiry,address_proof,emirate,location,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            emirates_id,emirates_id_expiry,address_proof,emirate,location,
+            account_number,mode_of_ac,ac_status,id_type,pep_status,kyc_status,kyc_expiry_date,
+            risk_status,screening_status,screening_date,created_by)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
           (d.get('name'), d.get('phone'), d.get('whatsapp_number'), d.get('email'),
            d.get('date_of_birth') or None, d.get('profession'), d.get('address'),
            d.get('notes'), d.get('nationality'), d.get('passport_no'),
            d.get('passport_expiry') or None, d.get('emirates_id'),
            d.get('emirates_id_expiry') or None, d.get('address_proof'),
            d.get('emirate'), d.get('location'),
+           d.get('account_number'), d.get('mode_of_ac'), d.get('ac_status'),
+           d.get('id_type'), d.get('pep_status'), d.get('kyc_status'),
+           d.get('kyc_expiry_date') or None, d.get('risk_status'),
+           d.get('screening_status'), d.get('screening_date') or None,
            session.get('user_id')))
         commit(conn); conn.close()
         return jsonify({'success': True})
@@ -1556,18 +1604,26 @@ def api_add_client():
 @login_required
 def api_edit_client(id):
     d = request.get_json()
+    err = _validate_kyc_expiry(d.get('kyc_expiry_date'))
+    if err: return jsonify({'success': False, 'error': err}), 400
     try:
         conn = get_db()
         x(conn, '''UPDATE clients SET name=?,phone=?,whatsapp_number=?,email=?,date_of_birth=?,
             profession=?,address=?,notes=?,nationality=?,passport_no=?,passport_expiry=?,
             emirates_id=?,emirates_id_expiry=?,address_proof=?,emirate=?,location=?,
+            account_number=?,mode_of_ac=?,ac_status=?,id_type=?,pep_status=?,kyc_status=?,
+            kyc_expiry_date=?,risk_status=?,screening_status=?,screening_date=?,
             updated_at=CURRENT_TIMESTAMP WHERE id=?''',
           (d.get('name'), d.get('phone'), d.get('whatsapp_number'), d.get('email'),
            d.get('date_of_birth') or None, d.get('profession'), d.get('address'),
            d.get('notes'), d.get('nationality'), d.get('passport_no'),
            d.get('passport_expiry') or None, d.get('emirates_id'),
            d.get('emirates_id_expiry') or None, d.get('address_proof'),
-           d.get('emirate'), d.get('location'), id))
+           d.get('emirate'), d.get('location'),
+           d.get('account_number'), d.get('mode_of_ac'), d.get('ac_status'),
+           d.get('id_type'), d.get('pep_status'), d.get('kyc_status'),
+           d.get('kyc_expiry_date') or None, d.get('risk_status'),
+           d.get('screening_status'), d.get('screening_date') or None, id))
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
@@ -1790,5 +1846,11 @@ def client_detail(id):
     c['passport_expiry'] = str(pe)[:10] if pe else None
     ee = c.get('emirates_id_expiry')
     c['emirates_id_expiry'] = str(ee)[:10] if ee else None
+    ke = c.get('kyc_expiry_date')
+    c['kyc_expiry_date'] = str(ke)[:10] if ke else None
+    sd = c.get('screening_date')
+    c['screening_date'] = str(sd)[:10] if sd else None
+    c['kyc_expiry_status'] = exp_status(days_left(ke)) if ke else 'unknown'
     return render_template('client_detail.html', client=c, documents=docs)
+
 
