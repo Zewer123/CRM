@@ -1559,6 +1559,40 @@ def api_export_company_docs(cid):
 
 
 # ════════════════════════════════════════════════════════════
+# ROLE PERMISSIONS API
+# ════════════════════════════════════════════════════════════
+@app.route('/api/settings/role-permissions', methods=['GET'])
+@login_required
+def api_get_role_permissions():
+    try:
+        conn = get_db()
+        row = one(conn, "SELECT value FROM app_settings WHERE key='role_permissions'")
+        conn.close()
+        if row:
+            import json as _json
+            return jsonify({'permissions': _json.loads(row['value'])})
+        return jsonify({'permissions': None})
+    except Exception as e:
+        return jsonify({'permissions': None, 'error': str(e)})
+
+@app.route('/api/settings/role-permissions', methods=['POST'])
+@login_required
+def api_save_role_permissions():
+    if session.get('user_role') != 'admin':
+        return jsonify({'success': False, 'error': 'Admin only'}), 403
+    import json as _json
+    d = request.get_json()
+    try:
+        conn = get_db()
+        val = _json.dumps(d.get('permissions', {}))
+        x(conn, "INSERT INTO app_settings (key,value) VALUES ('role_permissions',?) ON CONFLICT(key) DO UPDATE SET value=?,updated_at=CURRENT_TIMESTAMP",
+          (val, val))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ════════════════════════════════════════════════════════════
 # CLIENTS PAGE
 # ════════════════════════════════════════════════════════════
 @app.route('/clients')
