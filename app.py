@@ -1566,6 +1566,8 @@ def api_add_regular_task():
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
+        try: conn.close()
+        except: pass
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/regular-task/<int:id>/delete', methods=['POST'])
@@ -1578,6 +1580,8 @@ def api_delete_regular_task(id):
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
+        try: conn.close()
+        except: pass
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/regular-task/<int:id>/log', methods=['POST'])
@@ -1592,6 +1596,8 @@ def api_log_regular_task(id):
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
+        try: conn.close()
+        except: pass
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # ════════════════════════════════════════════════════════════
@@ -1899,11 +1905,12 @@ def api_add_client():
            d.get('is_resident', False),
            session.get('user_id')))
         commit(conn)
-        row = one(conn, 'SELECT id FROM clients ORDER BY id DESC LIMIT 1')
-        client_id = row['id'] if row else None
+        client_id = lastid(conn)
         conn.close()
         return jsonify({'success': True, 'client_id': client_id})
     except Exception as e:
+        try: conn.close()
+        except: pass
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/client/<int:id>/edit', methods=['POST'])
@@ -1934,6 +1941,8 @@ def api_edit_client(id):
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
+        try: conn.close()
+        except: pass
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/client/<int:id>/delete', methods=['POST'])
@@ -2065,6 +2074,7 @@ def admin_backup():
     add_sheet(wb, 'TaskLogs',      all_(conn, 'SELECT * FROM regular_task_logs ORDER BY logged_at DESC'))
     add_sheet(wb, 'Groups',        all_(conn, 'SELECT * FROM company_groups'))
     add_sheet(wb, 'Dropdowns',     all_(conn, 'SELECT * FROM dropdowns WHERE is_active=1 ORDER BY field_name,value'))
+    add_sheet(wb, 'AdditionalTasks', all_(conn, 'SELECT * FROM additional_tasks ORDER BY from_datetime DESC'))
     conn.close()
 
     out = io.BytesIO()
@@ -2131,6 +2141,7 @@ def admin_restore():
         restore_sheet('TaskLogs',     'regular_task_logs',      pk='id')
         restore_sheet('Groups',       'company_groups',         pk='id')
         restore_sheet('Dropdowns',    'dropdowns',              pk='id')
+        restore_sheet('AdditionalTasks', 'additional_tasks',   pk='id')
         # Skip Users sheet — don't overwrite passwords/accounts from backup
 
         conn.close()
