@@ -148,8 +148,8 @@
     <div class="modal-title">➕ Add Client</div>
     <div class="tab-bar" style="margin-bottom:16px;">
       <button class="tab-btn active" onclick="switchClientTab('personal',this)">👤 Personal</button>
-      <button class="tab-btn" onclick="switchClientTab('docs',this)">📄 Documents</button>
       <button class="tab-btn" onclick="switchClientTab('compliance',this)">🛡️ Compliance</button>
+      <button class="tab-btn" onclick="switchClientTab('docs',this)">📄 Documents</button>
     </div>
     <!-- PERSONAL TAB -->
     <div id="ctab-personal">
@@ -289,8 +289,8 @@
     <input type="hidden" id="e_id">
     <div class="tab-bar" style="margin-bottom:16px;">
       <button class="tab-btn active" onclick="switchClientTab('epersonal',this)">👤 Personal</button>
-      <button class="tab-btn" onclick="switchClientTab('edocs',this)">📄 Documents</button>
       <button class="tab-btn" onclick="switchClientTab('ecompliance',this)">🛡️ Compliance</button>
+      <button class="tab-btn" onclick="switchClientTab('edocs',this)">📄 Documents</button>
     </div>
     <div id="ctab-epersonal">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -543,7 +543,7 @@ function submitAddClient() {
       screening_date: document.getElementById('a_screening_date').value || null
     })
   }).then(r=>r.json()).then(d=>{
-    if(d.success){ closeModal('addClientModal'); location.reload(); }
+    if(d.success){ if(d.client_id){ window.location.href = '/client/' + d.client_id; } else { closeModal('addClientModal'); location.reload(); } }
     else alert('Error: '+d.error);
   });
 }
@@ -634,6 +634,7 @@ function deleteClient(id, name) {
 }
 </script>
 {% endblock %}
+
 
 
 
