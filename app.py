@@ -141,7 +141,7 @@ def _run_migrations(conn):
         except Exception:
             if pg: conn.rollback()
 
-    for col in ['contact_number','mobile']:
+    for col in ['contact_number','mobile','username','permissions']:
         safe_alter('users', col)
     safe_alter('companies', 'group_name')
     safe_alter('companies', 'kyc_expiry_date', 'DATE')
@@ -451,10 +451,11 @@ def login():
     if request.method=='POST':
         d=request.get_json()
         conn=get_db()
-        u=one(conn,'SELECT * FROM users WHERE email=?',(d.get('email'),))
+        login_id = d.get('username') or d.get('email','')
+        u=one(conn,'SELECT * FROM users WHERE username=? OR email=?',(login_id,login_id))
         conn.close()
         if u and check_password_hash(u['password_hash'],d.get('password','')) and u['is_active']:
-            session.update(user_id=u['id'],user_email=u['email'],user_name=u['name'],user_role=u['role'])
+            session.update(user_id=u['id'],user_email=u['email'],user_name=u['name'],user_role=u['role'],user_permissions=(u.get('permissions') or ''))
             return jsonify({'success':True})
         return jsonify({'success':False,'error':'Invalid credentials'}),401
     return render_template('login.html')
@@ -873,8 +874,12 @@ def api_add_user():
     d=request.get_json()
     try:
         conn=get_db()
-        x(conn,'INSERT INTO users (email,password_hash,name,role,contact_number,is_active) VALUES (?,?,?,?,?,1)',
-          (d.get('email'),generate_password_hash(d.get('password','')),d.get('name'),d.get('role'),d.get('contact_number')))
+        username = d.get('username','').strip().lower()
+        if username:
+            existing = one(conn,'SELECT id FROM users WHERE username=?',(username,))
+            if existing: return jsonify({'success':False,'error':'Username already taken'}),400
+        x(conn,'INSERT INTO users (email,password_hash,name,role,contact_number,username,permissions,is_active) VALUES (?,?,?,?,?,?,?,1)',
+          (d.get('email',''),generate_password_hash(d.get('password','')),d.get('name'),d.get('role','staff'),d.get('contact_number'),username or None,d.get('permissions','')))
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e: return jsonify({'success':False,'error':str(e)}),500
 
@@ -884,12 +889,16 @@ def api_edit_user(id):
     d=request.get_json()
     try:
         conn=get_db()
+        username = d.get('username','').strip().lower() or None
+        if username:
+            existing = one(conn,'SELECT id FROM users WHERE username=? AND id!=?',(username,id))
+            if existing: return jsonify({'success':False,'error':'Username already taken'}),400
         if d.get('password'):
-            x(conn,'UPDATE users SET name=?,email=?,role=?,contact_number=?,password_hash=? WHERE id=?',
-              (d.get('name'),d.get('email'),d.get('role'),d.get('contact_number'),generate_password_hash(d.get('password')),id))
+            x(conn,'UPDATE users SET name=?,email=?,role=?,contact_number=?,username=?,permissions=?,password_hash=? WHERE id=?',
+              (d.get('name'),d.get('email'),d.get('role'),d.get('contact_number'),username,d.get('permissions',''),generate_password_hash(d.get('password')),id))
         else:
-            x(conn,'UPDATE users SET name=?,email=?,role=?,contact_number=? WHERE id=?',
-              (d.get('name'),d.get('email'),d.get('role'),d.get('contact_number'),id))
+            x(conn,'UPDATE users SET name=?,email=?,role=?,contact_number=?,username=?,permissions=? WHERE id=?',
+              (d.get('name'),d.get('email'),d.get('role'),d.get('contact_number'),username,d.get('permissions',''),id))
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e: return jsonify({'success':False,'error':str(e)}),500
 
@@ -1893,6 +1902,7 @@ def client_detail(id):
     c['screening_date'] = str(sd)[:10] if sd else None
     c['kyc_expiry_status'] = exp_status(days_left(ke)) if ke else 'unknown'
     return render_template('client_detail.html', client=c, documents=docs)
+
 
 
 
