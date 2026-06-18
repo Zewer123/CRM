@@ -29,6 +29,7 @@
       <thead>
         <tr>
           <th>Name</th>
+          <th>Username</th>
           <th>Email</th>
           <th>Contact</th>
           <th>Role</th>
@@ -40,6 +41,7 @@
         {% for u in users %}
         <tr>
           <td style="font-weight:600;color:var(--text);">{{ u.name }}</td>
+          <td style="font-weight:600;color:var(--primary);">{{ u.username or '—' }}</td>
           <td style="color:var(--text-muted);">{{ u.email }}</td>
           <td style="color:var(--text-muted);">{{ u.contact_number or '—' }}</td>
           <td>
@@ -52,7 +54,7 @@
           </td>
           <td>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
-              <button class="btn btn-ghost btn-sm" onclick="editUser({{ u.id }}, '{{ u.name }}', '{{ u.email }}', '{{ u.role }}', '{{ u.contact_number or '' }}')">✏️ Edit</button>
+              <button class="btn btn-ghost btn-sm" onclick="editUser({{ u.id }}, '{{ u.name|e }}', '{{ u.email|e }}', '{{ u.role }}', '{{ (u.contact_number or '')|e }}', '{{ (u.username or '')|e }}', '{{ (u.permissions or '')|e }}')">✏️ Edit</button>
               <button class="btn btn-ghost btn-sm" onclick="toggleUser({{ u.id }}, {{ u.is_active }})">
                 {{ '🔴 Disable' if u.is_active else '🟢 Enable' }}
               </button>
@@ -156,7 +158,11 @@
         <input type="text" id="uName" placeholder="e.g. Jaseel Ahmed">
       </div>
       <div class="form-group">
-        <label>Email *</label>
+        <label>Username * <small style="color:var(--text-dim);">(used to log in)</small></label>
+        <input type="text" id="uUsername" placeholder="e.g. jaseel.ahmed" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
         <input type="email" id="uEmail" placeholder="user@zewer.ae">
       </div>
       <div class="form-group">
@@ -169,11 +175,16 @@
       </div>
       <div class="form-group">
         <label>Role *</label>
-        <select id="uRole">
+        <select id="uRole" onchange="setDefaultPerms(this.value,'add')">
           <option value="compliance">Compliance</option>
           <option value="staff">Staff</option>
           <option value="admin">Admin</option>
         </select>
+      </div>
+      <div class="form-group form-full">
+        <label>Permissions</label>
+        <div id="uPermsBox" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        </div>
       </div>
     </div>
     <div class="modal-actions">
@@ -194,7 +205,11 @@
         <input type="text" id="editUName">
       </div>
       <div class="form-group">
-        <label>Email *</label>
+        <label>Username * <small style="color:var(--text-dim);">(used to log in)</small></label>
+        <input type="text" id="editUUsername" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
         <input type="email" id="editUEmail">
       </div>
       <div class="form-group">
@@ -207,11 +222,16 @@
       </div>
       <div class="form-group">
         <label>Role</label>
-        <select id="editURole">
+        <select id="editURole" onchange="setDefaultPerms(this.value,'edit')">
           <option value="compliance">Compliance</option>
           <option value="staff">Staff</option>
           <option value="admin">Admin</option>
         </select>
+      </div>
+      <div class="form-group form-full">
+        <label>Permissions</label>
+        <div id="editUPermsBox" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        </div>
       </div>
     </div>
     <div class="modal-actions">
@@ -384,38 +404,71 @@ function saveActionPassword() {
   });
 }
 
+// PERMISSIONS SYSTEM
+const ALL_PERMS = [["dashboard", "\ud83d\udcca Dashboard"], ["companies", "\ud83c\udfe2 Companies"], ["clients", "\ud83d\udc64 Clients"], ["alerts", "\u26a0\ufe0f Alerts"], ["tasks", "\u2705 Tasks"], ["regular_tasks", "\ud83d\udd01 Regular Tasks"], ["reports", "\ud83d\udccb Reports"], ["zewer_docs", "\ud83d\uddc2\ufe0f Zewer Docs"], ["admin_panel", "\u2699\ufe0f Admin Panel"]];
+const ROLE_DEFAULTS = {"admin": ["dashboard", "companies", "clients", "alerts", "tasks", "regular_tasks", "reports", "zewer_docs", "admin_panel"], "compliance": ["dashboard", "companies", "clients", "alerts", "tasks", "regular_tasks", "reports", "zewer_docs"], "staff": ["tasks", "regular_tasks"]};
+
+function renderPerms(boxId, checkedList) {
+  const box = document.getElementById(boxId);
+  box.innerHTML = ALL_PERMS.map(([key, label]) => `
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-muted);cursor:pointer;padding:4px 0;">
+      <input type="checkbox" name="perm_${key}" value="${key}" ${checkedList.includes(key)?'checked':''}
+        style="width:15px;height:15px;accent-color:var(--primary);cursor:pointer;">
+      ${label}
+    </label>`).join('');
+}
+
+function getCheckedPerms(boxId) {
+  return Array.from(document.getElementById(boxId).querySelectorAll('input[type=checkbox]:checked'))
+    .map(cb => cb.value).join(',');
+}
+
+function setDefaultPerms(role, mode) {
+  const boxId = mode === 'add' ? 'uPermsBox' : 'editUPermsBox';
+  renderPerms(boxId, ROLE_DEFAULTS[role] || []);
+}
+
 // ADD USER
 function saveUser() {
+  const username = document.getElementById('uUsername').value.trim().toLowerCase();
+  if (!username) { alert('Username is required'); return; }
   const data = {
+    username,
     name: document.getElementById('uName').value.trim(),
     email: document.getElementById('uEmail').value.trim(),
     contact_number: document.getElementById('uContact').value.trim(),
     password: document.getElementById('uPassword').value,
     role: document.getElementById('uRole').value,
+    permissions: getCheckedPerms('uPermsBox'),
   };
-  if (!data.name || !data.email || !data.password) { alert('Name, email and password are required'); return; }
+  if (!data.name || !data.password) { alert('Name, username and password are required'); return; }
   fetch('/api/user/add', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
     .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
 }
 
 // EDIT USER
-function editUser(id, name, email, role, contact) {
+function editUser(id, name, email, role, contact, username, permissions) {
   document.getElementById('editUserId').value = id;
   document.getElementById('editUName').value = name;
+  document.getElementById('editUUsername').value = username || '';
   document.getElementById('editUEmail').value = email;
   document.getElementById('editURole').value = role;
   document.getElementById('editUContact').value = contact;
   document.getElementById('editUPassword').value = '';
+  const perms = permissions ? permissions.split(',').filter(Boolean) : (ROLE_DEFAULTS[role] || []);
+  renderPerms('editUPermsBox', perms);
   openModal('editUserModal');
 }
 function saveEditUser() {
   const id = document.getElementById('editUserId').value;
   const data = {
+    username: document.getElementById('editUUsername').value.trim().toLowerCase(),
     name: document.getElementById('editUName').value.trim(),
     email: document.getElementById('editUEmail').value.trim(),
     contact_number: document.getElementById('editUContact').value.trim(),
     password: document.getElementById('editUPassword').value,
     role: document.getElementById('editURole').value,
+    permissions: getCheckedPerms('editUPermsBox'),
   };
   fetch(`/api/user/${id}/edit`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
     .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
@@ -435,6 +488,13 @@ function deleteUser(id, name) {
 }
 
 // DROPDOWN FIELD CHANGE
+// Init add user perms box with staff defaults
+document.addEventListener('DOMContentLoaded', function() {
+  if (document.getElementById('uPermsBox')) {
+    renderPerms('uPermsBox', ROLE_DEFAULTS['staff'] || []);
+  }
+});
+
 document.getElementById('ddField').addEventListener('change', function() {
   document.getElementById('newFieldGroup').style.display = this.value === '__new__' ? 'block' : 'none';
 });
@@ -465,6 +525,7 @@ function deleteDropdown(id, val) {
 }
 </script>
 {% endblock %}
+
 
 
 
