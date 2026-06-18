@@ -71,47 +71,22 @@
 
   <!-- ROLE PERMISSIONS TABLE -->
   <div style="margin-top:28px;">
-    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;letter-spacing:0.3px;">🔐 Role Permissions</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:700;color:var(--text);letter-spacing:0.3px;">🔐 Role Permissions</div>
+      <button class="btn btn-primary btn-sm" onclick="saveRolePerms()">💾 Save Changes</button>
+    </div>
+    <div id="rolePermsSaved" style="display:none;color:#86efac;font-size:12px;margin-bottom:10px;">✅ Saved successfully</div>
     <div style="overflow-x:auto;">
-      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;" id="rolePermsTable">
         <thead>
           <tr style="background:var(--surface2);">
-            <th style="padding:10px 14px;text-align:left;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);">Feature / Page</th>
-            <th style="padding:10px 14px;text-align:center;color:#c4b5fd;font-weight:700;border-bottom:1px solid var(--border);">👑 Admin</th>
-            <th style="padding:10px 14px;text-align:center;color:#93c5fd;font-weight:700;border-bottom:1px solid var(--border);">🛡️ Compliance</th>
-            <th style="padding:10px 14px;text-align:center;color:#5eead4;font-weight:700;border-bottom:1px solid var(--border);">📋 Staff</th>
+            <th style="padding:10px 14px;text-align:left;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);min-width:220px;">Feature / Page</th>
+            <th style="padding:10px 14px;text-align:center;color:#c4b5fd;font-weight:700;border-bottom:1px solid var(--border);width:120px;">👑 Admin</th>
+            <th style="padding:10px 14px;text-align:center;color:#93c5fd;font-weight:700;border-bottom:1px solid var(--border);width:120px;">🛡️ Compliance</th>
+            <th style="padding:10px 14px;text-align:center;color:#5eead4;font-weight:700;border-bottom:1px solid var(--border);width:120px;">📋 Staff</th>
           </tr>
         </thead>
-        <tbody>
-          {% set rows = [
-            ('Dashboard', '✅ Full company stats', '✅ Full company stats', '✅ Own task summary'),
-            ('Companies — View', '✅ Yes', '✅ Yes', '❌ No'),
-            ('Companies — Add / Edit', '✅ Yes', '✅ Yes', '❌ No'),
-            ('Companies — Delete', '✅ Yes', '❌ No', '❌ No'),
-            ('Company Documents — Upload', '✅ Yes', '✅ Yes', '❌ No'),
-            ('Company Documents — Export', '✅ Yes', '✅ Yes', '❌ No'),
-            ('Alerts', '✅ Full', '✅ Full', '❌ No access'),
-            ('Reports — View & Export', '✅ Yes', '✅ Yes', '❌ No'),
-            ('Temp Tasks — View All', '✅ Yes', '✅ Yes', '✅ Yes'),
-            ('Temp Tasks — Create', '✅ Yes', '✅ Yes', '✅ Yes'),
-            ('Temp Tasks — Edit / Reassign', '✅ Yes', '✅ Yes', '✅ Yes'),
-            ('Temp Tasks — Delete', '✅ Yes', '✅ Yes', '❌ No'),
-            ('Regular Tasks — View', '✅ Yes', '✅ Yes', '✅ Assigned to them'),
-            ('Regular Tasks — Log Update', '✅ Yes', '✅ Yes', '✅ Yes'),
-            ('Regular Tasks — Add/Delete Templates', '✅ Yes', '✅ Yes', '❌ No'),
-            ('Zewer Docs — View', '✅ Yes', '✅ Yes', '❌ No'),
-            ('Zewer Docs — Add / Edit / Delete', '✅ Yes', '✅ Yes', '❌ No'),
-            ('Admin Panel — Users', '✅ Yes', '❌ No', '❌ No'),
-            ('Admin Panel — Dropdowns', '✅ Yes', '❌ No', '❌ No'),
-          ] %}
-          {% for feature, admin, compliance, staff in rows %}
-          <tr style="border-bottom:1px solid var(--border);{% if loop.index is odd %}background:var(--surface2);{% endif %}">
-            <td style="padding:9px 14px;color:var(--text-muted);">{{ feature }}</td>
-            <td style="padding:9px 14px;text-align:center;color:{% if '✅' in admin %}#86efac{% elif '🔶' in admin %}#fcd34d{% else %}#fca5a5{% endif %};">{{ admin }}</td>
-            <td style="padding:9px 14px;text-align:center;color:{% if '✅' in compliance %}#86efac{% elif '🔶' in compliance %}#fcd34d{% else %}#fca5a5{% endif %};">{{ compliance }}</td>
-            <td style="padding:9px 14px;text-align:center;color:{% if '✅' in staff %}#86efac{% elif '🔶' in staff %}#fcd34d{% else %}#fca5a5{% endif %};">{{ staff }}</td>
-          </tr>
-          {% endfor %}
+        <tbody id="rolePermsBody">
         </tbody>
       </table>
     </div>
@@ -346,12 +321,110 @@
 <script>
 const CURRENT_USER_ID = {{ current_user_id }};
 
+// ── ROLE PERMISSIONS ──────────────────────────────────────
+const PERM_ROWS = [
+  ['dashboard',           'Dashboard'],
+  ['companies_view',      'Companies — View'],
+  ['companies_edit',      'Companies — Add / Edit'],
+  ['companies_delete',    'Companies — Delete'],
+  ['companies_docs',      'Company Documents — Upload / Export'],
+  ['alerts',              'Alerts'],
+  ['clients',             'Clients'],
+  ['reports',             'Reports — View & Export'],
+  ['tasks_view',          'Temp Tasks — View All'],
+  ['tasks_create',        'Temp Tasks — Create'],
+  ['tasks_edit',          'Temp Tasks — Edit / Reassign'],
+  ['tasks_delete',        'Temp Tasks — Delete'],
+  ['regular_tasks_view',  'Regular Tasks — View'],
+  ['regular_tasks_log',   'Regular Tasks — Log Update'],
+  ['regular_tasks_manage','Regular Tasks — Add/Delete Templates'],
+  ['zewer_docs_view',     'Zewer Docs — View'],
+  ['zewer_docs_edit',     'Zewer Docs — Add / Edit / Delete'],
+  ['admin_users',         'Admin Panel — Users'],
+  ['admin_dropdowns',     'Admin Panel — Dropdowns'],
+];
+
+// Default role permissions (used if nothing saved yet)
+const ROLE_PERM_DEFAULTS = {
+  admin:      PERM_ROWS.map(r => r[0]),
+  compliance: ['dashboard','companies_view','companies_edit','companies_docs','alerts','clients','reports',
+               'tasks_view','tasks_create','tasks_edit','tasks_delete','regular_tasks_view','regular_tasks_log',
+               'regular_tasks_manage','zewer_docs_view','zewer_docs_edit'],
+  staff:      ['dashboard','tasks_view','tasks_create','tasks_edit','regular_tasks_view','regular_tasks_log'],
+};
+
+let _rolePerms = null;
+
+function loadRolePerms() {
+  fetch('/api/settings/role-permissions')
+    .then(r => r.json())
+    .then(data => {
+      _rolePerms = data.permissions || {
+        admin: ROLE_PERM_DEFAULTS.admin,
+        compliance: ROLE_PERM_DEFAULTS.compliance,
+        staff: ROLE_PERM_DEFAULTS.staff
+      };
+      renderRolePermsTable();
+    })
+    .catch(() => {
+      _rolePerms = {
+        admin: ROLE_PERM_DEFAULTS.admin,
+        compliance: ROLE_PERM_DEFAULTS.compliance,
+        staff: ROLE_PERM_DEFAULTS.staff
+      };
+      renderRolePermsTable();
+    });
+}
+
+function renderRolePermsTable() {
+  const tbody = document.getElementById('rolePermsBody');
+  if (!tbody || !_rolePerms) return;
+  tbody.innerHTML = PERM_ROWS.map(([key, label], i) => `
+    <tr style="border-bottom:1px solid var(--border);${i%2===0?'background:var(--surface2);':''}">
+      <td style="padding:9px 14px;color:var(--text-muted);">${label}</td>
+      ${['admin','compliance','staff'].map(role => `
+        <td style="padding:9px 14px;text-align:center;">
+          <input type="checkbox" data-role="${role}" data-perm="${key}"
+            ${(_rolePerms[role]||[]).includes(key) ? 'checked' : ''}
+            style="width:17px;height:17px;accent-color:var(--primary);cursor:pointer;"
+            ${role==='admin' ? '' : ''}
+            onchange="updateRolePerm(this)">
+        </td>`).join('')}
+    </tr>`).join('');
+}
+
+function updateRolePerm(cb) {
+  const role = cb.dataset.role;
+  const perm = cb.dataset.perm;
+  if (!_rolePerms[role]) _rolePerms[role] = [];
+  if (cb.checked) {
+    if (!_rolePerms[role].includes(perm)) _rolePerms[role].push(perm);
+  } else {
+    _rolePerms[role] = _rolePerms[role].filter(p => p !== perm);
+  }
+}
+
+function saveRolePerms() {
+  fetch('/api/settings/role-permissions', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({permissions: _rolePerms})
+  }).then(r => r.json()).then(d => {
+    const msg = document.getElementById('rolePermsSaved');
+    msg.style.display = 'block';
+    msg.style.color = d.success ? '#86efac' : '#fca5a5';
+    msg.textContent = d.success ? '✅ Saved successfully' : '❌ ' + d.error;
+    setTimeout(() => msg.style.display = 'none', 3000);
+  });
+}
+
 function switchTab(name, btn) {
   document.querySelectorAll('[id^="tab-"]').forEach(p => p.style.display = 'none');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + name).style.display = 'block';
   btn.classList.add('active');
   if (name === 'groups') loadGroups();
+  if (name === 'users') loadRolePerms();
 }
 
 // ── GROUPS ──
@@ -493,6 +566,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (document.getElementById('uPermsBox')) {
     renderPerms('uPermsBox', ROLE_DEFAULTS['staff'] || []);
   }
+  loadRolePerms();
 });
 
 document.getElementById('ddField').addEventListener('change', function() {
