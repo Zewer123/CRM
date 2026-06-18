@@ -87,8 +87,12 @@
           data-code="{{ row.ac_code|lower }}"
           data-manager="{{ row.account_manager or '' }}">
           <td>
+            {% if row.company_id %}
             <a href="{{ url_for('company_detail', id=row.company_id) }}"
                style="color:var(--primary);text-decoration:none;font-weight:700;">{{ row.ac_code }}</a>
+            {% else %}
+            <span style="color:var(--text-muted);">{{ row.ac_code }}</span>
+            {% endif %}
           </td>
           <td style="font-weight:500;color:var(--text);">{{ row.client_name }}</td>
           <td style="color:var(--text-muted);font-size:12px;">
