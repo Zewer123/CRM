@@ -358,8 +358,8 @@ def _seed(conn):
         'RESIDENTIAL STATUS':['Resident','Non Resident'],
         'COUNTRY':['United Arab Emirates','Saudi Arabia','Kuwait','Qatar','Bahrain','Oman','India','Pakistan','Bangladesh','Sri Lanka','Philippines','Malaysia','Singapore','China','Hong Kong','Jordan','Lebanon','Syria','Iraq','Yemen','Egypt','Libya','Nigeria','Ethiopia','Republic Of Congo','Turkey','Iran','Afghanistan','Algeria','Canada','United Kingdom','United States of America','France','Ireland','Italy','Germany','Armenia','Belize'],
         'TASK TEMPLATE':['Collect Updated Trade License','KYC Update Required','Address Proof Renewal','Passport Renewal Follow-up','Emirates ID Update','VAT Certificate Collection','Screening Review','MOA Collection','Undertaking Form','Source of Funds Verification','Risk Assessment Review','Annual KYC Review'],
-        'ID TYPE':['Passport','Emirates ID','National ID'],
-        'SCREENING REGISTRATION STATUS':['Done','Not Done','Not Required'],
+        'ID TYPE':['National ID','Passport','Emirates ID','Visa No'],
+        'SCREENING REGISTRATION STATUS':['Yes','No','Not Required','Pending'],
     }
     pg = is_pg(conn)
     for field, vals in data.items():
@@ -1855,6 +1855,7 @@ def client_detail(id):
     c['screening_date'] = str(sd)[:10] if sd else None
     c['kyc_expiry_status'] = exp_status(days_left(ke)) if ke else 'unknown'
     return render_template('client_detail.html', client=c, documents=docs)
+
 
 
 
