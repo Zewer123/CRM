@@ -909,6 +909,7 @@ def health_check_detail(id):
     conn = get_db()
     co = one(conn, 'SELECT * FROM companies WHERE id=?', (id,))
     if not co: conn.close(); return redirect(url_for('health_check'))
+    if 'health_note' not in co: co['health_note'] = ''
     ubos = all_(conn, 'SELECT * FROM ubos WHERE company_id=? ORDER BY share_percentage DESC', (id,))
     conn.close()
     today = dubai_today()
@@ -999,6 +1000,16 @@ def api_save_health_note(id):
     d = request.get_json()
     try:
         conn = get_db()
+        # Ensure column exists (Railway PG may not have run migration)
+        try:
+            if is_pg(conn):
+                x(conn, 'ALTER TABLE companies ADD COLUMN IF NOT EXISTS health_note TEXT')
+            else:
+                x(conn, 'ALTER TABLE companies ADD COLUMN health_note TEXT')
+            commit(conn)
+        except:
+            try: conn.rollback()
+            except: pass
         x(conn, 'UPDATE companies SET health_note=? WHERE id=?', (d.get('note',''), id))
         commit(conn); conn.close()
         return jsonify({'success': True})
