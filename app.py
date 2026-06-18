@@ -143,6 +143,13 @@ def _run_migrations(conn):
 
     for col in ['contact_number','mobile','username','permissions']:
         safe_alter('users', col)
+    # Ensure username column exists with explicit PG check
+    if use_pg():
+        try:
+            x(conn, "ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT")
+            x(conn, "ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions TEXT DEFAULT ''")
+            commit(conn)
+        except: conn.rollback()
     safe_alter('companies', 'group_name')
     safe_alter('companies', 'kyc_expiry_date', 'DATE')
     safe_alter('companies', 'id_type')
@@ -1936,6 +1943,7 @@ def client_detail(id):
     c['screening_date'] = str(sd)[:10] if sd else None
     c['kyc_expiry_status'] = exp_status(days_left(ke)) if ke else 'unknown'
     return render_template('client_detail.html', client=c, documents=docs)
+
 
 
 
