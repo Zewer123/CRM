@@ -922,62 +922,63 @@ def health_check_detail(id):
         if dl <= 90: return 'warning', dl
         return 'ok', dl
 
-    # Build document list
+    # Build document list with icons
     docs = []
 
     # Trade License
     tl_st, tl_dl = doc_status(co.get('trade_license_expiry'))
-    docs.append({'name': 'Trade License', 'ref': co.get('trade_license_no'), 'expiry': str(co.get('trade_license_expiry',''))[:10] if co.get('trade_license_expiry') else None, 'days': tl_dl, 'status': tl_st, 'category': 'Company'})
+    docs.append({'name': 'Trade License', 'icon': '📜', 'ref': co.get('trade_license_no'), 'expiry': str(co.get('trade_license_expiry',''))[:10] if co.get('trade_license_expiry') else None, 'days': tl_dl, 'status': tl_st, 'category': 'Company'})
 
     # Address Proof
     ap_st, ap_dl = doc_status(co.get('address_proof_expiry'))
-    docs.append({'name': 'Address Proof', 'ref': co.get('address_proof_type'), 'expiry': str(co.get('address_proof_expiry',''))[:10] if co.get('address_proof_expiry') else None, 'days': ap_dl, 'status': ap_st, 'category': 'Company'})
+    docs.append({'name': 'Address Proof', 'icon': '🏠', 'ref': co.get('address_proof_type'), 'expiry': str(co.get('address_proof_expiry',''))[:10] if co.get('address_proof_expiry') else None, 'days': ap_dl, 'status': ap_st, 'category': 'Company'})
+
+    # VAT / TRN
+    vat_present = bool(co.get('tax_no_trn'))
+    docs.append({'name': 'VAT / TRN', 'icon': '🧾', 'ref': co.get('tax_no_trn'), 'expiry': None, 'days': None, 'status': 'ok' if vat_present else 'missing', 'category': 'Tax'})
+
+    # KYC Review
+    kyc_st, kyc_dl = doc_status(co.get('kyc_expiry_date'))
+    docs.append({'name': 'KYC Review', 'icon': '🛡️', 'ref': co.get('kyc_status'), 'expiry': str(co.get('kyc_expiry_date',''))[:10] if co.get('kyc_expiry_date') else None, 'days': kyc_dl, 'status': kyc_st, 'category': 'Compliance'})
 
     # UBO documents
     for u in ubos:
         pp_st, pp_dl = doc_status(u.get('passport_expiry'))
-        docs.append({'name': f"Passport — {u['person_name']}", 'ref': u.get('passport_no'), 'expiry': str(u.get('passport_expiry',''))[:10] if u.get('passport_expiry') else None, 'days': pp_dl, 'status': pp_st, 'category': u.get('position','UBO')})
+        docs.append({'name': f"Passport", 'icon': '🛂', 'ref': u['person_name'], 'expiry': str(u.get('passport_expiry',''))[:10] if u.get('passport_expiry') else None, 'days': pp_dl, 'status': pp_st, 'category': u.get('position') or 'UBO'})
         eid_st, eid_dl = doc_status(u.get('emirates_id_expiry'))
-        docs.append({'name': f"Emirates ID — {u['person_name']}", 'ref': u.get('emirates_id'), 'expiry': str(u.get('emirates_id_expiry',''))[:10] if u.get('emirates_id_expiry') else None, 'days': eid_dl, 'status': eid_st, 'category': u.get('position','UBO')})
+        docs.append({'name': f"Emirates ID", 'icon': '🪪', 'ref': u['person_name'], 'expiry': str(u.get('emirates_id_expiry',''))[:10] if u.get('emirates_id_expiry') else None, 'days': eid_dl, 'status': eid_st, 'category': u.get('position') or 'UBO'})
 
-    # KYC expiry
-    kyc_st, kyc_dl = doc_status(co.get('kyc_expiry_date'))
-    docs.append({'name': 'KYC Review', 'ref': co.get('kyc_status'), 'expiry': str(co.get('kyc_expiry_date',''))[:10] if co.get('kyc_expiry_date') else None, 'days': kyc_dl, 'status': kyc_st, 'category': 'Compliance'})
+    # ── SUMMARY COUNTS ──
+    summary = {
+        'total': len(docs),
+        'valid': sum(1 for d in docs if d['status'] == 'ok'),
+        'expiring': sum(1 for d in docs if d['status'] in ('warning','critical')),
+        'expired': sum(1 for d in docs if d['status'] == 'expired'),
+        'missing': sum(1 for d in docs if d['status'] == 'missing'),
+    }
 
-    # ── HEALTH SCORE CALCULATION ──────────────────────────────
-    # Start at 100, deduct for issues
+    # ── HEALTH SCORE CALCULATION ──
     score = 100
     deductions = []
-
-    # Document issues
     for d in docs:
         if d['status'] == 'expired':
-            score -= 15
-            deductions.append(f"{d['name']} expired")
+            score -= 15; deductions.append(f"{d['name']} expired")
         elif d['status'] == 'critical':
-            score -= 8
-            deductions.append(f"{d['name']} expiring in {d['days']}d")
+            score -= 8; deductions.append(f"{d['name']} expiring in {d['days']}d")
         elif d['status'] == 'warning':
-            score -= 4
-            deductions.append(f"{d['name']} expiring in {d['days']}d")
+            score -= 4; deductions.append(f"{d['name']} expiring in {d['days']}d")
         elif d['status'] == 'missing':
-            score -= 5
-            deductions.append(f"{d['name']} missing")
+            score -= 5; deductions.append(f"{d['name']} missing")
 
-    # Risk level
     risk = (co.get('risk_status') or '').lower()
     if risk == 'high': score -= 10; deductions.append('High risk client')
     elif risk == 'medium': score -= 5; deductions.append('Medium risk client')
 
-    # KYC status
     kyc = (co.get('kyc_status') or '').lower()
     if 'not' in kyc or 'pending' in kyc: score -= 8; deductions.append('KYC not completed')
     elif 'expired' in kyc: score -= 10; deductions.append('KYC expired')
 
-    # Doc status
     if co.get('doc_status') == 'Incompleted': score -= 5; deductions.append('Documents incomplete')
-
-    # PEP
     if (co.get('pep') or '').lower() == 'yes': score -= 5; deductions.append('PEP flagged')
 
     score = max(0, min(100, score))
@@ -988,7 +989,7 @@ def health_check_detail(id):
     else: grade = 'Poor'; grade_color = '#ef4444'
 
     return render_template('health_check_detail.html',
-        company=co, ubos=ubos, docs=docs,
+        company=co, ubos=ubos, docs=docs, summary=summary,
         score=score, grade=grade, grade_color=grade_color,
         deductions=deductions, today=str(today))
 

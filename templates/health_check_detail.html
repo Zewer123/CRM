@@ -4,33 +4,33 @@
 
 <style>
 @media print {
-  .navbar,.page-header .btn,.btn,#noteSection,#actionBar{display:none!important;}
+  .navbar,.btn,#noteSection,#actionBar{display:none!important;}
   body,*{background:#fff!important;color:#000!important;}
-  .hc-card{border:1px solid #ddd!important;background:#fff!important;page-break-inside:avoid;}
-  th,td{border:1px solid #ddd!important;font-size:11px!important;padding:5px!important;}
-  .score-ring text{fill:#000!important;}
+  .hc-card,.dcard,.scard{border:1px solid #ddd!important;background:#fff!important;page-break-inside:avoid;}
 }
-.hc-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
-.hc-card-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
-.hc-card-body{padding:20px;}
-.doc-row{display:grid;grid-template-columns:2fr 1fr 1.2fr 1fr 1fr;gap:12px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border);font-size:13px;}
-.doc-row:last-child{border-bottom:none;}
-.doc-row:hover{background:var(--surface2);}
-.badge-ok{background:rgba(34,197,94,0.12);color:#86efac;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
-.badge-warn{background:rgba(245,158,11,0.12);color:#fcd34d;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
-.badge-crit{background:rgba(239,68,68,0.15);color:#fca5a5;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
-.badge-exp{background:rgba(239,68,68,0.25);color:#ef4444;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;}
-.badge-miss{background:var(--surface3);color:var(--text-dim);padding:3px 10px;border-radius:20px;font-size:11px;}
-.info-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.scard{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;}
+.scard-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:12px;}
+.dcard{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 14px;text-align:center;transition:all 0.15s;position:relative;overflow:hidden;}
+.dcard:hover{transform:translateY(-2px);border-color:var(--primary);}
+.dcard-ico{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 10px;}
+.dcard-name{font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px;line-height:1.3;}
+.dcard-ref{font-size:10px;color:var(--text-dim);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle;}
+.st-ok{color:#22c55e;}.st-ok .dot{background:#22c55e;}
+.st-warn{color:#f59e0b;}.st-warn .dot{background:#f59e0b;}
+.st-crit{color:#f97316;}.st-crit .dot{background:#f97316;}
+.st-exp{color:#ef4444;}.st-exp .dot{background:#ef4444;}
+.st-miss{color:#78716c;}.st-miss .dot{background:#78716c;}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;}
 .info-row:last-child{border-bottom:none;}
 </style>
 
 <!-- HEADER -->
 <div class="page-header" style="margin-bottom:20px;" id="actionBar">
   <div>
-    <a href="{{ url_for('health_check') }}" style="color:var(--text-dim);font-size:12px;text-decoration:none;display:flex;align-items:center;gap:4px;">← Back to Health Check</a>
+    <a href="{{ url_for('health_check') }}" style="color:var(--text-dim);font-size:12px;text-decoration:none;">← Back to Health Check</a>
     <div class="page-title" style="margin-top:6px;">{{ company.client_name }}</div>
-    <div style="font-size:12px;color:var(--primary);font-weight:600;margin-top:2px;">{{ company.ac_code }} · Health Report · {{ today }}</div>
+    <div style="font-size:12px;color:var(--primary);font-weight:600;margin-top:2px;">{{ company.ac_code }} · Last checked: {{ today }}</div>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ Print</button>
@@ -38,239 +38,239 @@
     {% set wa = company.whatsapp_number or company.mobile %}{% if wa %}
     <button class="btn btn-ghost btn-sm" onclick="shareWhatsApp()">💬 WhatsApp</button>
     {% endif %}
-    <button class="btn btn-primary btn-sm" onclick="saveNote()">💾 Save Note</button>
   </div>
 </div>
 
-<!-- ROW 1: Score + Company Info + Compliance -->
-<div style="display:grid;grid-template-columns:200px 1fr 200px;gap:16px;margin-bottom:16px;align-items:start;">
+<!-- TOP STAT CARDS (Tahfeel style) -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:14px;">
 
-  <!-- SCORE CARD -->
-  <div class="hc-card" style="text-align:center;padding:24px 16px;">
-    <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;margin-bottom:18px;">Health Score</div>
-    <div style="position:relative;width:130px;height:130px;margin:0 auto 14px;">
-      <svg viewBox="0 0 130 130" width="130" height="130" style="transform:rotate(-90deg);">
-        <circle cx="65" cy="65" r="52" fill="none" stroke="var(--surface3)" stroke-width="12"/>
-        <circle cx="65" cy="65" r="52" fill="none"
-          stroke="{{ grade_color }}" stroke-width="12"
-          stroke-dasharray="{{ (score / 100 * 326.7)|round(1) }} 326.7"
-          stroke-linecap="round" style="transition:stroke-dasharray 1s ease;"/>
+  <!-- HEALTH SCORE -->
+  <div class="scard" style="text-align:center;">
+    <div style="font-size:12px;color:var(--text-dim);font-weight:600;margin-bottom:10px;">Overall Health Score</div>
+    <div style="position:relative;width:120px;height:120px;margin:0 auto 8px;">
+      <svg viewBox="0 0 120 120" width="120" height="120" style="transform:rotate(-90deg);">
+        <circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface3)" stroke-width="11"/>
+        <circle cx="60" cy="60" r="50" fill="none" stroke="{{ grade_color }}" stroke-width="11"
+          stroke-dasharray="{{ (score/100*314.2)|round(1) }} 314.2" stroke-linecap="round"
+          style="transition:stroke-dasharray 1s ease;"/>
       </svg>
-      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;line-height:1.1;">
-        <div style="font-size:34px;font-weight:800;color:{{ grade_color }};">{{ score }}</div>
-        <div style="font-size:11px;color:var(--text-dim);">out of 100</div>
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);">
+        <div style="font-size:30px;font-weight:800;color:{{ grade_color }};">{{ score }}%</div>
       </div>
     </div>
-    <div style="font-size:20px;font-weight:700;color:{{ grade_color }};">
-      {% if grade == 'Excellent' %}🌟{% elif grade == 'Good' %}✅{% elif grade == 'Average' %}⚠️{% else %}🔴{% endif %}
-      {{ grade }}
+    <div style="font-size:15px;font-weight:700;color:{{ grade_color }};">
+      {% if grade=='Excellent' %}🌟{% elif grade=='Good' %}✅{% elif grade=='Average' %}⚠️{% else %}🔴{% endif %} {{ grade }}
     </div>
+  </div>
+
+  <!-- TOTAL DOCS -->
+  <div class="scard">
+    <div class="scard-icon" style="background:rgba(59,130,246,0.12);">📁</div>
+    <div style="font-size:12px;color:var(--text-dim);font-weight:600;">Total Documents</div>
+    <div style="font-size:32px;font-weight:800;color:var(--text);margin:4px 0;">{{ summary.total }}</div>
+    <div style="font-size:11px;color:var(--text-dim);">Tracked items</div>
+  </div>
+
+  <!-- VALID -->
+  <div class="scard">
+    <div class="scard-icon" style="background:rgba(34,197,94,0.12);">✅</div>
+    <div style="font-size:12px;color:var(--text-dim);font-weight:600;">Valid</div>
+    <div style="font-size:32px;font-weight:800;color:#22c55e;margin:4px 0;">{{ summary.valid }}</div>
+    <div style="font-size:11px;color:var(--text-dim);">All up to date</div>
+  </div>
+
+  <!-- EXPIRING -->
+  <div class="scard">
+    <div class="scard-icon" style="background:rgba(245,158,11,0.12);">⏳</div>
+    <div style="font-size:12px;color:var(--text-dim);font-weight:600;">Expiring Soon</div>
+    <div style="font-size:32px;font-weight:800;color:#f59e0b;margin:4px 0;">{{ summary.expiring }}</div>
+    <div style="font-size:11px;color:var(--text-dim);">Within 90 days</div>
+  </div>
+
+  <!-- EXPIRED -->
+  <div class="scard">
+    <div class="scard-icon" style="background:rgba(239,68,68,0.12);">❌</div>
+    <div style="font-size:12px;color:var(--text-dim);font-weight:600;">Expired</div>
+    <div style="font-size:32px;font-weight:800;color:#ef4444;margin:4px 0;">{{ summary.expired }}</div>
+    <div style="font-size:11px;color:var(--text-dim);">Needs action</div>
+  </div>
+
+</div>
+
+<!-- COMPLIANCE OVERVIEW (Card Grid - Tahfeel style) -->
+<div class="hc-card" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:14px;">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+    <span style="font-size:18px;">📋</span>
+    <span style="font-weight:700;color:var(--text);font-size:15px;">Compliance Overview</span>
+    <div style="margin-left:auto;display:flex;gap:14px;font-size:11px;color:var(--text-dim);">
+      <span><span class="dot" style="background:#22c55e;"></span>Valid</span>
+      <span><span class="dot" style="background:#f59e0b;"></span>Expiring</span>
+      <span><span class="dot" style="background:#ef4444;"></span>Expired</span>
+      <span><span class="dot" style="background:#78716c;"></span>Missing</span>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;">
+    {% for d in docs %}
+    {% set sc = 'st-ok' if d.status=='ok' else 'st-warn' if d.status=='warning' else 'st-crit' if d.status=='critical' else 'st-exp' if d.status=='expired' else 'st-miss' %}
+    {% set bg = 'rgba(34,197,94,0.1)' if d.status=='ok' else 'rgba(245,158,11,0.1)' if d.status=='warning' else 'rgba(249,115,22,0.1)' if d.status=='critical' else 'rgba(239,68,68,0.1)' if d.status=='expired' else 'var(--surface3)' %}
+    <div class="dcard">
+      <div class="dcard-ico" style="background:{{ bg }};">{{ d.icon }}</div>
+      <div class="dcard-name">{{ d.name }}</div>
+      <div class="dcard-ref">{{ d.ref or d.category }}</div>
+      <div class="{{ sc }}" style="font-size:11px;font-weight:700;">
+        <span class="dot"></span>
+        {% if d.status=='ok' %}Valid{% elif d.status=='warning' %}{{ d.days }}d left{% elif d.status=='critical' %}{{ d.days }}d left{% elif d.status=='expired' %}Expired{% else %}Missing{% endif %}
+      </div>
+      {% if d.expiry %}
+      <div style="font-size:9px;color:var(--text-dim);margin-top:4px;">{{ d.expiry }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- TWO COLUMN: Company Details + Compliance Status -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+
+  <!-- COMPANY DETAILS -->
+  <div class="hc-card" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <span style="font-size:18px;">🏢</span>
+      <span style="font-weight:700;color:var(--text);font-size:15px;">Company Details</span>
+    </div>
+    {% for label, val, icon in [
+      ('AC Code', company.ac_code, '🔖'),
+      ('Status', company.ac_status, '📊'),
+      ('Type', company.type_of_client, '🏷️'),
+      ('Region', company.region, '📍'),
+      ('Account Manager', company.account_manager, '👤'),
+      ('Contact Person', company.contact_person_name, '📞'),
+      ('Mobile', company.contact_person_number or company.mobile, '📱'),
+      ('Email', company.email_id, '📧'),
+      ('Trade License No.', company.trade_license_no, '📜'),
+      ('TRN', company.tax_no_trn, '🔢'),
+      ('Group', company.group_name, '🔗'),
+    ] %}{% if val %}
+    <div class="info-row">
+      <span style="color:var(--text-dim);">{{ icon }} {{ label }}</span>
+      <span style="font-weight:600;color:var(--text);text-align:right;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ val }}</span>
+    </div>
+    {% endif %}{% endfor %}
+  </div>
+
+  <!-- COMPLIANCE STATUS -->
+  <div class="hc-card" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <span style="font-size:18px;">🛡️</span>
+      <span style="font-weight:700;color:var(--text);font-size:15px;">Compliance Status</span>
+    </div>
+
+    <!-- Risk big -->
+    <div style="display:flex;gap:10px;margin-bottom:16px;">
+      <div style="flex:1;text-align:center;padding:14px;border-radius:10px;
+        background:{% if company.risk_status=='High' %}rgba(239,68,68,0.1){% elif company.risk_status=='Medium' %}rgba(245,158,11,0.1){% elif company.risk_status=='Low' %}rgba(34,197,94,0.1){% else %}var(--surface2){% endif %};">
+        <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Risk</div>
+        <div style="font-size:18px;font-weight:800;margin-top:4px;
+          color:{% if company.risk_status=='High' %}#ef4444{% elif company.risk_status=='Medium' %}#f59e0b{% elif company.risk_status=='Low' %}#22c55e{% else %}#78716c{% endif %};">
+          {% if company.risk_status=='High' %}🔴{% elif company.risk_status=='Medium' %}🟡{% elif company.risk_status=='Low' %}🟢{% else %}⚪{% endif %} {{ company.risk_status or 'N/A' }}
+        </div>
+      </div>
+      <div style="flex:1;text-align:center;padding:14px;border-radius:10px;
+        background:{% if company.doc_status=='Completed' %}rgba(34,197,94,0.1){% else %}rgba(245,158,11,0.1){% endif %};">
+        <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Docs</div>
+        <div style="font-size:18px;font-weight:800;margin-top:4px;
+          color:{% if company.doc_status=='Completed' %}#22c55e{% else %}#f59e0b{% endif %};">
+          {% if company.doc_status=='Completed' %}✅{% else %}⚠️{% endif %} {{ company.doc_status or 'N/A' }}
+        </div>
+      </div>
+    </div>
+
+    {% for label, val, icon in [
+      ('KYC Status', company.kyc_status, '📋'),
+      ('KYC Expiry', (company.kyc_expiry_date|string)[:10] if company.kyc_expiry_date else None, '📅'),
+      ('PEP', company.pep, '🚩'),
+      ('Source of Funds', company.source_of_fund, '💰'),
+      ('Screening Tool', company.registration_screening_tool, '🔍'),
+      ('Verified By', company.verified_by, '✅'),
+    ] %}{% if val %}
+    <div class="info-row">
+      <span style="color:var(--text-dim);">{{ icon }} {{ label }}</span>
+      <span style="font-weight:600;color:
+        {% if val=='Completed' or val=='Yes' or val=='Low' %}#86efac
+        {% elif val=='High' or val=='Incompleted' %}#fca5a5
+        {% elif val=='Medium' %}#fcd34d
+        {% else %}var(--text-muted){% endif %};">{{ val }}</span>
+    </div>
+    {% endif %}{% endfor %}
+
     {% if deductions %}
-    <div style="margin-top:14px;text-align:left;background:var(--surface2);border-radius:8px;padding:10px 12px;">
-      <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Issues Found</div>
+    <div style="margin-top:14px;background:rgba(239,68,68,0.06);border-radius:10px;padding:12px;">
+      <div style="font-size:11px;font-weight:700;color:#fca5a5;margin-bottom:6px;">⚠️ Score Deductions</div>
       {% for d in deductions %}
-      <div style="font-size:11px;color:#fca5a5;padding:2px 0;display:flex;align-items:start;gap:5px;"><span>−</span><span>{{ d }}</span></div>
+      <div style="font-size:11px;color:#fca5a5;padding:2px 0;">− {{ d }}</div>
       {% endfor %}
-    </div>
-    {% else %}
-    <div style="margin-top:14px;background:rgba(34,197,94,0.08);border-radius:8px;padding:10px 12px;">
-      <div style="font-size:12px;color:#86efac;text-align:center;">🎉 All documents valid!</div>
     </div>
     {% endif %}
   </div>
 
-  <!-- COMPANY DETAILS -->
-  <div class="hc-card">
-    <div class="hc-card-header">
-      <span style="font-size:18px;">🏢</span>
-      <span style="font-weight:700;color:var(--text);font-size:14px;">Company Details</span>
-    </div>
-    <div class="hc-card-body" style="padding:16px 20px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;">
-        {% for label, val, icon in [
-          ('AC Code', company.ac_code, '🔖'),
-          ('Status', company.ac_status, '📊'),
-          ('Type', company.type_of_client, '🏷️'),
-          ('Nature', company.nature, '🌿'),
-          ('Region', company.region, '📍'),
-          ('Mode of Account', company.mode_of_ac, '💳'),
-          ('Account Manager', company.account_manager, '👤'),
-          ('Contact Person', company.contact_person_name, '📞'),
-          ('Mobile', company.contact_person_number or company.mobile, '📱'),
-          ('Email', company.email_id, '📧'),
-          ('Trade License No.', company.trade_license_no, '📄'),
-          ('Issuing Authority', company.issuing_authority, '🏛️'),
-          ('TRN', company.tax_no_trn, '🔢'),
-          ('Country', company.country_of_incorporation, '🌍'),
-          ('Group', company.group_name, '🔗'),
-          ('AC Opening Date', company.ac_opening_date, '📅'),
-        ] %}{% if val %}
-        <div style="padding:6px 0;border-bottom:1px solid var(--border);">
-          <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;">{{ icon }} {{ label }}</div>
-          <div style="color:var(--text);font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ val }}</div>
-        </div>
-        {% endif %}{% endfor %}
-      </div>
-    </div>
-  </div>
-
-  <!-- COMPLIANCE BADGES -->
-  <div class="hc-card">
-    <div class="hc-card-header">
-      <span style="font-size:18px;">🛡️</span>
-      <span style="font-weight:700;color:var(--text);font-size:14px;">Compliance</span>
-    </div>
-    <div class="hc-card-body" style="padding:14px 16px;">
-      <!-- Risk badge big -->
-      <div style="text-align:center;margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:8px;">
-        <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Risk Level</div>
-        <div style="font-size:22px;font-weight:800;
-          color:{% if company.risk_status=='High' %}#ef4444{% elif company.risk_status=='Medium' %}#f59e0b{% elif company.risk_status=='Low' %}#22c55e{% else %}#78716c{% endif %};">
-          {% if company.risk_status=='High' %}🔴{% elif company.risk_status=='Medium' %}🟡{% elif company.risk_status=='Low' %}🟢{% else %}⚪{% endif %}
-          {{ company.risk_status or 'N/A' }}
-        </div>
-      </div>
-      {% for label, val, icon in [
-        ('KYC Status', company.kyc_status, '📋'),
-        ('KYC Expiry', (company.kyc_expiry_date|string)[:10] if company.kyc_expiry_date else None, '📅'),
-        ('Doc Status', company.doc_status, '📁'),
-        ('PEP', company.pep, '🚩'),
-        ('Source of Funds', company.source_of_fund, '💰'),
-        ('Screening Tool', company.registration_screening_tool, '🔍'),
-        ('Undertaking', company.undertaking, '📜'),
-        ('MOA', company.moa, '📝'),
-        ('Verified By', company.verified_by, '✅'),
-        ('Verified Date', (company.verified_date|string)[:10] if company.verified_date else None, '📅'),
-      ] %}{% if val %}
-      <div class="info-row">
-        <span style="color:var(--text-dim);font-size:11px;">{{ icon }} {{ label }}</span>
-        <span style="font-weight:600;font-size:12px;color:
-          {% if val == 'Completed' or val == 'Yes' or val == 'Low' %}#86efac
-          {% elif val == 'High' or val == 'Incompleted' %}#fca5a5
-          {% elif val == 'Medium' %}#fcd34d
-          {% else %}var(--text-muted){% endif %};">{{ val }}</span>
-      </div>
-      {% endif %}{% endfor %}
-    </div>
-  </div>
-
 </div>
 
-<!-- ROW 2: Documents Table -->
-<div class="hc-card" style="margin-bottom:16px;">
-  <div class="hc-card-header">
-    <span style="font-size:18px;">📄</span>
-    <span style="font-weight:700;color:var(--text);font-size:14px;">Document Status</span>
-    <div style="margin-left:auto;display:flex;gap:8px;font-size:11px;">
-      {% set exp_count = docs|selectattr('status','eq','expired')|list|length %}
-      {% set crit_count = docs|selectattr('status','eq','critical')|list|length %}
-      {% set warn_count = docs|selectattr('status','eq','warning')|list|length %}
-      {% set ok_count = docs|selectattr('status','eq','ok')|list|length %}
-      {% if exp_count > 0 %}<span class="badge-exp">{{ exp_count }} Expired</span>{% endif %}
-      {% if crit_count > 0 %}<span class="badge-crit">{{ crit_count }} Critical</span>{% endif %}
-      {% if warn_count > 0 %}<span class="badge-warn">{{ warn_count }} Warning</span>{% endif %}
-      {% if ok_count > 0 %}<span class="badge-ok">{{ ok_count }} Valid</span>{% endif %}
-    </div>
-  </div>
-  <!-- Table header -->
-  <div style="display:grid;grid-template-columns:2fr 1fr 1.2fr 1fr 1fr;gap:12px;padding:10px 20px;background:var(--surface2);font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">
-    <div>Document</div><div>Category</div><div>Reference</div><div>Expiry Date</div><div>Status</div>
-  </div>
-  {% for d in docs %}
-  <div class="doc-row">
-    <div>
-      <div style="font-weight:600;color:var(--text);">
-        {% if d.status == 'expired' %}❌ {% elif d.status == 'critical' %}🔴 {% elif d.status == 'warning' %}⚠️ {% elif d.status == 'ok' %}✅ {% else %}📋 {% endif %}{{ d.name }}
-      </div>
-    </div>
-    <div style="color:var(--text-dim);font-size:12px;">{{ d.category }}</div>
-    <div style="color:var(--text-muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ d.ref or '—' }}</div>
-    <div style="font-size:12px;color:var(--text-muted);">{{ d.expiry or '—' }}</div>
-    <div>
-      {% if d.status == 'ok' %}<span class="badge-ok">✅ Valid{% if d.days is not none %} · {{ d.days }}d{% endif %}</span>
-      {% elif d.status == 'warning' %}<span class="badge-warn">⚠️ {{ d.days }}d left</span>
-      {% elif d.status == 'critical' %}<span class="badge-crit">🔴 {{ d.days }}d left</span>
-      {% elif d.status == 'expired' %}<span class="badge-exp">❌ {{ d.days|abs }}d ago</span>
-      {% else %}<span class="badge-miss">— Missing</span>{% endif %}
-    </div>
-  </div>
-  {% endfor %}
-</div>
-
-<!-- ROW 3: UBOs -->
+<!-- UBO SECTION -->
 {% if ubos %}
-<div class="hc-card" style="margin-bottom:16px;">
-  <div class="hc-card-header">
+<div class="hc-card" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:14px;">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
     <span style="font-size:18px;">👥</span>
-    <span style="font-weight:700;color:var(--text);font-size:14px;">Beneficial Owners & Authorized Persons</span>
-    <span style="margin-left:auto;background:rgba(217,119,6,0.12);color:var(--primary);padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;">{{ ubos|length }} person{{ 's' if ubos|length != 1 }}</span>
+    <span style="font-weight:700;color:var(--text);font-size:15px;">Beneficial Owners & Authorized Persons</span>
+    <span style="margin-left:auto;background:rgba(217,119,6,0.12);color:var(--primary);padding:2px 12px;border-radius:20px;font-size:11px;font-weight:700;">{{ ubos|length }}</span>
   </div>
-  <div style="overflow-x:auto;">
-    <table style="width:100%;border-collapse:collapse;">
-      <thead>
-        <tr style="background:var(--surface2);font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">
-          <th style="padding:10px 20px;text-align:left;font-weight:700;">👤 Name</th>
-          <th style="padding:10px 12px;text-align:left;font-weight:700;">Position</th>
-          <th style="padding:10px 12px;text-align:left;font-weight:700;">Share %</th>
-          <th style="padding:10px 12px;text-align:left;font-weight:700;">Nationality</th>
-          <th style="padding:10px 12px;text-align:left;font-weight:700;">Passport No.</th>
-          <th style="padding:10px 12px;text-align:left;font-weight:700;">Passport Expiry</th>
-          <th style="padding:10px 12px;text-align:left;font-weight:700;">EID Expiry</th>
-          <th style="padding:10px 12px;text-align:left;font-weight:700;">Doc Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for u in ubos %}
-        {% set pp_exp = (u.passport_expiry|string)[:10] if u.passport_expiry else None %}
-        {% set eid_exp = (u.emirates_id_expiry|string)[:10] if u.emirates_id_expiry else None %}
-        <tr style="border-top:1px solid var(--border);font-size:13px;">
-          <td style="padding:12px 20px;font-weight:600;color:var(--text);">
-            <div style="width:30px;height:30px;border-radius:50%;background:rgba(217,119,6,0.15);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--primary);margin-right:8px;vertical-align:middle;">
-              {{ u.person_name[0]|upper if u.person_name else '?' }}
-            </div>{{ u.person_name }}
-          </td>
-          <td style="padding:12px;color:var(--text-muted);font-size:12px;">{{ u.position or '—' }}</td>
-          <td style="padding:12px;color:var(--text-muted);font-size:12px;">{% if u.share_percentage %}{{ u.share_percentage }}%{% else %}—{% endif %}</td>
-          <td style="padding:12px;color:var(--text-muted);font-size:12px;">{{ u.nationality or '—' }}</td>
-          <td style="padding:12px;color:var(--text-muted);font-size:12px;">{{ u.passport_no or '—' }}</td>
-          <td style="padding:12px;font-size:12px;">
-            {% if pp_exp %}<span style="color:{% if pp_exp < today %}#fca5a5{% elif pp_exp < today[:4]~'-'~('%02d'|format((today[5:7]|int)+3))~today[7:] %}#fcd34d{% else %}#86efac{% endif %};">
-              {% if pp_exp < today %}❌{% elif pp_exp < today %}⚠️{% else %}✅{% endif %} {{ pp_exp }}
-            </span>{% else %}<span style="color:var(--text-dim);">—</span>{% endif %}
-          </td>
-          <td style="padding:12px;font-size:12px;">
-            {% if eid_exp %}<span style="color:{% if eid_exp < today %}#fca5a5{% else %}#86efac{% endif %};">
-              {% if eid_exp < today %}❌{% else %}✅{% endif %} {{ eid_exp }}
-            </span>{% else %}<span style="color:var(--text-dim);">—</span>{% endif %}
-          </td>
-          <td style="padding:12px;">
-            {% if u.doc_status == 'Completed' %}<span class="badge-ok">✅ Complete</span>
-            {% else %}<span class="badge-warn">⚠️ {{ u.doc_status or 'Pending' }}</span>{% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">
+    {% for u in ubos %}
+    {% set pp = (u.passport_expiry|string)[:10] if u.passport_expiry else None %}
+    {% set eid = (u.emirates_id_expiry|string)[:10] if u.emirates_id_expiry else None %}
+    <div style="background:var(--surface2);border-radius:12px;padding:16px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <div style="width:38px;height:38px;border-radius:50%;background:rgba(217,119,6,0.18);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:var(--primary);">
+          {{ u.person_name[0]|upper if u.person_name else '?' }}
+        </div>
+        <div style="min-width:0;flex:1;">
+          <div style="font-weight:700;color:var(--text);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ u.person_name }}</div>
+          <div style="font-size:11px;color:var(--text-dim);">{{ u.position or 'UBO' }}{% if u.share_percentage %} · {{ u.share_percentage }}%{% endif %}</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;">
+          <span style="color:var(--text-dim);">🛂 Passport</span>
+          {% if pp %}<span style="color:{% if pp < today %}#fca5a5{% else %}#86efac{% endif %};font-weight:600;">{% if pp < today %}❌{% else %}✅{% endif %} {{ pp }}</span>{% else %}<span style="color:var(--text-dim);">— Missing</span>{% endif %}
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;">
+          <span style="color:var(--text-dim);">🪪 Emirates ID</span>
+          {% if eid %}<span style="color:{% if eid < today %}#fca5a5{% else %}#86efac{% endif %};font-weight:600;">{% if eid < today %}❌{% else %}✅{% endif %} {{ eid }}</span>{% else %}<span style="color:var(--text-dim);">— Missing</span>{% endif %}
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;">
+          <span style="color:var(--text-dim);">🌍 Nationality</span>
+          <span style="color:var(--text-muted);">{{ u.nationality or '—' }}</span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
   </div>
 </div>
 {% endif %}
 
-<!-- ROW 4: Notes -->
-<div class="hc-card" id="noteSection" style="margin-bottom:16px;">
-  <div class="hc-card-header">
+<!-- NOTES -->
+<div class="hc-card" id="noteSection" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px;">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
     <span style="font-size:18px;">📝</span>
-    <span style="font-weight:700;color:var(--text);font-size:14px;">Notes & Remarks</span>
+    <span style="font-weight:700;color:var(--text);font-size:15px;">Notes & Remarks</span>
     <span style="margin-left:auto;font-size:11px;color:var(--text-dim);">Saved to company record</span>
   </div>
-  <div class="hc-card-body">
-    <textarea id="healthNote" rows="4" placeholder="Add compliance notes, action items, follow-up remarks for this company..."
-      style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;
-        color:var(--text);padding:12px;font-size:13px;resize:vertical;font-family:inherit;box-sizing:border-box;">{{ company.health_note or '' }}</textarea>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
-      <div id="noteSaved" style="display:none;color:#86efac;font-size:12px;">✅ Note saved successfully</div>
-      <div style="flex:1;"></div>
-      <button class="btn btn-primary btn-sm" onclick="saveNote()">💾 Save Note</button>
-    </div>
+  <textarea id="healthNote" rows="4" placeholder="Add compliance notes, action items, follow-up remarks..."
+    style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:12px;font-size:13px;resize:vertical;font-family:inherit;box-sizing:border-box;">{{ company.health_note or '' }}</textarea>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+    <div id="noteSaved" style="display:none;color:#86efac;font-size:12px;">✅ Note saved successfully</div>
+    <div style="flex:1;"></div>
+    <button class="btn btn-primary btn-sm" onclick="saveNote()">💾 Save Note</button>
   </div>
 </div>
 
@@ -292,26 +292,20 @@ function saveNote() {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({note})
   }).then(r=>r.json()).then(d=>{
-    if (d.success) {
-      const el = document.getElementById('noteSaved');
-      el.style.display = 'block';
-      setTimeout(()=>el.style.display='none', 3000);
-    } else alert('Error: '+d.error);
+    if (d.success) { const el=document.getElementById('noteSaved'); el.style.display='block'; setTimeout(()=>el.style.display='none',3000); }
+    else alert('Error: '+d.error);
   });
 }
 
 function buildText() {
   const note = document.getElementById('healthNote').value;
-  let t = `🏥 *HEALTH CHECK REPORT — ZEWER AML CRM*\n`;
-  t += `━━━━━━━━━━━━━━━━━━━━━\n`;
-  t += `🏢 *${CO_NAME}* (${CO_AC})\n📅 Date: ${TODAY}\n\n`;
-  t += `📊 *Health Score: ${SCORE}/100 — ${GRADE}*\n\n`;
-  t += `📄 *Documents:*\n`;
-  document.querySelectorAll('.doc-row').forEach(row=>{
-    const name = row.children[0]?.textContent?.trim();
-    const expiry = row.children[3]?.textContent?.trim();
-    const status = row.children[4]?.textContent?.trim();
-    if (name && name !== 'Document') t += `  • ${name}: ${expiry} (${status})\n`;
+  let t = `🏥 *HEALTH CHECK REPORT — ZEWER AML*\n━━━━━━━━━━━━━━━━━━\n`;
+  t += `🏢 *${CO_NAME}* (${CO_AC})\n📅 ${TODAY}\n\n`;
+  t += `📊 *Score: ${SCORE}/100 — ${GRADE}*\n\n📄 *Documents:*\n`;
+  document.querySelectorAll('.dcard').forEach(c=>{
+    const name = c.querySelector('.dcard-name')?.textContent?.trim();
+    const status = c.querySelector('[class*="st-"]')?.textContent?.trim();
+    if (name) t += `  • ${name}: ${status}\n`;
   });
   if (note) t += `\n📝 *Notes:*\n${note}\n`;
   t += `\n_Zewer Jewellery LLC — AML Compliance_`;
@@ -320,8 +314,7 @@ function buildText() {
 
 function shareWhatsApp() {
   if (!WA_NUMBER) { alert('No WhatsApp number for this company'); return; }
-  const clean = WA_NUMBER.replace(/[^0-9]/g,'');
-  window.open(`https://wa.me/${clean}?text=${encodeURIComponent(buildText())}`, '_blank');
+  window.open(`https://wa.me/${WA_NUMBER.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(buildText())}`, '_blank');
 }
 
 function emailReport() {
