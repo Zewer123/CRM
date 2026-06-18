@@ -151,6 +151,20 @@ def _run_migrations(conn):
     for col in ['nationality','passport_no','passport_expiry','emirates_id','emirates_id_expiry','address_proof','emirate','location','account_number','mode_of_ac','ac_status','id_type','pep_status','kyc_status','kyc_expiry_date','risk_status','screening_status','screening_date']:
         coltype = 'DATE' if ('expiry' in col or col == 'screening_date') else 'TEXT'
         safe_alter('clients', col, coltype)
+    # Force-insert new dropdown values on existing DBs
+    new_dd = [
+        ('ID TYPE','National ID'),('ID TYPE','Passport'),('ID TYPE','Emirates ID'),('ID TYPE','Visa No'),
+        ('SCREENING REGISTRATION STATUS','Yes'),('SCREENING REGISTRATION STATUS','No'),
+        ('SCREENING REGISTRATION STATUS','Not Required'),('SCREENING REGISTRATION STATUS','Pending'),
+    ]
+    for field, val in new_dd:
+        try:
+            if use_pg():
+                x(conn, "INSERT INTO dropdowns (field_name,value,is_active) VALUES (%s,%s,1) ON CONFLICT DO NOTHING", (field, val))
+                commit(conn)
+            else:
+                conn.execute("INSERT OR IGNORE INTO dropdowns (field_name,value,is_active) VALUES (?,?,1)", (field, val))
+        except: pass
 
 def _pg_schema(conn):
     stmts = [
