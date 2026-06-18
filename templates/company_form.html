@@ -259,6 +259,21 @@
           </select>
         </div>
         <div class="form-group">
+          <label>KYC Expiry Date <small style="color:var(--text-dim);">(max 2 years)</small></label>
+          <input type="date" name="kyc_expiry_date" id="f_kyc_expiry_date"
+            value="{{ company.kyc_expiry_date if company and company.kyc_expiry_date else '' }}"
+            max="{{ max_kyc_date }}">
+        </div>
+        <div class="form-group">
+          <label>ID Type</label>
+          <select name="id_type">
+            <option value="">-- Select --</option>
+            {% for v in dropdown_data.get('ID TYPE', ['Passport','Emirates ID','National ID','Other']) %}
+            <option value="{{ v }}" {% if company and company.id_type == v %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
           <label>Risk Status</label>
           <select name="risk_status">
             {% for v in dropdown_data.get('RISK STATUS', ['High','Medium','Low','Unspecified']) %}
@@ -365,8 +380,8 @@
           <textarea name="followup_details" rows="2" placeholder="Follow-up notes...">{{ company.followup_details if company else '' }}</textarea>
         </div>
         <div class="form-group form-full">
-          <label>Crowe Feedback / Missing Documents</label>
-          <textarea name="crowe_feedback" rows="2" placeholder="Feedback from Crowe...">{{ company.crowe_feedback if company else '' }}</textarea>
+          <label>Compliance Auditor Feedback</label>
+          <textarea name="crowe_feedback" rows="2" placeholder="Feedback from compliance auditor...">{{ company.crowe_feedback if company else '' }}</textarea>
         </div>
         <div class="form-group form-full">
           <label>Zewer Comments</label>
@@ -661,8 +676,17 @@ function submitForm() {
    'trade_license_no','issuing_authority','legal_type','incorporation_date','trade_license_expiry',
    'tax_no_trn','vat_cert','vat_declaration','deal_after_vat','num_beneficial_owners','moa','pep',
    'undertaking','source_of_fund','doc_status','screening_date','registration_screening_tool',
-   'risk_status','verified_by','verified_date','followup_details','crowe_feedback','zewer_comments'
+   'risk_status','verified_by','verified_date','followup_details','crowe_feedback','zewer_comments',
+   'kyc_expiry_date','id_type'
   ].forEach(k => data[k] = get(k));
+  // Client-side KYC max 2 years validation
+  if (data.kyc_expiry_date) {
+    const maxD = new Date(); maxD.setFullYear(maxD.getFullYear() + 2);
+    if (new Date(data.kyc_expiry_date) > maxD) {
+      alert('KYC expiry date cannot be more than 2 years from today.');
+      return;
+    }
+  }
 
   // Phone fields with prefix
   data.telephone = getPhoneVal('telephone', '+971');
@@ -719,5 +743,6 @@ function submitForm() {
   }).catch(()=>{});
 </script>
 {% endblock %}
+
 
 
