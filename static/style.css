@@ -79,6 +79,24 @@ body { font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var
 .navbar-link.active { background:var(--primary-bg); color:var(--primary); font-weight:600; }
 .navbar-right { display:flex; align-items:center; }
 
+/* NAVBAR DROPDOWN */
+.navbar-dropdown { position:relative; display:flex; align-items:center; }
+.navbar-dropdown:hover .navbar-dropdown-menu { display:flex; }
+.navbar-dropdown-menu {
+  display:none;
+  position:absolute; top:calc(100% + 4px); left:0;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius-sm); box-shadow:var(--shadow-md);
+  flex-direction:column; min-width:140px; z-index:1000; overflow:hidden;
+}
+.navbar-dropdown-item {
+  display:flex; align-items:center; gap:8px; padding:8px 12px;
+  color:var(--text-muted); text-decoration:none; font-size:12px;
+  transition:all 0.15s; white-space:nowrap;
+}
+.navbar-dropdown-item:hover { background:var(--primary-bg); color:var(--primary); }
+.navbar-dropdown-item.active { background:var(--primary-bg); color:var(--primary); font-weight:600; }
+
 /* USER DROPDOWN */
 .user-dropdown { position:relative; }
 .user-btn {
