@@ -323,7 +323,7 @@
 <!-- EDIT CLIENT MODAL -->
 <div class="modal-overlay" id="editClientModal">
   <div class="modal-box" style="max-width:600px;">
-    <div class="modal-title">✏️ Edit Client</div>
+    <div class="modal-title">✏️ Edit Individual</div>
     <input type="hidden" id="e_id">
     <div class="tab-bar" style="margin-bottom:16px;">
       <button class="tab-btn active" onclick="switchClientTab('epersonal',this)">👤 Personal</button>
@@ -332,7 +332,12 @@
     </div>
     <div id="ctab-epersonal">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group form-full"><label>Account Number</label><input type="text" id="e_account_number"></div>
         <div class="form-group form-full"><label>Full Name *</label><input type="text" id="e_name"></div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="e_is_resident" onchange="handleResidentChange_e()"> <span>Resident</span></label>
+          <small style="color:var(--text-dim);">Check if UAE resident</small>
+        </div>
         <div class="form-group"><label>Phone</label><input type="text" id="e_phone"></div>
         <div class="form-group">
           <label>WhatsApp <button type="button" onclick="copyPhoneToWA('e')" class="btn btn-ghost btn-sm" style="padding:1px 8px;font-size:10px;margin-left:6px;">Same as Phone</button></label>
@@ -362,27 +367,50 @@
     </div>
     <div id="ctab-edocs" style="display:none;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="form-group"><label>Passport Number</label><input type="text" id="e_passport_no"></div>
-        <div class="form-group"><label>Passport Expiry</label><input type="date" id="e_passport_expiry"></div>
-        <div class="form-group"><label>Emirates ID</label><input type="text" id="e_eid"></div>
-        <div class="form-group"><label>Emirates ID Expiry</label><input type="date" id="e_eid_expiry"></div>
-        <div class="form-group form-full">
-          <label>Address Proof Type</label>
-          <select id="e_addr_proof">
-            <option value="">— Select —</option>
-            <option>Utility Bill</option>
-            <option>Bank Statement</option>
-            <option>Tenancy Contract</option>
-            <option>Government Letter</option>
-            <option>Other</option>
-          </select>
+        <!-- RESIDENT DOCUMENTS -->
+        <div id="residentDocs_e" style="grid-column:1/-1;">
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--primary);">
+            📋 <strong>Resident - Documents Required</strong>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group"><label>Emirates ID</label><input type="text" id="e_eid"></div>
+            <div class="form-group"><label>Emirates ID Expiry</label><input type="date" id="e_eid_expiry"></div>
+          </div>
+        </div>
+        <!-- NON-RESIDENT DOCUMENTS -->
+        <div id="nonResidentDocs_e" style="grid-column:1/-1;display:none;">
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--primary);">
+            📋 <strong>Non-Resident - Documents Required</strong>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group"><label>Passport Number</label><input type="text" id="e_passport_no"></div>
+            <div class="form-group"><label>Passport Expiry</label><input type="date" id="e_passport_expiry"></div>
+          </div>
+        </div>
+        <!-- COMMON DOCUMENTS -->
+        <div style="grid-column:1/-1;">
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--text-dim);">
+            📋 <strong>Address Proof</strong>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group form-full">
+              <label>Address Proof Type</label>
+              <select id="e_addr_proof">
+                <option value="">— Select —</option>
+                <option>Utility Bill</option>
+                <option>Bank Statement</option>
+                <option>Tenancy Contract</option>
+                <option>Government Letter</option>
+                <option>Other</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
     </div>
     <!-- COMPLIANCE TAB -->
     <div id="ctab-ecompliance" style="display:none;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="form-group"><label>Account Number</label><input type="text" id="e_account_number"></div>
         <div class="form-group">
           <label>Mode of Account</label>
           <select id="e_mode_of_ac">
@@ -530,6 +558,20 @@ function handleResidentChange() {
   }
 }
 
+function handleResidentChange_e() {
+  const isResident = document.getElementById('e_is_resident').checked;
+  const residentDocs = document.getElementById('residentDocs_e');
+  const nonResidentDocs = document.getElementById('nonResidentDocs_e');
+  
+  if (isResident) {
+    residentDocs.style.display = '';
+    nonResidentDocs.style.display = 'none';
+  } else {
+    residentDocs.style.display = 'none';
+    nonResidentDocs.style.display = '';
+  }
+}
+
 function filterClients() {
   const s  = document.getElementById('searchInput').value.toLowerCase();
   const rs = document.getElementById('residentFilter').value;
@@ -635,11 +677,14 @@ function editClient(id) {
   document.getElementById('e_risk_status').value = c.risk_status || '';
   document.getElementById('e_screening_status').value = c.screening_status || '';
   document.getElementById('e_screening_date').value = c.screening_date || '';
+  document.getElementById('e_is_resident').checked = c.is_resident || false;
+  document.getElementById('e_account_number').value = c.account_number || '';
   // Reset to personal tab
   document.querySelectorAll('#editClientModal .tab-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('#editClientModal .tab-btn')[0].classList.add('active');
   document.querySelectorAll('[id^="ctab-e"]').forEach(t=>t.style.display='none');
   document.getElementById('ctab-epersonal').style.display='';
+  handleResidentChange_e();
   openModal('editClientModal');
 }
 
@@ -661,6 +706,7 @@ function submitEditClient() {
       notes: document.getElementById('e_notes').value,
       emirate: document.getElementById('e_emirate').value,
       location: document.getElementById('e_location').value,
+      is_resident: document.getElementById('e_is_resident').checked,
       passport_no: document.getElementById('e_passport_no').value,
       passport_expiry: document.getElementById('e_passport_expiry').value || null,
       emirates_id: document.getElementById('e_eid').value,

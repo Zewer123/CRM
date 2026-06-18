@@ -828,6 +828,28 @@ def alerts():
                     'doc_type':'Emirates ID','doc_subtype':r.get('emirates_id'),
                     'expiry_date':str(r['emirates_id_expiry'])[:10],'days':d})
 
+    # Clients (Individuals) documents
+    client_rows = all_(conn,'''SELECT id,name,phone,whatsapp_number,
+        passport_expiry,emirates_id_expiry,account_number
+        FROM clients WHERE passport_expiry IS NOT NULL OR emirates_id_expiry IS NOT NULL''')
+    for r in client_rows:
+        if r.get('passport_expiry'):
+            d = days_left(r['passport_expiry'])
+            if d is not None:
+                all_alerts.append({'company_id':None,'ac_code':r.get('account_number','N/A'),
+                    'client_name':r['name'],'mobile':r.get('phone'),'whatsapp_number':r.get('whatsapp_number'),
+                    'account_manager':None,'contact_person_name':r['name'],'contact_person_number':r.get('phone'),
+                    'doc_type':'Passport (Individual)','doc_subtype':None,
+                    'expiry_date':str(r['passport_expiry'])[:10],'days':d})
+        if r.get('emirates_id_expiry'):
+            d = days_left(r['emirates_id_expiry'])
+            if d is not None:
+                all_alerts.append({'company_id':None,'ac_code':r.get('account_number','N/A'),
+                    'client_name':r['name'],'mobile':r.get('phone'),'whatsapp_number':r.get('whatsapp_number'),
+                    'account_manager':None,'contact_person_name':r['name'],'contact_person_number':r.get('phone'),
+                    'doc_type':'Emirates ID (Individual)','doc_subtype':None,
+                    'expiry_date':str(r['emirates_id_expiry'])[:10],'days':d})
+
     # Sort by days (most urgent first)
     all_alerts.sort(key=lambda x: x['days'])
 
@@ -1325,8 +1347,98 @@ def export_companies():
 @compliance_required
 def export_report():
     rt=request.args.get('type','all'); fmt=request.args.get('format','xlsx')
-    conn=get_db()
-    if rt=='expiry': rows=all_(conn,'SELECT ac_code,client_name,trade_license_no,trade_license_expiry,address_proof_expiry,risk_status,region,account_manager FROM companies ORDER BY trade_license_expiry')
+    conn=get_db(); today=dubai_today()
+    
+    if rt=='expiry':
+        # Get all alert rows
+        rows = []
+        
+        # Companies documents
+        tl_rows = all_(conn,'''SELECT ac_code,client_name,'Trade License' as doc_type,
+            trade_license_expiry as expiry_date,risk_status,region,account_manager
+            FROM companies WHERE trade_license_expiry IS NOT NULL''')
+        for r in tl_rows:
+            days = (datetime.strptime(str(r['expiry_date'])[:10], '%Y-%m-%d').date() - today).days
+            rows.append({**r, 'days': days})
+        
+        ap_rows = all_(conn,'''SELECT ac_code,client_name,'Address Proof' as doc_type,
+            address_proof_expiry as expiry_date,risk_status,region,account_manager
+            FROM companies WHERE address_proof_expiry IS NOT NULL''')
+        for r in ap_rows:
+            days = (datetime.strptime(str(r['expiry_date'])[:10], '%Y-%m-%d').date() - today).days
+            rows.append({**r, 'days': days})
+        
+        # UBO documents
+        ubo_rows = all_(conn,'''SELECT c.ac_code,c.client_name,'Passport' as doc_type,
+            u.passport_expiry as expiry_date,c.risk_status,c.region,c.account_manager
+            FROM ubos u JOIN companies c ON u.company_id=c.id
+            WHERE u.passport_expiry IS NOT NULL''')
+        for r in ubo_rows:
+            days = (datetime.strptime(str(r['expiry_date'])[:10], '%Y-%m-%d').date() - today).days
+            rows.append({**r, 'days': days})
+        
+        ubo_eid_rows = all_(conn,'''SELECT c.ac_code,c.client_name,'Emirates ID' as doc_type,
+            u.emirates_id_expiry as expiry_date,c.risk_status,c.region,c.account_manager
+            FROM ubos u JOIN companies c ON u.company_id=c.id
+            WHERE u.emirates_id_expiry IS NOT NULL''')
+        for r in ubo_eid_rows:
+            days = (datetime.strptime(str(r['expiry_date'])[:10], '%Y-%m-%d').date() - today).days
+            rows.append({**r, 'days': days})
+        
+        # Client documents
+        client_rows = all_(conn,'''SELECT account_number as ac_code,name as client_name,'Passport (Individual)' as doc_type,
+            passport_expiry as expiry_date,NULL as risk_status,NULL as region,NULL as account_manager
+            FROM clients WHERE passport_expiry IS NOT NULL''')
+        for r in client_rows:
+            days = (datetime.strptime(str(r['expiry_date'])[:10], '%Y-%m-%d').date() - today).days
+            rows.append({**r, 'days': days})
+        
+        client_eid_rows = all_(conn,'''SELECT account_number as ac_code,name as client_name,'Emirates ID (Individual)' as doc_type,
+            emirates_id_expiry as expiry_date,NULL as risk_status,NULL as region,NULL as account_manager
+            FROM clients WHERE emirates_id_expiry IS NOT NULL''')
+        for r in client_eid_rows:
+            days = (datetime.strptime(str(r['expiry_date'])[:10], '%Y-%m-%d').date() - today).days
+            rows.append({**r, 'days': days})
+        
+        # Apply filters
+        expiry_filter = request.args.get('expiry_filter', 'all')
+        doc_type_filter = request.args.get('doc_type', 'all')
+        search_filter = request.args.get('search', '').lower()
+        manager_filter = request.args.get('manager', '').lower()
+        
+        filtered_rows = []
+        for row in rows:
+            # Expiry filter
+            if expiry_filter == 'expired' and row['days'] >= 0:
+                continue
+            if expiry_filter == '30' and (row['days'] >= 30 or row['days'] < 0):
+                continue
+            if expiry_filter == '60' and (row['days'] >= 60 or row['days'] < 0):
+                continue
+            if expiry_filter == '90' and (row['days'] >= 90 or row['days'] < 0):
+                continue
+            
+            # Doc type filter
+            if doc_type_filter == 'trade' and 'Trade License' not in row.get('doc_type', ''):
+                continue
+            if doc_type_filter == 'address' and 'Address Proof' not in row.get('doc_type', ''):
+                continue
+            if doc_type_filter == 'passport' and 'Passport' not in row.get('doc_type', ''):
+                continue
+            if doc_type_filter == 'eid' and 'Emirates ID' not in row.get('doc_type', ''):
+                continue
+            
+            # Search filter
+            if search_filter and search_filter not in str(row.get('ac_code', '')).lower() and search_filter not in str(row.get('client_name', '')).lower():
+                continue
+            
+            # Manager filter
+            if manager_filter and manager_filter not in str(row.get('account_manager', '')).lower():
+                continue
+            
+            filtered_rows.append(row)
+        
+        rows = filtered_rows
     elif rt=='kyc': rows=all_(conn,'SELECT ac_code,client_name,kyc_status,doc_status,risk_status,verified_by,verified_date FROM companies ORDER BY kyc_status')
     elif rt=='risk': rows=all_(conn,'SELECT ac_code,client_name,risk_status,doc_status,kyc_status,region,account_manager FROM companies ORDER BY risk_status')
     else: rows=all_(conn,'SELECT * FROM companies ORDER BY client_name')

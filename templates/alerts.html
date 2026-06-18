@@ -295,7 +295,21 @@ function saveAlertTask() {
 }
 
 function exportAlerts() {
-  window.location.href = '/export/report?type=expiry&format=xlsx';
+  const expiry = document.getElementById('expiryFilter').value;
+  const docType = document.getElementById('docFilter').value;
+  const search = document.getElementById('searchInput').value;
+  const manager = document.getElementById('managerFilter').value;
+  
+  const params = new URLSearchParams({
+    type: 'expiry',
+    format: 'xlsx',
+    expiry_filter: expiry,
+    doc_type: docType,
+    search: search,
+    manager: manager
+  });
+  
+  window.location.href = '/export/report?' + params.toString();
 }
 </script>
 {% endblock %}
