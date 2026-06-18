@@ -868,7 +868,7 @@ def reports():
 @admin_required
 def settings():
     conn=get_db()
-    users=all_(conn,'SELECT id,email,name,role,is_active,contact_number FROM users ORDER BY role,name')
+    users=all_(conn,'SELECT id,email,name,role,is_active,contact_number,username,permissions FROM users ORDER BY role,name')
     dds=all_(conn,'SELECT * FROM dropdowns WHERE is_active=1 ORDER BY field_name,value')
     conn.close()
     groups={}
@@ -1943,6 +1943,7 @@ def client_detail(id):
     c['screening_date'] = str(sd)[:10] if sd else None
     c['kyc_expiry_status'] = exp_status(days_left(ke)) if ke else 'unknown'
     return render_template('client_detail.html', client=c, documents=docs)
+
 
 
 
