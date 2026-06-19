@@ -1119,9 +1119,20 @@ def risk_assessment_company(id):
     if request.method == 'POST':
         data = request.form
         logger.info(f'Risk assessment form received for company {id}')
-        logger.info(f'Form data keys: {list(data.keys())}')
         
         try:
+            # Ensure tables exist on Railway
+            if is_pg(conn):
+                x(conn, '''CREATE TABLE IF NOT EXISTS company_risk_assessments (
+                    id SERIAL PRIMARY KEY, company_id INTEGER NOT NULL,
+                    jurisdiction_score FLOAT, ownership_score FLOAT, delivery_channel_score FLOAT,
+                    payment_method_score FLOAT, transaction_volume_score FLOAT, product_score FLOAT,
+                    pep_status_score FLOAT, nationality_score FLOAT, years_relationship_score FLOAT,
+                    years_operation_score FLOAT, third_party_score FLOAT, sanctions_score FLOAT,
+                    final_score FLOAT, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                commit(conn)
+            
             scores = [
                 float(data.get('jurisdiction_score') or 0),
                 float(data.get('ownership_score') or 0),
@@ -1140,14 +1151,6 @@ def risk_assessment_company(id):
             final_score, risk_rating = calculate_risk_score(scores)
             logger.info(f'Calculated risk: score={final_score}, rating={risk_rating}')
             
-            # Ensure table exists
-            try:
-                if is_pg(conn):
-                    x(conn, 'ALTER TABLE company_risk_assessments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
-                commit(conn)
-            except:
-                try: conn.rollback()
-                except: pass
             
             x(conn, '''INSERT INTO company_risk_assessments 
                (company_id, jurisdiction_score, ownership_score, delivery_channel_score, payment_method_score,
@@ -1246,6 +1249,18 @@ def risk_assessment_individual(id):
     if request.method == 'POST':
         data = request.form
         try:
+            # Ensure tables exist on Railway
+            if is_pg(conn):
+                x(conn, '''CREATE TABLE IF NOT EXISTS individual_risk_assessments (
+                    id SERIAL PRIMARY KEY, individual_id INTEGER NOT NULL,
+                    nationality_score FLOAT, residence_status_score FLOAT, pep_status_score FLOAT,
+                    profession_score FLOAT, product_score FLOAT, delivery_channel_score FLOAT,
+                    payment_method_score FLOAT, transaction_amount_score FLOAT, years_relationship_score FLOAT,
+                    place_of_birth_score FLOAT, third_party_score FLOAT, sanctions_score FLOAT,
+                    final_score FLOAT, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                commit(conn)
+            
             scores = [
                 float(data.get('nationality_score') or 0),
                 float(data.get('residence_status_score') or 0),
@@ -1262,13 +1277,6 @@ def risk_assessment_individual(id):
             ]
             final_score, risk_rating = calculate_risk_score(scores)
             
-            try:
-                if is_pg(conn):
-                    x(conn, 'ALTER TABLE individual_risk_assessments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
-                commit(conn)
-            except:
-                try: conn.rollback()
-                except: pass
             
             x(conn, '''INSERT INTO individual_risk_assessments 
                (individual_id, nationality_score, residence_status_score, pep_status_score, profession_score,
