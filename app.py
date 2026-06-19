@@ -1128,41 +1128,51 @@ def risk_assessment_list():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
             commit(conn)
         
-        # Get company assessments
-        co_assessments = all_(conn, """
-            SELECT ca.id, ca.company_id, c.client_name as name, ca.final_score, 
-                   ca.risk_rating, ca.assessment_date, 'company' as type
-            FROM company_risk_assessments ca
-            JOIN companies c ON ca.company_id = c.id
-            ORDER BY ca.assessment_date DESC
+        # Get companies with their latest assessment status
+        companies = all_(conn, """
+            SELECT c.id, c.client_name as name, c.ac_code, 'company' as type,
+                   COALESCE(ca.final_score, 0) as final_score,
+                   COALESCE(ca.risk_rating, 'Pending') as risk_rating,
+                   ca.assessment_date,
+                   CASE WHEN ca.id IS NOT NULL THEN 'done' ELSE 'pending' END as status
+            FROM companies c
+            LEFT JOIN (
+                SELECT * FROM company_risk_assessments 
+                WHERE id = (SELECT id FROM company_risk_assessments WHERE company_id = c.id ORDER BY assessment_date DESC LIMIT 1)
+            ) ca ON c.id = ca.company_id
+            ORDER BY c.client_name
         """) or []
         
-        # Get individual assessments  
-        ind_assessments = all_(conn, """
-            SELECT ia.id, ia.individual_id, cl.name, ia.final_score,
-                   ia.risk_rating, ia.assessment_date, 'individual' as type
-            FROM individual_risk_assessments ia
-            JOIN clients cl ON ia.individual_id = cl.id
-            ORDER BY ia.assessment_date DESC
+        # Get individuals with their latest assessment status
+        individuals = all_(conn, """
+            SELECT cl.id, cl.name, NULL as ac_code, 'individual' as type,
+                   COALESCE(ia.final_score, 0) as final_score,
+                   COALESCE(ia.risk_rating, 'Pending') as risk_rating,
+                   ia.assessment_date,
+                   CASE WHEN ia.id IS NOT NULL THEN 'done' ELSE 'pending' END as status
+            FROM clients cl
+            LEFT JOIN (
+                SELECT * FROM individual_risk_assessments 
+                WHERE id = (SELECT id FROM individual_risk_assessments WHERE individual_id = cl.id ORDER BY assessment_date DESC LIMIT 1)
+            ) ia ON cl.id = ia.individual_id
+            ORDER BY cl.name
         """) or []
         
-        # Combine and sort
-        assessments = sorted(
-            co_assessments + ind_assessments,
-            key=lambda x: x.get('assessment_date', ''),
-            reverse=True
-        )
+        # Combine
+        assessments = companies + individuals
+        assessments = sorted(assessments, key=lambda x: x.get('assessment_date', '2000-01-01') or '2000-01-01', reverse=True)
         
-        # Count by rating
-        low = sum(1 for a in assessments if a.get('risk_rating') == 'Low')
-        medium = sum(1 for a in assessments if a.get('risk_rating') == 'Medium')
-        high = sum(1 for a in assessments if a.get('risk_rating') == 'High')
+        # Count by rating (only done ones)
+        done_assessments = [a for a in assessments if a.get('status') == 'done']
+        low = sum(1 for a in done_assessments if a.get('risk_rating') == 'Low')
+        medium = sum(1 for a in done_assessments if a.get('risk_rating') == 'Medium')
+        high = sum(1 for a in done_assessments if a.get('risk_rating') == 'High')
         
         conn.close()
         
         return render_template('risk_assessment_list.html',
                              assessments=assessments,
-                             total_count=len(assessments),
+                             total_count=len(done_assessments),
                              low_count=low,
                              medium_count=medium,
                              high_count=high)

@@ -136,7 +136,7 @@
     <div style="font-size:15px;font-weight:700;{% if risk_assessment.risk_rating == 'Low' %}color:#22c55e;{% elif risk_assessment.risk_rating == 'Medium' %}color:#f59e0b;{% else %}color:#ef4444;{% endif %}">
       {% if risk_assessment.risk_rating == 'Low' %}✓{% elif risk_assessment.risk_rating == 'Medium' %}⚠{% else %}✗{% endif %} {{ risk_assessment.risk_rating }}
     </div>
-    <div style="font-size:11px;color:var(--text-dim);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">Tested: {{ risk_assessment.assessment_date }}</div>
+    <div style="font-size:10px;color:var(--text-dim);margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">Tested: {{ risk_assessment.assessment_date }}</div>
   </div>
   {% endif %}
 

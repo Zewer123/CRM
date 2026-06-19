@@ -20,6 +20,16 @@
       </select>
     </div>
     
+    <!-- Status Filter -->
+    <div>
+      <label style="display:block;font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:6px;">STATUS</label>
+      <select id="statusFilter" onchange="applyFilters()" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;">
+        <option value="">All Status</option>
+        <option value="done">Assessment Done</option>
+        <option value="pending">Assessment Pending</option>
+      </select>
+    </div>
+    
     <!-- Rating Filter -->
     <div>
       <label style="display:block;font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:6px;">RISK RATING</label>
@@ -29,12 +39,6 @@
         <option value="Medium">Medium</option>
         <option value="High">High</option>
       </select>
-    </div>
-    
-    <!-- Date Filter -->
-    <div>
-      <label style="display:block;font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:6px;">DATE FROM</label>
-      <input type="date" id="dateFilter" onchange="applyFilters()" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
     </div>
     
     <!-- Search -->
@@ -69,18 +73,19 @@
 <div style="display:grid;gap:12px;">
   {% if assessments %}
     {% for a in assessments %}
-    <div class="card" style="padding:16px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:16px;align-items:center;" data-type="{% if a.company_id %}company{% else %}individual{% endif %}" data-rating="{{ a.risk_rating }}" data-name="{{ a.name|lower }}" data-date="{{ a.assessment_date }}">
+    <div class="card" style="padding:16px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:16px;align-items:center;" data-type="{% if a.type == 'company' %}company{% else %}individual{% endif %}" data-rating="{{ a.risk_rating }}" data-status="{{ a.status }}" data-name="{{ a.name|lower }}" data-date="{{ a.assessment_date or '' }}">
       
       <!-- Name -->
       <div>
         <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">
-          {% if a.company_id %}🏢 COMPANY{% else %}👤 INDIVIDUAL{% endif %}
+          {% if a.type == 'company' %}🏢 COMPANY{% else %}👤 INDIVIDUAL{% endif %}
         </div>
         <div style="font-weight:600;color:var(--text);font-size:13px;">{{ a.name }}</div>
       </div>
       
-      <!-- Risk Rating -->
+      <!-- Risk Rating / Status -->
       <div>
+        {% if a.status == 'done' %}
         <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">RISK RATING</div>
         <div style="font-weight:700;font-size:14px;padding:4px 8px;border-radius:4px;display:inline-block;
           {% if a.risk_rating == 'Low' %}
@@ -92,37 +97,58 @@
           {% endif %}">
           {{ a.risk_rating }}
         </div>
+        {% else %}
+        <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">STATUS</div>
+        <div style="font-weight:700;font-size:14px;padding:4px 8px;border-radius:4px;display:inline-block;background:#fef3c7;color:#92400e;">
+          ⏳ Pending
+        </div>
+        {% endif %}
       </div>
       
       <!-- Score -->
       <div>
         <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">SCORE</div>
+        {% if a.status == 'done' %}
         <div style="font-weight:700;color:var(--primary);font-size:18px;">{{ a.final_score }}</div>
+        {% else %}
+        <div style="font-weight:700;color:var(--text-dim);font-size:18px;">—</div>
+        {% endif %}
       </div>
       
       <!-- Date -->
       <div>
-        <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">ASSESSED</div>
+        <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">{% if a.status == 'done' %}ASSESSED{% else %}ACTION{% endif %}</div>
+        {% if a.status == 'done' %}
         <div style="color:var(--text);font-size:13px;">{{ a.assessment_date }}</div>
+        {% else %}
+        <div style="color:var(--text-dim);font-size:13px;">Start test</div>
+        {% endif %}
       </div>
       
       <!-- Action -->
       <div style="display:flex;gap:8px;">
-        <a href="{% if a.company_id %}/risk-assessment/company/{{ a.company_id }}/result{% else %}/risk-assessment/individual/{{ a.individual_id }}/result{% endif %}" 
+        {% if a.status == 'done' %}
+        <a href="{% if a.type == 'company' %}/risk-assessment/company/{{ a.id }}/result{% else %}/risk-assessment/individual/{{ a.id }}/result{% endif %}" 
            style="padding:8px 12px;background:var(--primary);color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;text-decoration:none;display:inline-block;cursor:pointer;">
           👁 View
         </a>
-        <a href="{% if a.company_id %}/risk-assessment/company/{{ a.company_id }}{% else %}/risk-assessment/individual/{{ a.individual_id }}{% endif %}" 
+        <a href="{% if a.type == 'company' %}/risk-assessment/company/{{ a.id }}{% else %}/risk-assessment/individual/{{ a.id }}{% endif %}" 
            style="padding:8px 12px;background:#f59e0b;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;text-decoration:none;display:inline-block;cursor:pointer;">
           🔄 Retest
         </a>
+        {% else %}
+        <a href="{% if a.type == 'company' %}/risk-assessment/company/{{ a.id }}{% else %}/risk-assessment/individual/{{ a.id }}{% endif %}" 
+           style="padding:8px 12px;background:#22c55e;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;text-decoration:none;display:inline-block;cursor:pointer;">
+          ➕ Start Test
+        </a>
+        {% endif %}
       </div>
     </div>
     {% endfor %}
   {% else %}
     <div class="card" style="text-align:center;padding:40px;color:var(--text-dim);">
       <div style="font-size:18px;margin-bottom:8px;">📭</div>
-      No assessments found
+      No companies or individuals found
     </div>
   {% endif %}
 </div>
@@ -132,23 +158,23 @@
 <script>
 function applyFilters() {
   const type = document.getElementById('typeFilter').value.toLowerCase();
+  const status = document.getElementById('statusFilter').value.toLowerCase();
   const rating = document.getElementById('ratingFilter').value;
-  const date = document.getElementById('dateFilter').value;
   const search = document.getElementById('searchFilter').value.toLowerCase();
   
   let visible = 0;
   document.querySelectorAll('[data-type]').forEach(row => {
     const rowType = row.dataset.type.toLowerCase();
+    const rowStatus = row.dataset.status.toLowerCase();
     const rowRating = row.dataset.rating;
     const rowName = row.dataset.name;
-    const rowDate = row.dataset.date;
     
     const typeMatch = !type || rowType === type;
+    const statusMatch = !status || rowStatus === status;
     const ratingMatch = !rating || rowRating === rating;
     const searchMatch = !search || rowName.includes(search);
-    const dateMatch = !date || rowDate >= date;
     
-    const show = typeMatch && ratingMatch && searchMatch && dateMatch;
+    const show = typeMatch && statusMatch && ratingMatch && searchMatch;
     row.style.display = show ? '' : 'none';
     if (show) visible++;
   });
