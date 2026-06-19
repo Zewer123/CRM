@@ -1094,7 +1094,7 @@ def risk_assessment():
         conn = get_db()
         companies = all_(conn, 'SELECT id, ac_code, client_name FROM companies ORDER BY client_name')
         # Individuals are stored in clients table
-        individuals = all_(conn, 'SELECT id, name FROM clients WHERE is_active IS NOT NULL OR is_active = 1 ORDER BY name')
+        individuals = all_(conn, 'SELECT id, name FROM clients ORDER BY name')
         conn.close()
         logger.info(f'Risk assessment: {len(companies or [])} companies, {len(individuals or [])} individuals')
         return render_template('risk_assessment.html', 
