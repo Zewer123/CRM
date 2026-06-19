@@ -1,243 +1,121 @@
 {% extends "base.html" %}
-{% block title %}Risk Assessment - {{ company.client_name if assessment_type == 'company' else individual.name }}{% endblock %}
+{% block title %}Risk Assessment{% endblock %}
 {% block content %}
 
-<div class="page-header">
-  <div style="display:flex;align-items:center;gap:12px;">
-    <a href="{{ url_for('risk_assessment_list') }}" style="color:var(--primary);text-decoration:none;font-size:18px;">←</a>
-    <div>
-      <div class="page-title">Risk Assessment Result</div>
-      <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">
-        {% if assessment_type == 'company' %}
-          {{ company.client_name }} ({{ company.ac_code }})
-        {% else %}
-          {{ individual.name }}
-        {% endif %}
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- PRINTABLE SECTION -->
-<div id="printContent" style="background:white;color:black;padding:30px;border-radius:8px;">
+<!-- PRINTABLE SECTION - FITS ON ONE PAGE A4 -->
+<div id="printContent" style="background:white;color:#000;padding:15px;font-size:10px;line-height:1.4;font-family:Calibri,Arial,sans-serif;max-width:210mm;">
+  
   <!-- HEADER -->
-  <div style="text-align:center;margin-bottom:30px;border-bottom:3px solid #333;padding-bottom:20px;">
-    <div style="font-size:28px;font-weight:700;color:#000;margin-bottom:12px;">RISK ASSESSMENT REPORT</div>
-    <div style="font-size:11px;color:#666;letter-spacing:1px;text-transform:uppercase;margin-bottom:16px;">Zewer Jewellery LLC | AML Compliance</div>
+  <div style="text-align:center;margin-bottom:10px;border-bottom:3px solid #000;padding-bottom:8px;">
+    <div style="font-size:14px;font-weight:700;">RISK ASSESSMENT REPORT</div>
+    <div style="font-size:8px;color:#444;">ZEWER JEWELLERY LLC | AML COMPLIANCE</div>
   </div>
 
-  <!-- COMPANY/INDIVIDUAL DETAILS -->
-  <div style="margin-bottom:30px;padding:20px;background:#f9f9f9;border-radius:8px;font-size:13px;">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#666;margin-bottom:4px;">ENTITY NAME</div>
-        <div style="color:#000;font-weight:600;">{% if assessment_type == 'company' %}{{ company.client_name }}{% else %}{{ individual.name }}{% endif %}</div>
-      </div>
-      {% if assessment_type == 'company' %}
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#666;margin-bottom:4px;">AC CODE</div>
-        <div style="color:#000;font-weight:600;">{{ company.ac_code }}</div>
-      </div>
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#666;margin-bottom:4px;">NATURE OF BUSINESS</div>
-        <div style="color:#000;">{{ company.nature or 'N/A' }}</div>
-      </div>
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#666;margin-bottom:4px;">CONTACT</div>
-        <div style="color:#000;">{{ company.email_id or company.contact_person_number or 'N/A' }}</div>
-      </div>
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#666;margin-bottom:4px;">COUNTRY</div>
-        <div style="color:#000;">{{ company.country_of_incorporation or 'UAE' }}</div>
-      </div>
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#666;margin-bottom:4px;">KYC STATUS</div>
-        <div style="color:#000;">{{ company.kyc_status or 'Pending' }}</div>
-      </div>
-      {% else %}
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#666;margin-bottom:4px;">NATIONALITY</div>
-        <div style="color:#000;">{{ individual.nationality or 'N/A' }}</div>
-      </div>
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#666;margin-bottom:4px;">PROFESSION</div>
-        <div style="color:#000;">{{ individual.profession or 'N/A' }}</div>
-      </div>
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#666;margin-bottom:4px;">EMAIL</div>
-        <div style="color:#000;">{{ individual.email or 'N/A' }}</div>
-      </div>
-      {% endif %}
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#666;margin-bottom:4px;">ASSESSMENT DATE</div>
-        <div style="color:#000;">{{ assessment.assessment_date }}</div>
-      </div>
-    </div>
+  <!-- KEY INFO - 2 ROW -->
+  <table style="width:100%;margin-bottom:10px;font-size:10px;border-collapse:collapse;">
+    <tr>
+      <td style="width:20%;padding:3px;"><strong>Entity:</strong></td>
+      <td style="width:30%;padding:3px;">{% if assessment_type == 'company' %}{{ company.client_name }}{% else %}{{ individual.name }}{% endif %}</td>
+      <td style="width:20%;padding:3px;"><strong>Code:</strong></td>
+      <td style="width:30%;padding:3px;">{% if assessment_type == 'company' %}{{ company.ac_code }}{% else %}—{% endif %}</td>
+    </tr>
+    <tr>
+      <td style="padding:3px;"><strong>Date:</strong></td>
+      <td style="padding:3px;">{{ assessment.assessment_date }}</td>
+      <td style="padding:3px;"><strong>Assessed By:</strong></td>
+      <td style="padding:3px;">{{ assessment.assessed_by }}</td>
+    </tr>
+  </table>
+
+  <!-- OVERALL RATING BOX -->
+  <div style="text-align:center;margin-bottom:8px;padding:10px;background:#f5f5f5;border-left:5px solid 
+    {% if assessment.risk_rating == 'Low' %}#22c55e{% elif assessment.risk_rating == 'Medium' %}#f59e0b{% else %}#ef4444{% endif %};
+    border-radius:3px;">
+    <div style="font-size:9px;color:#666;font-weight:600;margin-bottom:3px;">OVERALL RISK RATING</div>
+    <div style="font-size:22px;font-weight:700;color:{% if assessment.risk_rating == 'Low' %}#22c55e{% elif assessment.risk_rating == 'Medium' %}#f59e0b{% else %}#ef4444{% endif %};margin-bottom:2px;">{{ assessment.risk_rating }}</div>
+    <div style="font-size:11px;color:#333;font-weight:700;">Score: {{ assessment.final_score }}/3.0</div>
   </div>
 
-  <!-- RISK RATING SUMMARY -->
-  <div style="text-align:center;margin-bottom:30px;padding:25px;background:#f5f5f5;border-radius:8px;border-left:5px solid {{ risk_color }};">
-    <div style="font-size:11px;color:#666;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;">OVERALL RISK RATING</div>
-    <div style="font-size:52px;font-weight:700;color:{{ risk_color }};margin-bottom:8px;">{{ assessment.risk_rating }}</div>
-    <div style="font-size:18px;color:#333;font-weight:600;margin-bottom:8px;">Score: {{ assessment.final_score }}/3.0</div>
-    <div style="font-size:12px;color:#666;margin-top:8px;font-style:italic;">
-      {% if assessment.risk_rating == 'Low' %}
-        ✓ Low Risk - Proceed with standard KYC procedures
-      {% elif assessment.risk_rating == 'Medium' %}
-        ⚠ Medium Risk - Enhanced Due Diligence Recommended
-      {% else %}
-        ✗ High Risk - Requires Senior Management Approval
-      {% endif %}
-    </div>
-  </div>
-
-  <!-- RISK FACTOR DETAILS TABLE -->
-  <div style="margin-bottom:30px;">
-    <div style="font-size:14px;font-weight:700;color:#000;margin-bottom:16px;padding-bottom:10px;border-bottom:3px solid #333;">RISK FACTOR ASSESSMENT DETAILS</div>
-    
-    <table style="width:100%;border-collapse:collapse;font-size:12px;">
-      <thead>
-        <tr style="background:#f0f0f0;border-bottom:2px solid #333;">
-          <th style="padding:12px;text-align:left;font-weight:700;color:#333;">Risk Factor</th>
-          <th style="padding:12px;text-align:right;font-weight:700;color:#333;">Score</th>
-          <th style="padding:12px;text-align:right;font-weight:700;color:#333;">Risk Level</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% set factors = [
-          ('Jurisdiction', assessment.jurisdiction_score),
-          ('Ownership Structure', assessment.ownership_score),
-          ('Delivery Channel', assessment.delivery_channel_score),
-          ('Payment Method', assessment.payment_method_score),
-          ('Transaction Volume', assessment.transaction_volume_score),
-          ('Product', assessment.product_score),
-          ('PEP Status', assessment.pep_status_score),
-          ('Nationality', assessment.nationality_score),
-          ('Years Relationship', assessment.years_relationship_score),
-          ('Years Operation', assessment.years_operation_score),
-          ('Third Party Involvement', assessment.third_party_score),
-          ('Sanctions', assessment.sanctions_score)
-        ] %}
-        
-        {% for factor_name, score in factors %}
-        <tr style="border-bottom:1px solid #ddd;">
-          <td style="padding:12px;color:#333;">{{ factor_name }}</td>
-          <td style="padding:12px;text-align:right;color:#d97706;font-weight:700;font-size:14px;">{{ score }}</td>
-          <td style="padding:12px;text-align:right;">
-            {% if score <= 1 %}
-              <span style="background:#dcfce7;color:#15803d;padding:4px 8px;border-radius:4px;font-weight:600;font-size:11px;">LOW</span>
-            {% elif score <= 2 %}
-              <span style="background:#fef3c7;color:#92400e;padding:4px 8px;border-radius:4px;font-weight:600;font-size:11px;">MEDIUM</span>
-            {% else %}
-              <span style="background:#fee2e2;color:#991b1b;padding:4px 8px;border-radius:4px;font-weight:600;font-size:11px;">HIGH</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
+  <!-- RISK FACTORS - COMPACT TABLE -->
+  <div style="margin-bottom:8px;">
+    <div style="font-size:10px;font-weight:700;border-bottom:2px solid #000;padding-bottom:3px;margin-bottom:4px;">RISK FACTORS</div>
+    <table style="width:100%;font-size:9px;border-collapse:collapse;">
+      <tr style="background:#f5f5f5;">
+        <td style="padding:3px;font-weight:600;border-right:1px solid #ddd;">Factor</td>
+        <td style="padding:3px;font-weight:600;width:30%;text-align:center;border-right:1px solid #ddd;">Score</td>
+        <td style="padding:3px;font-weight:600;width:30%;text-align:center;">Level</td>
+      </tr>
+      <tr><td colspan="3" style="height:1px;padding:0;background:#ddd;"></td></tr>
+      
+      <tr><td style="padding:2px;border-right:1px solid #e0e0e0;">Jurisdiction</td><td style="padding:2px;text-align:center;border-right:1px solid #e0e0e0;font-weight:600;">{{ assessment.jurisdiction_score }}</td><td style="padding:2px;text-align:center;">{% if assessment.jurisdiction_score <= 1 %}LOW{% elif assessment.jurisdiction_score <= 2 %}MED{% else %}HIGH{% endif %}</td></tr>
+      
+      <tr><td style="padding:2px;border-right:1px solid #e0e0e0;">Ownership</td><td style="padding:2px;text-align:center;border-right:1px solid #e0e0e0;font-weight:600;">{{ assessment.ownership_score }}</td><td style="padding:2px;text-align:center;">{% if assessment.ownership_score <= 1 %}LOW{% elif assessment.ownership_score <= 2 %}MED{% else %}HIGH{% endif %}</td></tr>
+      
+      <tr><td style="padding:2px;border-right:1px solid #e0e0e0;">Delivery Channel</td><td style="padding:2px;text-align:center;border-right:1px solid #e0e0e0;font-weight:600;">{{ assessment.delivery_channel_score }}</td><td style="padding:2px;text-align:center;">{% if assessment.delivery_channel_score <= 1 %}LOW{% elif assessment.delivery_channel_score <= 2 %}MED{% else %}HIGH{% endif %}</td></tr>
+      
+      <tr><td style="padding:2px;border-right:1px solid #e0e0e0;">Payment Method</td><td style="padding:2px;text-align:center;border-right:1px solid #e0e0e0;font-weight:600;">{{ assessment.payment_method_score }}</td><td style="padding:2px;text-align:center;">{% if assessment.payment_method_score <= 1 %}LOW{% elif assessment.payment_method_score <= 2 %}MED{% else %}HIGH{% endif %}</td></tr>
+      
+      <tr><td style="padding:2px;border-right:1px solid #e0e0e0;">Transaction Volume</td><td style="padding:2px;text-align:center;border-right:1px solid #e0e0e0;font-weight:600;">{{ assessment.transaction_volume_score }}</td><td style="padding:2px;text-align:center;">{% if assessment.transaction_volume_score <= 1 %}LOW{% elif assessment.transaction_volume_score <= 2 %}MED{% else %}HIGH{% endif %}</td></tr>
+      
+      <tr><td style="padding:2px;border-right:1px solid #e0e0e0;">Product</td><td style="padding:2px;text-align:center;border-right:1px solid #e0e0e0;font-weight:600;">{{ assessment.product_score }}</td><td style="padding:2px;text-align:center;">{% if assessment.product_score <= 1 %}LOW{% elif assessment.product_score <= 2 %}MED{% else %}HIGH{% endif %}</td></tr>
+      
+      <tr><td style="padding:2px;border-right:1px solid #e0e0e0;">PEP Status</td><td style="padding:2px;text-align:center;border-right:1px solid #e0e0e0;font-weight:600;">{{ assessment.pep_status_score }}</td><td style="padding:2px;text-align:center;">{% if assessment.pep_status_score <= 1 %}LOW{% elif assessment.pep_status_score <= 2 %}MED{% else %}HIGH{% endif %}</td></tr>
+      
+      <tr><td style="padding:2px;border-right:1px solid #e0e0e0;">Nationality</td><td style="padding:2px;text-align:center;border-right:1px solid #e0e0e0;font-weight:600;">{{ assessment.nationality_score }}</td><td style="padding:2px;text-align:center;">{% if assessment.nationality_score <= 1 %}LOW{% elif assessment.nationality_score <= 2 %}MED{% else %}HIGH{% endif %}</td></tr>
+      
+      <tr><td style="padding:2px;border-right:1px solid #e0e0e0;">Years Relationship</td><td style="padding:2px;text-align:center;border-right:1px solid #e0e0e0;font-weight:600;">{{ assessment.years_relationship_score }}</td><td style="padding:2px;text-align:center;">{% if assessment.years_relationship_score <= 1 %}LOW{% elif assessment.years_relationship_score <= 2 %}MED{% else %}HIGH{% endif %}</td></tr>
+      
+      <tr><td style="padding:2px;border-right:1px solid #e0e0e0;">Years Operation</td><td style="padding:2px;text-align:center;border-right:1px solid #e0e0e0;font-weight:600;">{{ assessment.years_operation_score }}</td><td style="padding:2px;text-align:center;">{% if assessment.years_operation_score <= 1 %}LOW{% elif assessment.years_operation_score <= 2 %}MED{% else %}HIGH{% endif %}</td></tr>
+      
+      <tr><td style="padding:2px;border-right:1px solid #e0e0e0;">3rd Party Involvement</td><td style="padding:2px;text-align:center;border-right:1px solid #e0e0e0;font-weight:600;">{{ assessment.third_party_score }}</td><td style="padding:2px;text-align:center;">{% if assessment.third_party_score <= 1 %}LOW{% elif assessment.third_party_score <= 2 %}MED{% else %}HIGH{% endif %}</td></tr>
+      
+      <tr><td style="padding:2px;border-right:1px solid #e0e0e0;">Sanctions</td><td style="padding:2px;text-align:center;border-right:1px solid #e0e0e0;font-weight:600;">{{ assessment.sanctions_score }}</td><td style="padding:2px;text-align:center;">{% if assessment.sanctions_score <= 1 %}LOW{% elif assessment.sanctions_score <= 2 %}MED{% else %}HIGH{% endif %}</td></tr>
     </table>
   </div>
 
-  <!-- NOTES -->
-  {% if assessment.notes %}
-  <div style="margin-bottom:30px;padding:16px;background:#fafafa;border-left:4px solid {{ risk_color }};border-radius:4px;">
-    <div style="font-size:12px;font-weight:700;color:#333;margin-bottom:8px;">ASSESSMENT NOTES & OBSERVATIONS</div>
-    <div style="font-size:12px;color:#333;line-height:1.8;white-space:pre-wrap;">{{ assessment.notes }}</div>
-  </div>
-  {% endif %}
-
-  <!-- SCORE SCALE REFERENCE -->
-  <div style="margin-bottom:30px;padding:16px;background:#f9f9f9;border-radius:4px;font-size:11px;">
-    <div style="font-weight:700;color:#333;margin-bottom:8px;">SCORING SCALE REFERENCE</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
-      <div style="padding:8px;background:#dcfce7;border-radius:4px;border-left:3px solid #15803d;">
-        <div style="font-weight:600;color:#15803d;">1.0 - Low Risk</div>
-        <div style="font-size:10px;color:#666;margin-top:4px;">Minimal compliance concern</div>
-      </div>
-      <div style="padding:8px;background:#fef3c7;border-radius:4px;border-left:3px solid #92400e;">
-        <div style="font-weight:600;color:#92400e;">1.1 - 2.0 - Medium Risk</div>
-        <div style="font-size:10px;color:#666;margin-top:4px;">Enhanced due diligence needed</div>
-      </div>
-      <div style="padding:8px;background:#fee2e2;border-radius:4px;border-left:3px solid #991b1b;">
-        <div style="font-weight:600;color:#991b1b;">2.1 - 3.0 - High Risk</div>
-        <div style="font-size:10px;color:#666;margin-top:4px;">Management review required</div>
-      </div>
-    </div>
-  </div>
-
   <!-- FOOTER -->
-  <div style="margin-top:40px;padding-top:20px;border-top:2px solid #ddd;font-size:10px;color:#666;text-align:center;">
-    <div style="margin-bottom:4px;">Assessed by: {{ assessment.assessed_by or 'System' }}</div>
-    <div style="margin-bottom:8px;">Assessment Date & Time: {{ assessment.assessment_date }}</div>
-    <div style="font-style:italic;color:#999;">This report is confidential and intended for internal compliance use only.</div>
+  <div style="margin-top:6px;padding-top:5px;border-top:1px solid #ddd;font-size:8px;color:#666;text-align:center;">
+    Confidential - Internal Use Only | {{ assessment.assessment_date }}
   </div>
 </div>
 
-<!-- ACTION BUTTONS -->
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:10px;margin-top:20px;">
-  <button onclick="window.print()" style="padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;color:var(--text);">
+<!-- ACTION BUTTONS - HIDDEN IN PRINT -->
+<div style="display:none;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:10px;margin-top:20px;padding:20px;" id="buttons">
+  <button onclick="window.print()" style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;color:var(--text);">
     🖨 Print
   </button>
-  <button onclick="sendEmail()" style="padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;color:var(--text);">
+  <button onclick="alert('Email feature coming soon')" style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;color:var(--text);">
     📧 Email
   </button>
-  <button onclick="downloadPDF()" style="padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;color:var(--text);">
+  <button onclick="window.print()" style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;color:var(--text);">
     📥 Download PDF
   </button>
-  <a href="{% if assessment_type == 'company' %}/risk-assessment/company/{{ company.id }}{% else %}/risk-assessment/individual/{{ individual.id }}{% endif %}" style="padding:12px 16px;background:#f59e0b;color:white;border:none;border-radius:6px;font-weight:600;font-size:13px;text-decoration:none;text-align:center;cursor:pointer;">
+  <a href="{% if assessment_type == 'company' %}/risk-assessment/company/{{ company.id }}{% else %}/risk-assessment/individual/{{ individual.id }}{% endif %}" style="padding:12px;background:#f59e0b;color:white;border:none;border-radius:6px;font-weight:600;font-size:13px;text-decoration:none;text-align:center;">
     🔄 Retest
   </a>
-  <a href="{{ url_for('risk_assessment_list') }}" style="padding:12px 16px;background:var(--primary);color:white;border:none;border-radius:6px;font-weight:600;font-size:13px;text-decoration:none;text-align:center;cursor:pointer;">
-    ← All Assessments
+  <a href="{{ url_for('risk_assessment_list') }}" style="padding:12px;background:var(--primary);color:white;border:none;border-radius:6px;font-weight:600;font-size:13px;text-decoration:none;text-align:center;">
+    ← Back
   </a>
 </div>
 
-<!-- Print Styles -->
+<!-- CRITICAL PRINT STYLES -->
 <style media="print">
-  body { background: white; color: black; }
-  .page-header { display: none !important; }
-  #printContent { padding: 0; border: none; box-shadow: none; margin: 0; }
-  div[style*="display:grid"][style*="gap:10px"]:last-of-type { display: none !important; }
-  @page { size: A4; margin: 10mm; }
-  * { margin: 0; padding: 0; }
-  table { page-break-inside: avoid; }
-  div[style*="margin-bottom:30px"] { page-break-inside: avoid; }
-</style>
-
-<style>
-  @media print {
-    body { font-size: 11px; line-height: 1.4; }
-    #printContent { padding: 15px; }
-    #printContent div { margin-bottom: 12px !important; }
-    #printContent table { font-size: 10px; }
-    table tr { page-break-inside: avoid; }
-  }
+  * { margin: 0 !important; padding: 0 !important; }
+  body { background: white !important; color: black !important; font-size: 10px !important; }
+  html, body { height: 100% !important; }
+  #printContent { page-break-inside: avoid !important; orphans: 2 !important; widows: 2 !important; }
+  @page { size: A4; margin: 10mm !important; }
+  div { page-break-inside: avoid !important; }
+  table { page-break-inside: avoid !important; }
+  tr { page-break-inside: avoid !important; }
 </style>
 
 {% endblock %}
 {% block scripts %}
 <script>
-function sendEmail() {
-  const name = "{{ company.client_name if assessment_type == 'company' else individual.name }}";
-  const email = prompt('Enter recipient email:', '');
-  if (!email) return;
-  alert('✅ Risk assessment ready to send to: ' + email);
-}
-
-function downloadPDF() {
-  if (typeof html2pdf === 'undefined') {
-    alert('📥 Use Ctrl+P to print as PDF');
-    window.print();
-    return;
-  }
-  html2pdf().set({
-    margin: 10,
-    filename: 'Risk_Assessment_{{ assessment.assessment_date }}.pdf',
-    image: {type: 'jpeg', quality: 0.98},
-    html2canvas: {scale: 2},
-    jsPDF: {orientation: 'portrait', unit: 'mm', format: 'a4'}
-  }).from(document.getElementById('printContent')).save();
-}
+// Show buttons in web, hide in print
+document.getElementById('buttons').style.display = 'grid';
+window.addEventListener('beforeprint', () => { document.getElementById('buttons').style.display = 'none'; });
+window.addEventListener('afterprint', () => { document.getElementById('buttons').style.display = 'grid'; });
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 {% endblock %}
