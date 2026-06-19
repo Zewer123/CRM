@@ -1083,7 +1083,7 @@ def aml_tracker():
         where_clause = ' AND '.join(where) if where else '1=1'
         
         # Get AML records with company/individual/user names
-        sql = f'''SELECT a.*, c.company_name, cli.name as individual_name, u.email as submitted_by_email, 
+        sql = f'''SELECT a.*, c.client_name as company_name, cli.name as individual_name, u.email as submitted_by_email, 
                   u2.email as checked_by_email
                   FROM aml_tracker a
                   LEFT JOIN companies c ON a.company_id = c.id
@@ -1096,7 +1096,7 @@ def aml_tracker():
         records = all_(conn, sql, params or None)
         
         # Get dropdown options for filters
-        companies = all_(conn, 'SELECT id, company_name FROM companies ORDER BY company_name')
+        companies = all_(conn, 'SELECT id, client_name as company_name FROM companies ORDER BY client_name')
         individuals = all_(conn, 'SELECT id, name FROM clients ORDER BY name')
         users = all_(conn, 'SELECT id, email FROM users WHERE is_active=1 ORDER BY email')
         statuses = ['pending', 'submitted', 'approved', 'rejected']
@@ -1125,7 +1125,7 @@ def aml_tracker_add():
     """Add new AML Tracker record"""
     try:
         conn = get_db()
-        companies = all_(conn, 'SELECT id, company_name FROM companies ORDER BY company_name')
+        companies = all_(conn, 'SELECT id, client_name as company_name FROM companies ORDER BY client_name')
         individuals = all_(conn, 'SELECT id, name FROM clients ORDER BY name')
         users = all_(conn, 'SELECT id, email FROM users WHERE is_active=1 ORDER BY email')
         
@@ -1217,7 +1217,7 @@ def aml_tracker_edit(id):
             conn.close()
             return redirect(url_for('aml_tracker'))
         
-        companies = all_(conn, 'SELECT id, company_name FROM companies ORDER BY company_name')
+        companies = all_(conn, 'SELECT id, client_name as company_name FROM companies ORDER BY client_name')
         individuals = all_(conn, 'SELECT id, name FROM clients ORDER BY name')
         users = all_(conn, 'SELECT id, email FROM users WHERE is_active=1 ORDER BY email')
         
