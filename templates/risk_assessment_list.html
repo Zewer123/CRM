@@ -136,8 +136,9 @@ function applyFilters() {
   const date = document.getElementById('dateFilter').value;
   const search = document.getElementById('searchFilter').value.toLowerCase();
   
+  let visible = 0;
   document.querySelectorAll('[data-type]').forEach(row => {
-    const rowType = row.dataset.type;
+    const rowType = row.dataset.type.toLowerCase();
     const rowRating = row.dataset.rating;
     const rowName = row.dataset.name;
     const rowDate = row.dataset.date;
@@ -147,7 +148,9 @@ function applyFilters() {
     const searchMatch = !search || rowName.includes(search);
     const dateMatch = !date || rowDate >= date;
     
-    row.style.display = typeMatch && ratingMatch && searchMatch && dateMatch ? '' : 'none';
+    const show = typeMatch && ratingMatch && searchMatch && dateMatch;
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
   });
 }
 </script>

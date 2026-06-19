@@ -914,29 +914,9 @@ def alerts():
 @compliance_required
 def health_check():
     conn = get_db()
-    # Get companies with their latest risk assessments
-    companies = all_(conn, '''
-        SELECT c.id, c.ac_code, c.client_name, 'company' as type,
-               cra.final_score, cra.risk_rating, cra.assessment_date
-        FROM companies c
-        LEFT JOIN company_risk_assessments cra ON c.id = cra.company_id 
-            AND cra.id = (SELECT id FROM company_risk_assessments WHERE company_id = c.id ORDER BY assessment_date DESC LIMIT 1)
-        ORDER BY c.client_name
-    ''', ())
-    
-    # Get individuals with their latest risk assessments
-    individuals = all_(conn, '''
-        SELECT c.id, NULL as ac_code, c.name as client_name, 'individual' as type,
-               ira.final_score, ira.risk_rating, ira.assessment_date
-        FROM clients c
-        LEFT JOIN individual_risk_assessments ira ON c.id = ira.individual_id 
-            AND ira.id = (SELECT id FROM individual_risk_assessments WHERE individual_id = c.id ORDER BY assessment_date DESC LIMIT 1)
-        ORDER BY c.name
-    ''', ())
-    
+    companies = all_(conn, 'SELECT id, ac_code, client_name FROM companies ORDER BY client_name')
     conn.close()
-    all_entities = companies + individuals
-    return render_template('health_check.html', entities=all_entities)
+    return render_template('health_check.html', companies=companies)
 
 @app.route('/health-check/<int:id>')
 @compliance_required
