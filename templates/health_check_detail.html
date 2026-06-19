@@ -111,6 +111,34 @@
     </div>
   </div>
 
+  <!-- RISK ASSESSMENT -->
+  {% if risk_assessment %}
+  <div class="scard" style="text-align:center;">
+    <div style="font-size:12px;color:var(--text-dim);font-weight:600;margin-bottom:10px;">Risk Assessment</div>
+    <div style="position:relative;width:120px;height:120px;margin:0 auto 8px;">
+      <svg viewBox="0 0 120 120" width="120" height="120" style="transform:rotate(-90deg);">
+        <circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface3)" stroke-width="11"/>
+        {% if risk_assessment.risk_rating == 'Low' %}
+          <circle cx="60" cy="60" r="50" fill="none" stroke="#22c55e" stroke-width="11"
+            stroke-dasharray="314.2 314.2" stroke-linecap="round"/>
+        {% elif risk_assessment.risk_rating == 'Medium' %}
+          <circle cx="60" cy="60" r="50" fill="none" stroke="#f59e0b" stroke-width="11"
+            stroke-dasharray="157.1 314.2" stroke-linecap="round"/>
+        {% else %}
+          <circle cx="60" cy="60" r="50" fill="none" stroke="#ef4444" stroke-width="11"
+            stroke-dasharray="0 314.2" stroke-linecap="round"/>
+        {% endif %}
+      </svg>
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);">
+        <div style="font-size:24px;font-weight:800;{% if risk_assessment.risk_rating == 'Low' %}color:#22c55e;{% elif risk_assessment.risk_rating == 'Medium' %}color:#f59e0b;{% else %}color:#ef4444;{% endif %}">{{ risk_assessment.final_score }}</div>
+      </div>
+    </div>
+    <div style="font-size:15px;font-weight:700;{% if risk_assessment.risk_rating == 'Low' %}color:#22c55e;{% elif risk_assessment.risk_rating == 'Medium' %}color:#f59e0b;{% else %}color:#ef4444;{% endif %}">
+      {% if risk_assessment.risk_rating == 'Low' %}✓{% elif risk_assessment.risk_rating == 'Medium' %}⚠{% else %}✗{% endif %} {{ risk_assessment.risk_rating }}
+    </div>
+  </div>
+  {% endif %}
+
   <!-- TOTAL DOCS -->
   <div class="scard">
     <div class="scard-icon" style="background:rgba(59,130,246,0.12);">📁</div>

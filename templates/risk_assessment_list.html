@@ -107,10 +107,14 @@
       </div>
       
       <!-- Action -->
-      <div>
+      <div style="display:flex;gap:8px;">
         <a href="{% if a.company_id %}/risk-assessment/company/{{ a.company_id }}/result{% else %}/risk-assessment/individual/{{ a.individual_id }}/result{% endif %}" 
-           style="padding:8px 16px;background:var(--primary);color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;text-decoration:none;display:inline-block;cursor:pointer;">
-          View →
+           style="padding:8px 12px;background:var(--primary);color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;text-decoration:none;display:inline-block;cursor:pointer;">
+          👁 View
+        </a>
+        <a href="{% if a.company_id %}/risk-assessment/company/{{ a.company_id }}{% else %}/risk-assessment/individual/{{ a.individual_id }}{% endif %}" 
+           style="padding:8px 12px;background:#f59e0b;color:white;border:none;border-radius:6px;font-weight:600;font-size:12px;text-decoration:none;display:inline-block;cursor:pointer;">
+          🔄 Retest
         </a>
       </div>
     </div>
