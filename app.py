@@ -1136,10 +1136,12 @@ def risk_assessment_list():
                    ca.assessment_date,
                    CASE WHEN ca.id IS NOT NULL THEN 'done' ELSE 'pending' END as status
             FROM companies c
-            LEFT JOIN (
-                SELECT * FROM company_risk_assessments 
-                WHERE id = (SELECT id FROM company_risk_assessments WHERE company_id = c.id ORDER BY assessment_date DESC LIMIT 1)
-            ) ca ON c.id = ca.company_id
+            LEFT JOIN LATERAL (
+                SELECT id, final_score, risk_rating, assessment_date
+                FROM company_risk_assessments 
+                WHERE company_id = c.id
+                ORDER BY assessment_date DESC LIMIT 1
+            ) ca ON true
             ORDER BY c.client_name
         """) or []
         
@@ -1151,10 +1153,12 @@ def risk_assessment_list():
                    ia.assessment_date,
                    CASE WHEN ia.id IS NOT NULL THEN 'done' ELSE 'pending' END as status
             FROM clients cl
-            LEFT JOIN (
-                SELECT * FROM individual_risk_assessments 
-                WHERE id = (SELECT id FROM individual_risk_assessments WHERE individual_id = cl.id ORDER BY assessment_date DESC LIMIT 1)
-            ) ia ON cl.id = ia.individual_id
+            LEFT JOIN LATERAL (
+                SELECT id, final_score, risk_rating, assessment_date
+                FROM individual_risk_assessments 
+                WHERE individual_id = cl.id
+                ORDER BY assessment_date DESC LIMIT 1
+            ) ia ON true
             ORDER BY cl.name
         """) or []
         

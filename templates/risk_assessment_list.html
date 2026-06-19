@@ -38,6 +38,7 @@
         <option value="Low">Low</option>
         <option value="Medium">Medium</option>
         <option value="High">High</option>
+        <option value="pending">Test Not Done</option>
       </select>
     </div>
     
@@ -171,7 +172,13 @@ function applyFilters() {
     
     const typeMatch = !type || rowType === type;
     const statusMatch = !status || rowStatus === status;
-    const ratingMatch = !rating || rowRating === rating;
+    let ratingMatch = !rating || rowRating === rating;
+    
+    // Handle "Test Not Done" in rating filter
+    if (rating === 'pending') {
+      ratingMatch = rowStatus === 'pending';
+    }
+    
     const searchMatch = !search || rowName.includes(search);
     
     const show = typeMatch && statusMatch && ratingMatch && searchMatch;
