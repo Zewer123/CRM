@@ -129,6 +129,7 @@ def _run_migrations(conn):
         "internal_documents (id {pk}, doc_name TEXT NOT NULL, doc_category TEXT DEFAULT 'Staff', person_name TEXT, issuing_authority TEXT, issue_date DATE, expiry_date DATE, notes TEXT, added_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "client_documents (id {pk}, client_id INTEGER NOT NULL, doc_type TEXT NOT NULL, file_name TEXT NOT NULL, file_url TEXT NOT NULL, public_id TEXT, uploaded_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "additional_tasks (id {pk}, title TEXT NOT NULL, task_details TEXT, remarks TEXT, from_datetime TIMESTAMP NOT NULL, to_datetime TIMESTAMP NOT NULL, created_by INTEGER NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "aml_tracker (id {pk}, company_id INTEGER, individual_id INTEGER, transaction_date DATE NOT NULL, period TEXT, due_date DATE, vc_no TEXT, payment_mode TEXT, ac_type TEXT, client_name TEXT, transaction_currency TEXT, usd_amount NUMERIC, aed_amount NUMERIC, payment_remarks TEXT, invoice_no TEXT, invoice_amount NUMERIC, invoice_currency TEXT, goaml_submission_date DATE, goaml_status TEXT DEFAULT 'pending', goaml_ref_no TEXT, submitted_by INTEGER NOT NULL, checked_by INTEGER, comment TEXT, verified_ledger BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
     ]
     pk = "SERIAL PRIMARY KEY" if pg else "INTEGER PRIMARY KEY AUTOINCREMENT"
     for t in new_tables:
@@ -1041,6 +1042,246 @@ def reports():
         expiring_30=cnt(conn,'SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ?',(today,today+timedelta(days=30))),
         expiring_90=cnt(conn,'SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ?',(today,today+timedelta(days=90))))
     conn.close(); return res
+
+# ──────────── AML TRACKER ────────────
+@app.route('/aml-tracker')
+@login_required
+def aml_tracker():
+    """List all AML Tracker records with filters"""
+    try:
+        conn = get_db()
+        status_filter = request.args.get('status', '')
+        company_filter = request.args.get('company', '')
+        individual_filter = request.args.get('individual', '')
+        submitted_by_filter = request.args.get('submitted_by', '')
+        date_from = request.args.get('from', '')
+        date_to = request.args.get('to', '')
+        
+        # Build WHERE clause
+        where = []
+        params = []
+        
+        if status_filter:
+            where.append('goaml_status = ?')
+            params.append(status_filter)
+        if company_filter:
+            where.append('company_id = ?')
+            params.append(company_filter)
+        if individual_filter:
+            where.append('individual_id = ?')
+            params.append(individual_filter)
+        if submitted_by_filter:
+            where.append('submitted_by = ?')
+            params.append(submitted_by_filter)
+        if date_from:
+            where.append('transaction_date >= ?')
+            params.append(date_from)
+        if date_to:
+            where.append('transaction_date <= ?')
+            params.append(date_to)
+        
+        where_clause = ' AND '.join(where) if where else '1=1'
+        
+        # Get AML records with company/individual/user names
+        sql = f'''SELECT a.*, c.company_name, cli.name as individual_name, u.email as submitted_by_email, 
+                  u2.email as checked_by_email
+                  FROM aml_tracker a
+                  LEFT JOIN companies c ON a.company_id = c.id
+                  LEFT JOIN clients cli ON a.individual_id = cli.id
+                  LEFT JOIN users u ON a.submitted_by = u.id
+                  LEFT JOIN users u2 ON a.checked_by = u2.id
+                  WHERE {where_clause}
+                  ORDER BY a.transaction_date DESC'''
+        
+        records = all_(conn, sql, params or None)
+        
+        # Get dropdown options for filters
+        companies = all_(conn, 'SELECT id, company_name FROM companies ORDER BY company_name')
+        individuals = all_(conn, 'SELECT id, name FROM clients ORDER BY name')
+        users = all_(conn, 'SELECT id, email FROM users WHERE is_active=1 ORDER BY email')
+        statuses = ['pending', 'submitted', 'approved', 'rejected']
+        
+        conn.close()
+        return render_template('aml_tracker.html', 
+                             records=records,
+                             companies=companies,
+                             individuals=individuals,
+                             users=users,
+                             statuses=statuses,
+                             status_filter=status_filter,
+                             company_filter=company_filter,
+                             individual_filter=individual_filter,
+                             submitted_by_filter=submitted_by_filter,
+                             date_from=date_from,
+                             date_to=date_to)
+    except Exception as e:
+        logger.error(f'Error in aml_tracker: {e}')
+        return render_template('aml_tracker.html', records=[], companies=[], individuals=[], 
+                             users=[], statuses=[], error=str(e))
+
+@app.route('/aml-tracker/add', methods=['GET', 'POST'])
+@login_required
+def aml_tracker_add():
+    """Add new AML Tracker record"""
+    try:
+        conn = get_db()
+        companies = all_(conn, 'SELECT id, company_name FROM companies ORDER BY company_name')
+        individuals = all_(conn, 'SELECT id, name FROM clients ORDER BY name')
+        users = all_(conn, 'SELECT id, email FROM users WHERE is_active=1 ORDER BY email')
+        
+        if request.method == 'POST':
+            data = request.get_json() if request.is_json else request.form
+            
+            transaction_date = data.get('transaction_date')
+            if not transaction_date:
+                conn.close()
+                return jsonify({'success': False, 'error': 'Transaction date is required'}), 400
+            
+            # Auto-calculate PERIOD and DUE DATE
+            tdate = datetime.strptime(transaction_date, '%Y-%m-%d').date()
+            month_num = tdate.month
+            quarter_num = (month_num - 1) // 3 + 1
+            week_num = tdate.isocalendar()[1]
+            period = data.get('period', f'Month {month_num}, Q{quarter_num}, W{week_num}')
+            due_date = tdate + timedelta(days=14)
+            
+            # Insert AML record
+            x(conn, '''INSERT INTO aml_tracker 
+               (company_id, individual_id, transaction_date, period, due_date, vc_no, payment_mode,
+                ac_type, client_name, transaction_currency, usd_amount, aed_amount, payment_remarks,
+                invoice_no, invoice_amount, invoice_currency, goaml_submission_date, goaml_status,
+                goaml_ref_no, submitted_by, checked_by, comment, verified_ledger, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)''',
+              (data.get('company_id') or None,
+               data.get('individual_id') or None,
+               transaction_date,
+               period,
+               str(due_date),
+               data.get('vc_no'),
+               data.get('payment_mode'),
+               data.get('ac_type'),
+               data.get('client_name'),
+               data.get('transaction_currency'),
+               data.get('usd_amount') or None,
+               data.get('aed_amount') or None,
+               data.get('payment_remarks'),
+               data.get('invoice_no'),
+               data.get('invoice_amount') or None,
+               data.get('invoice_currency'),
+               data.get('goaml_submission_date') or None,
+               'pending',
+               None,
+               session.get('user_id'),
+               data.get('checked_by') or None,
+               data.get('comment'),
+               1 if data.get('verified_ledger') else 0))
+            
+            aml_id = lastid(conn)
+            
+            # Create task for checked_by user if specified
+            checked_by_id = data.get('checked_by')
+            if checked_by_id:
+                x(conn, '''INSERT INTO tasks 
+                   (title, description, assigned_to, created_by, status, due_date)
+                   VALUES (?, ?, ?, ?, ?, ?)''',
+                  (f'AML Verification - {data.get("client_name")}',
+                   f'Review and verify AML Tracker record #{aml_id}. VC No: {data.get("vc_no")}',
+                   int(checked_by_id),
+                   session.get('user_id'),
+                   'todo',
+                   str(due_date)))
+            
+            commit(conn)
+            conn.close()
+            return jsonify({'success': True, 'message': 'AML record created', 'id': aml_id})
+        
+        conn.close()
+        return render_template('aml_tracker_form.html', 
+                             companies=companies, 
+                             individuals=individuals,
+                             users=users,
+                             record=None)
+    except Exception as e:
+        logger.error(f'Error in aml_tracker_add: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/aml-tracker/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def aml_tracker_edit(id):
+    """Edit AML Tracker record"""
+    try:
+        conn = get_db()
+        record = one(conn, 'SELECT * FROM aml_tracker WHERE id=?', (id,))
+        
+        if not record:
+            conn.close()
+            return redirect(url_for('aml_tracker'))
+        
+        companies = all_(conn, 'SELECT id, company_name FROM companies ORDER BY company_name')
+        individuals = all_(conn, 'SELECT id, name FROM clients ORDER BY name')
+        users = all_(conn, 'SELECT id, email FROM users WHERE is_active=1 ORDER BY email')
+        
+        if request.method == 'POST':
+            data = request.get_json() if request.is_json else request.form
+            
+            # Update record
+            x(conn, '''UPDATE aml_tracker 
+               SET vc_no=?, payment_mode=?, ac_type=?, client_name=?, transaction_currency=?,
+                   usd_amount=?, aed_amount=?, payment_remarks=?, invoice_no=?, invoice_amount=?,
+                   invoice_currency=?, goaml_submission_date=?, goaml_status=?, goaml_ref_no=?,
+                   checked_by=?, comment=?, verified_ledger=?, updated_at=CURRENT_TIMESTAMP
+               WHERE id=?''',
+              (data.get('vc_no'),
+               data.get('payment_mode'),
+               data.get('ac_type'),
+               data.get('client_name'),
+               data.get('transaction_currency'),
+               data.get('usd_amount') or None,
+               data.get('aed_amount') or None,
+               data.get('payment_remarks'),
+               data.get('invoice_no'),
+               data.get('invoice_amount') or None,
+               data.get('invoice_currency'),
+               data.get('goaml_submission_date') or None,
+               data.get('goaml_status'),
+               data.get('goaml_ref_no'),
+               data.get('checked_by') or None,
+               data.get('comment'),
+               1 if data.get('verified_ledger') else 0,
+               id))
+            
+            commit(conn)
+            conn.close()
+            return jsonify({'success': True, 'message': 'AML record updated'})
+        
+        # Format dates for template
+        for field in ['transaction_date', 'due_date', 'goaml_submission_date']:
+            if record.get(field):
+                record[field] = str(record[field])[:10] if record[field] else None
+        
+        conn.close()
+        return render_template('aml_tracker_form.html',
+                             companies=companies,
+                             individuals=individuals,
+                             users=users,
+                             record=record)
+    except Exception as e:
+        logger.error(f'Error in aml_tracker_edit: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/aml-tracker/<int:id>/delete', methods=['POST'])
+@login_required
+def api_aml_tracker_delete(id):
+    """Delete AML Tracker record"""
+    try:
+        conn = get_db()
+        x(conn, 'DELETE FROM aml_tracker WHERE id=?', (id,))
+        commit(conn)
+        conn.close()
+        return jsonify({'success': True, 'message': 'AML record deleted'})
+    except Exception as e:
+        logger.error(f'Error deleting AML record: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/settings')
 @admin_required

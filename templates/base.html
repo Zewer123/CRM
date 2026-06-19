@@ -25,6 +25,7 @@
       <a href="{{ url_for('alerts') }}" class="navbar-link {% if request.endpoint == 'alerts' %}active{% endif %}">⚠️ Alerts</a>
       <a href="{{ url_for('health_check') }}" class="navbar-link {% if request.endpoint in ['health_check','health_check_detail'] %}active{% endif %}">🏥 Health Check</a>
       <a href="{{ url_for('reports') }}" class="navbar-link {% if request.endpoint == 'reports' %}active{% endif %}">📈 Reports</a>
+      <a href="{{ url_for('aml_tracker') }}" class="navbar-link {% if request.endpoint in ['aml_tracker', 'aml_tracker_add', 'aml_tracker_edit'] %}active{% endif %}">📋 AML Tracker</a>
       {% endif %}
       <a href="{{ url_for('tasks') }}" class="navbar-link {% if request.endpoint in ['tasks','regular_tasks'] %}active{% endif %}">✅ Tasks</a>
       {% if user_role in ['admin', 'compliance'] %}

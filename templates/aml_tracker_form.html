@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+
+{% block title %}{% if record %}Edit{% else %}New{% endif %} AML Record - Zewer CRM{% endblock %}
+
+{% block content %}
+<div class="container form-container">
+    <div class="form-header">
+        <h1>{% if record %}Edit AML Record #{{ record.id }}{% else %}New AML Record{% endif %}</h1>
+        <a href="{{ url_for('aml_tracker') }}" class="btn btn-secondary">← Back</a>
+    </div>
+
+    <form id="amlForm" class="form-grid">
+        <fieldset>
+            <legend>Transaction Details</legend>
+            
+            <div class="form-group">
+                <label for="transaction_date">Transaction Date *</label>
+                <input type="date" id="transaction_date" name="transaction_date" 
+                       value="{{ record.transaction_date if record else '' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="period">Period</label>
+                <input type="text" id="period" name="period" 
+                       value="{{ record.period if record else '' }}" 
+                       placeholder="Auto-calculated from transaction date" readonly>
+            </div>
+
+            <div class="form-group">
+                <label for="due_date">Due Date (Auto: +14 days)</label>
+                <input type="date" id="due_date" name="due_date" 
+                       value="{{ record.due_date if record else '' }}" readonly>
+            </div>
+
+            <div class="form-group">
+                <label for="vc_no">VC No</label>
+                <input type="text" id="vc_no" name="vc_no" 
+                       value="{{ record.vc_no if record else '' }}" placeholder="Voucher/Reference Number">
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Client Information</legend>
+            
+            <div class="form-group">
+                <label for="company_id">Company</label>
+                <select id="company_id" name="company_id">
+                    <option value="">Select Company...</option>
+                    {% for c in companies %}
+                        <option value="{{ c.id }}" {% if record and record.company_id == c.id %}selected{% endif %}>
+                            {{ c.company_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="individual_id">Individual</label>
+                <select id="individual_id" name="individual_id">
+                    <option value="">Select Individual...</option>
+                    {% for i in individuals %}
+                        <option value="{{ i.id }}" {% if record and record.individual_id == i.id %}selected{% endif %}>
+                            {{ i.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="client_name">Client Name</label>
+                <input type="text" id="client_name" name="client_name" 
+                       value="{{ record.client_name if record else '' }}" placeholder="Client Name">
+            </div>
+
+            <div class="form-group">
+                <label for="ac_type">Account Type</label>
+                <input type="text" id="ac_type" name="ac_type" 
+                       value="{{ record.ac_type if record else '' }}" placeholder="e.g., Company, Individual">
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Payment & Amount Details</legend>
+            
+            <div class="form-group">
+                <label for="payment_mode">Payment Mode</label>
+                <select id="payment_mode" name="payment_mode">
+                    <option value="">Select Payment Mode</option>
+                    <option value="Cheque" {% if record and record.payment_mode == 'Cheque' %}selected{% endif %}>Cheque</option>
+                    <option value="Bank Transfer" {% if record and record.payment_mode == 'Bank Transfer' %}selected{% endif %}>Bank Transfer</option>
+                    <option value="Cash" {% if record and record.payment_mode == 'Cash' %}selected{% endif %}>Cash</option>
+                    <option value="Wire" {% if record and record.payment_mode == 'Wire' %}selected{% endif %}>Wire</option>
+                    <option value="Credit Card" {% if record and record.payment_mode == 'Credit Card' %}selected{% endif %}>Credit Card</option>
+                    <option value="Crypto" {% if record and record.payment_mode == 'Crypto' %}selected{% endif %}>Crypto</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="transaction_currency">Transaction Currency</label>
+                <input type="text" id="transaction_currency" name="transaction_currency" 
+                       value="{{ record.transaction_currency if record else 'AED' }}" placeholder="USD, AED, etc.">
+            </div>
+
+            <div class="form-group">
+                <label for="usd_amount">Amount (USD)</label>
+                <input type="number" id="usd_amount" name="usd_amount" step="0.01"
+                       value="{{ record.usd_amount if record else '' }}" placeholder="0.00">
+            </div>
+
+            <div class="form-group">
+                <label for="aed_amount">Amount (AED)</label>
+                <input type="number" id="aed_amount" name="aed_amount" step="0.01"
+                       value="{{ record.aed_amount if record else '' }}" placeholder="0.00">
+            </div>
+
+            <div class="form-group full-width">
+                <label for="payment_remarks">Payment Remarks</label>
+                <textarea id="payment_remarks" name="payment_remarks" rows="3">{{ record.payment_remarks if record else '' }}</textarea>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Invoice Details</legend>
+            
+            <div class="form-group">
+                <label for="invoice_no">Invoice No</label>
+                <input type="text" id="invoice_no" name="invoice_no" 
+                       value="{{ record.invoice_no if record else '' }}" placeholder="Invoice Number">
+            </div>
+
+            <div class="form-group">
+                <label for="invoice_currency">Invoice Currency</label>
+                <input type="text" id="invoice_currency" name="invoice_currency" 
+                       value="{{ record.invoice_currency if record else '' }}" placeholder="USD, AED, etc.">
+            </div>
+
+            <div class="form-group">
+                <label for="invoice_amount">Invoice Amount</label>
+                <input type="number" id="invoice_amount" name="invoice_amount" step="0.01"
+                       value="{{ record.invoice_amount if record else '' }}" placeholder="0.00">
+            </div>
+        </fieldset>
+
+        {% if record %}
+        <fieldset>
+            <legend>GoAML Submission</legend>
+            
+            <div class="form-group">
+                <label for="goaml_submission_date">GoAML Submission Date</label>
+                <input type="date" id="goaml_submission_date" name="goaml_submission_date" 
+                       value="{{ record.goaml_submission_date if record else '' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="goaml_status">GoAML Status</label>
+                <select id="goaml_status" name="goaml_status">
+                    <option value="pending" {% if record and record.goaml_status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="submitted" {% if record and record.goaml_status == 'submitted' %}selected{% endif %}>Submitted</option>
+                    <option value="approved" {% if record and record.goaml_status == 'approved' %}selected{% endif %}>Approved</option>
+                    <option value="rejected" {% if record and record.goaml_status == 'rejected' %}selected{% endif %}>Rejected</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="goaml_ref_no">GoAML Reference No</label>
+                <input type="text" id="goaml_ref_no" name="goaml_ref_no" 
+                       value="{{ record.goaml_ref_no if record else '' }}" placeholder="GoAML Reference Number">
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Verification</legend>
+            
+            <div class="form-group">
+                <label for="checked_by">Checked By</label>
+                <select id="checked_by" name="checked_by">
+                    <option value="">Unassigned</option>
+                    {% for u in users %}
+                        <option value="{{ u.id }}" {% if record and record.checked_by == u.id %}selected{% endif %}>
+                            {{ u.email }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="verified_ledger">
+                    <input type="checkbox" id="verified_ledger" name="verified_ledger" 
+                           {% if record and record.verified_ledger %}checked{% endif %}>
+                    Verified Ledger
+                </label>
+            </div>
+
+            <div class="form-group full-width">
+                <label for="comment">Comment</label>
+                <textarea id="comment" name="comment" rows="3">{{ record.comment if record else '' }}</textarea>
+            </div>
+        </fieldset>
+        {% else %}
+        <fieldset>
+            <legend>Verification (Optional)</legend>
+            
+            <div class="form-group">
+                <label for="checked_by">Assign to for Verification</label>
+                <select id="checked_by" name="checked_by">
+                    <option value="">Unassigned - Assign Later</option>
+                    {% for u in users %}
+                        <option value="{{ u.id }}">{{ u.email }}</option>
+                    {% endfor %}
+                </select>
+                <small>If assigned, a verification task will be created automatically.</small>
+            </div>
+
+            <div class="form-group full-width">
+                <label for="comment">Comment</label>
+                <textarea id="comment" name="comment" rows="3" placeholder="Any notes or comments..."></textarea>
+            </div>
+        </fieldset>
+        {% endif %}
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{% if record %}Update Record{% else %}Create Record{% endif %}</button>
+            <a href="{{ url_for('aml_tracker') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<style>
+.form-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #d97706;
+}
+
+.form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+fieldset {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    background: #fafafa;
+}
+
+legend {
+    padding: 0 10px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1c1917;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #333;
+}
+
+input[type="text"],
+input[type="date"],
+input[type="number"],
+select,
+textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+input[type="checkbox"] {
+    margin-right: 8px;
+    width: auto;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: #d97706;
+    box-shadow: 0 0 5px rgba(217, 119, 6, 0.3);
+}
+
+textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+small {
+    display: block;
+    margin-top: 5px;
+    color: #666;
+    font-size: 12px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 30px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s;
+}
+
+.btn-primary {
+    background: #d97706;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #b45309;
+}
+
+.btn-secondary {
+    background: #6b7280;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #4b5563;
+}
+</style>
+
+<script>
+document.getElementById('transaction_date').addEventListener('change', function() {
+    if (this.value) {
+        const date = new Date(this.value);
+        const dueDate = new Date(date);
+        dueDate.setDate(dueDate.getDate() + 14);
+        
+        const month = date.getMonth() + 1;
+        const quarter = Math.ceil(month / 3);
+        const week = getWeekNumber(date);
+        
+        document.getElementById('period').value = `Month ${month}, Q${quarter}, W${week}`;
+        document.getElementById('due_date').value = dueDate.toISOString().split('T')[0];
+    }
+});
+
+function getWeekNumber(d) {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+document.getElementById('amlForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData);
+    const isEdit = window.location.pathname.includes('/edit');
+    
+    const url = isEdit ? window.location.pathname : '{{ url_for("aml_tracker_add") }}';
+    const method = 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) {
+            alert(d.message || 'Record saved successfully');
+            window.location.href = '{{ url_for("aml_tracker") }}';
+        } else {
+            alert('Error: ' + (d.error || 'Unknown error'));
+        }
+    })
+    .catch(err => {
+        alert('Error: ' + err.message);
+    });
+});
+</script>
+{% endblock %}
