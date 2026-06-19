@@ -1088,7 +1088,6 @@ def risk_assessment_company(id):
         data = request.form
         logger.info(f'Risk assessment form received for company {id}')
         logger.info(f'Form data keys: {list(data.keys())}')
-        logger.info(f'Scores received: {dict((k, data.get(k)) for k in requiredScores if k in [f"{x}_score" for x in ["jurisdiction", "ownership", "delivery_channel", "payment_method", "transaction_volume", "product", "pep_status", "nationality", "years_relationship", "years_operation", "third_party", "sanctions"]])}')
         
         try:
             scores = [
@@ -1107,7 +1106,7 @@ def risk_assessment_company(id):
             ]
             logger.info(f'Parsed scores: {scores}')
             final_score, risk_rating = calculate_risk_score(scores)
-            logger.info(f'Calculated: {final_score}, {risk_rating}')
+            logger.info(f'Calculated risk: score={final_score}, rating={risk_rating}')
             
             # Ensure table exists
             try:
@@ -1128,11 +1127,11 @@ def risk_assessment_company(id):
                 scores[7], scores[8], scores[9], scores[10], scores[11], final_score, risk_rating,
                 dubai_today(), data.get('notes',''), session.get('user_id')))
             commit(conn)
-            logger.info(f'Risk assessment saved successfully for company {id}')
+            logger.info(f'✅ Risk assessment saved for company {id}')
             conn.close()
             return redirect(url_for('risk_assessment_company_result', id=id))
         except Exception as e:
-            logger.error(f'Error saving company risk assessment: {e}', exc_info=True)
+            logger.error(f'❌ Error saving company risk assessment: {str(e)}', exc_info=True)
             try: conn.close()
             except: pass
             return redirect(url_for('risk_assessment'))
