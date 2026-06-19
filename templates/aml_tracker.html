@@ -3,526 +3,132 @@
 {% block title %}AML Tracker - Zewer CRM{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="page-header">
-        <h1>📋 AML Tracker</h1>
-        <a href="{{ url_for('aml_tracker_add') }}" class="btn btn-primary">+ New AML Record</a>
+<div style="max-width: 1400px; margin: 0 auto; padding: 20px;">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #d97706;">
+        <h1 style="margin: 0; font-size: 28px; color: #1c1917;">📋 AML Tracker</h1>
+        <a href="{{ url_for('aml_tracker_add') }}" style="padding: 12px 24px; background: linear-gradient(135deg, #d97706 0%, #b45309 100%); color: white; border-radius: 6px; text-decoration: none; font-weight: 600;">+ New Record</a>
     </div>
 
-    <div class="filter-panel">
-        <form method="get" class="filter-form">
-            <div class="search-box">
-                <input type="text" name="vc_no" placeholder="Search VC No..." value="{{ vc_no_filter }}" class="search-input">
+    <!-- Filters -->
+    <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+        <form method="get" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+            <div style="flex: 1; min-width: 200px;">
+                <label style="display: block; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 6px;">Search VC No</label>
+                <input type="text" name="vc_no" placeholder="Search..." value="{{ vc_no_filter }}"
+                       style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: white;">
             </div>
 
-            <select name="status" class="filter-select">
-                <option value="">Status - All</option>
-                {% for s in statuses %}
-                    <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s.title() }}</option>
-                {% endfor %}
-            </select>
+            <div style="min-width: 150px;">
+                <label style="display: block; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 6px;">Status</label>
+                <select name="status" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: white;">
+                    <option value="">All</option>
+                    {% for s in statuses %}
+                        <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s.title() }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-            <select name="company" class="filter-select">
-                <option value="">Company - All</option>
-                {% for c in companies %}
-                    <option value="{{ c.id }}" {% if company_filter == c.id|string %}selected{% endif %}>{{ c.company_name }}</option>
-                {% endfor %}
-            </select>
+            <div style="min-width: 150px;">
+                <label style="display: block; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 6px;">Company</label>
+                <select name="company" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: white;">
+                    <option value="">All</option>
+                    {% for c in companies %}
+                        <option value="{{ c.id }}" {% if company_filter == c.id|string %}selected{% endif %}>{{ c.company_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-            <select name="submitted_by" class="filter-select">
-                <option value="">Submitted By - All</option>
-                {% for u in users %}
-                    <option value="{{ u.id }}" {% if submitted_by_filter == u.id|string %}selected{% endif %}>{{ u.email }}</option>
-                {% endfor %}
-            </select>
+            <div style="min-width: 150px;">
+                <label style="display: block; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 6px;">Submitted By</label>
+                <select name="submitted_by" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: white;">
+                    <option value="">All</option>
+                    {% for u in users %}
+                        <option value="{{ u.id }}" {% if submitted_by_filter == u.id|string %}selected{% endif %}>{{ u.email }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-            <button type="submit" class="btn btn-filter">🔍 Filter</button>
-            <a href="{{ url_for('aml_tracker') }}" class="btn btn-clear">Clear</a>
+            <button type="submit" style="padding: 10px 20px; background: #d97706; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">🔍 Filter</button>
+            <a href="{{ url_for('aml_tracker') }}" style="padding: 10px 20px; background: #6b7280; color: white; border-radius: 6px; text-decoration: none; font-weight: 600;">Clear</a>
         </form>
     </div>
 
     <!-- Records Count -->
-    <div class="records-count">{{ records|length }} record{{ 's' if records|length != 1 else '' }}</div>
+    <div style="color: #d97706; font-weight: 600; margin-bottom: 16px; font-size: 14px;">
+        {{ records|length }} record{{ 's' if records|length != 1 else '' }}
+    </div>
 
     {% if error %}
-        <div class="alert alert-danger">{{ error }}</div>
+        <div style="background: #fee2e2; color: #7f1d1d; padding: 14px; border-radius: 6px; margin-bottom: 20px; border: 1px solid #fca5a5;">
+            {{ error }}
+        </div>
     {% endif %}
 
-    <!-- Records Cards -->
-    <div class="records-container">
-        {% if records %}
-            {% for record in records %}
-                <div class="record-card">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <div class="vc-code">{{ record.vc_no or '---' }}</div>
-                            <div class="client-info">
-                                <h3>{{ record.client_name or 'N/A' }}</h3>
+    <!-- Table -->
+    {% if records %}
+        <div style="overflow-x: auto; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <table style="width: 100%; border-collapse: collapse; background: white;">
+                <thead>
+                    <tr style="background: #2c2c2c; color: #d97706; border-bottom: 2px solid #d97706;">
+                        <th style="padding: 14px 12px; text-align: left; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">VC No</th>
+                        <th style="padding: 14px 12px; text-align: left; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Client Name</th>
+                        <th style="padding: 14px 12px; text-align: left; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Company</th>
+                        <th style="padding: 14px 12px; text-align: left; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Transaction Date</th>
+                        <th style="padding: 14px 12px; text-align: left; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Due Date</th>
+                        <th style="padding: 14px 12px; text-align: right; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Amount (AED)</th>
+                        <th style="padding: 14px 12px; text-align: left; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Status</th>
+                        <th style="padding: 14px 12px; text-align: center; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                        <tr style="border-bottom: 1px solid #e5e7eb; transition: background 0.2s;">
+                            <td style="padding: 12px; color: #d97706; font-weight: 700;">{{ record.vc_no or '---' }}</td>
+                            <td style="padding: 12px; color: #1f2937; font-weight: 500;">{{ record.client_name or '---' }}</td>
+                            <td style="padding: 12px; color: #374151;">
                                 {% if record.company_name %}
-                                    <span class="company-tag">🏢 {{ record.company_name }}</span>
+                                    {{ record.company_name }}
                                 {% elif record.individual_name %}
-                                    <span class="company-tag">👤 {{ record.individual_name }}</span>
+                                    {{ record.individual_name }}
+                                {% else %}
+                                    ---
                                 {% endif %}
-                            </div>
-                        </div>
-                        <div class="status-badge badge-{{ record.goaml_status or 'pending' }}">
-                            {{ (record.goaml_status or 'pending').upper() }}
-                        </div>
-                    </div>
-
-                    <div class="card-content">
-                        <div class="info-row">
-                            <div class="info-item">
-                                <label>Transaction Date</label>
-                                <span class="value">{{ record.transaction_date or '---' }}</span>
-                            </div>
-                            <div class="info-item">
-                                <label>Due Date</label>
-                                <span class="value">{{ record.due_date or '---' }}</span>
-                            </div>
-                            <div class="info-item">
-                                <label>Amount (AED)</label>
-                                <span class="value amount">{{ "%.2f"|format(record.aed_amount or 0) }}</span>
-                            </div>
-                        </div>
-
-                        <div class="info-row">
-                            <div class="info-item">
-                                <label>Payment Mode</label>
-                                <span class="value">{{ record.payment_mode or '---' }}</span>
-                            </div>
-                            <div class="info-item">
-                                <label>Submitted By</label>
-                                <span class="value">{{ record.submitted_by_email or '---' }}</span>
-                            </div>
-                            <div class="info-item">
-                                <label>Verified</label>
-                                <span class="verified-badge {% if record.verified_ledger %}verified{% else %}pending{% endif %}">
-                                    {% if record.verified_ledger %}✅ Yes{% else %}⏳ Pending{% endif %}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card-footer">
-                        <div class="action-buttons">
-                            <a href="{{ url_for('aml_tracker_edit', id=record.id) }}" class="action-btn edit" title="Edit">✏️</a>
-                            <a href="#" onclick="viewRecord({{ record.id }})" class="action-btn view" title="View">👁️</a>
-                            <button onclick="deleteRecord({{ record.id }})" class="action-btn delete" title="Delete">🗑️</button>
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
-        {% else %}
-            <div class="empty-state">
-                <p>No AML records found.</p>
-                <a href="{{ url_for('aml_tracker_add') }}" class="btn btn-primary">Create First Record</a>
-            </div>
-        {% endif %}
-    </div>
+                            </td>
+                            <td style="padding: 12px; color: #374151; font-size: 14px;">{{ record.transaction_date or '---' }}</td>
+                            <td style="padding: 12px; color: #374151; font-size: 14px;">{{ record.due_date or '---' }}</td>
+                            <td style="padding: 12px; color: #d97706; font-weight: 700; text-align: right;">{{ "%.2f"|format(record.aed_amount or 0) }}</td>
+                            <td style="padding: 12px;">
+                                <span style="display: inline-block; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: 700;
+                                    {% if record.goaml_status == 'pending' %}
+                                        background: #fbbf24; color: #78350f;
+                                    {% elif record.goaml_status == 'submitted' %}
+                                        background: #93c5fd; color: #1e3a8a;
+                                    {% elif record.goaml_status == 'approved' %}
+                                        background: #86efac; color: #166534;
+                                    {% elif record.goaml_status == 'rejected' %}
+                                        background: #fca5a5; color: #7f1d1d;
+                                    {% else %}
+                                        background: #d1d5db; color: #374151;
+                                    {% endif %}
+                                ">{{ (record.goaml_status or 'pending').upper() }}</span>
+                            </td>
+                            <td style="padding: 12px; text-align: center;">
+                                <a href="{{ url_for('aml_tracker_edit', id=record.id) }}" style="display: inline-block; padding: 6px 12px; background: #d97706; color: white; border-radius: 4px; text-decoration: none; font-weight: 600; font-size: 12px; margin: 0 2px; cursor: pointer;">✏️ Edit</a>
+                                <button onclick="deleteRecord({{ record.id }})" style="display: inline-block; padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 4px; text-decoration: none; font-weight: 600; font-size: 12px; margin: 0 2px; cursor: pointer;">🗑️ Delete</button>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 40px; text-align: center; color: #6b7280;">
+            <p style="font-size: 16px; margin: 0 0 20px 0;">No AML records found.</p>
+            <a href="{{ url_for('aml_tracker_add') }}" style="padding: 10px 20px; background: #d97706; color: white; border-radius: 6px; text-decoration: none; font-weight: 600;">Create First Record</a>
+        </div>
+    {% endif %}
 </div>
-
-<style>
-.container {
-    padding: 20px;
-}
-
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
-    padding-bottom: 20px;
-    border-bottom: 2px solid #d97706;
-}
-
-.page-header h1 {
-    margin: 0;
-    font-size: 28px;
-    color: white;
-}
-
-.filter-panel {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(217, 119, 6, 0.2);
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 20px;
-}
-
-.filter-form {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    align-items: center;
-}
-
-.search-box {
-    flex: 1;
-    min-width: 200px;
-}
-
-.search-input {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #4b5563;
-    border-radius: 6px;
-    background: rgba(0, 0, 0, 0.3);
-    color: white;
-    font-size: 14px;
-}
-
-.search-input::placeholder {
-    color: #9ca3af;
-}
-
-.search-input:focus {
-    outline: none;
-    border-color: #d97706;
-    background: rgba(217, 119, 6, 0.1);
-}
-
-.filter-select {
-    padding: 10px 12px;
-    border: 1px solid #4b5563;
-    border-radius: 6px;
-    background: rgba(0, 0, 0, 0.3);
-    color: white;
-    font-size: 14px;
-    cursor: pointer;
-}
-
-.filter-select option {
-    background: #1c1917;
-    color: white;
-}
-
-.filter-select:focus {
-    outline: none;
-    border-color: #d97706;
-}
-
-.btn {
-    padding: 10px 16px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 14px;
-    transition: all 0.3s;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.btn-primary {
-    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-    color: white;
-}
-
-.btn-primary:hover {
-    background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
-    box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3);
-}
-
-.btn-filter {
-    background: rgba(217, 119, 6, 0.2);
-    color: #d97706;
-    border: 1px solid #d97706;
-}
-
-.btn-filter:hover {
-    background: rgba(217, 119, 6, 0.3);
-}
-
-.btn-clear {
-    background: transparent;
-    color: #9ca3af;
-    border: 1px solid #4b5563;
-}
-
-.btn-clear:hover {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.records-count {
-    color: #d97706;
-    font-weight: 600;
-    margin-bottom: 16px;
-    font-size: 14px;
-}
-
-.records-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(1100px, 1fr));
-    gap: 16px;
-}
-
-.record-card {
-    background: linear-gradient(135deg, #2c2c2c 0%, #1f1f1f 100%);
-    border: 1px solid #4b5563;
-    border-radius: 8px;
-    overflow: hidden;
-    transition: all 0.3s;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.record-card:hover {
-    border-color: #d97706;
-    box-shadow: 0 4px 16px rgba(217, 119, 6, 0.2);
-    transform: translateY(-2px);
-}
-
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 16px;
-    border-bottom: 1px solid #4b5563;
-    background: rgba(0, 0, 0, 0.3);
-}
-
-.card-title {
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    flex: 1;
-}
-
-.vc-code {
-    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-weight: 700;
-    font-size: 14px;
-    min-width: 100px;
-    text-align: center;
-}
-
-.client-info h3 {
-    margin: 0 0 4px 0;
-    color: white;
-    font-size: 16px;
-}
-
-.company-tag {
-    display: inline-block;
-    background: rgba(217, 119, 6, 0.2);
-    color: #d97706;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 600;
-}
-
-.status-badge {
-    padding: 8px 12px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 700;
-    text-align: center;
-    min-width: 100px;
-}
-
-.badge-pending {
-    background: #fbbf24;
-    color: #78350f;
-}
-
-.badge-submitted {
-    background: #93c5fd;
-    color: #1e3a8a;
-}
-
-.badge-approved {
-    background: #86efac;
-    color: #166534;
-}
-
-.badge-rejected {
-    background: #fca5a5;
-    color: #7f1d1d;
-}
-
-.card-content {
-    padding: 16px;
-}
-
-.info-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-bottom: 12px;
-}
-
-.info-row:last-child {
-    margin-bottom: 0;
-}
-
-.info-item {
-    display: flex;
-    flex-direction: column;
-}
-
-.info-item label {
-    color: #9ca3af;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 4px;
-}
-
-.info-item .value {
-    color: white;
-    font-size: 14px;
-    font-weight: 500;
-}
-
-.info-item .value.amount {
-    color: #d97706;
-    font-weight: 700;
-}
-
-.verified-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 600;
-}
-
-.verified-badge.verified {
-    background: rgba(134, 239, 172, 0.2);
-    color: #86efac;
-}
-
-.verified-badge.pending {
-    background: rgba(251, 191, 36, 0.2);
-    color: #fbbf24;
-}
-
-.card-footer {
-    padding: 12px 16px;
-    border-top: 1px solid #4b5563;
-    background: rgba(0, 0, 0, 0.3);
-    display: flex;
-    justify-content: flex-end;
-}
-
-.action-buttons {
-    display: flex;
-    gap: 8px;
-}
-
-.action-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    font-size: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s;
-    text-decoration: none;
-}
-
-.action-btn.view {
-    background: rgba(59, 130, 246, 0.2);
-    color: #3b82f6;
-}
-
-.action-btn.view:hover {
-    background: #3b82f6;
-    color: white;
-}
-
-.action-btn.edit {
-    background: rgba(217, 119, 6, 0.2);
-    color: #d97706;
-}
-
-.action-btn.edit:hover {
-    background: #d97706;
-    color: white;
-}
-
-.action-btn.delete {
-    background: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
-}
-
-.action-btn.delete:hover {
-    background: #ef4444;
-    color: white;
-}
-
-.empty-state {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 60px 20px;
-    color: #9ca3af;
-}
-
-.empty-state p {
-    margin-bottom: 20px;
-    font-size: 16px;
-}
-
-.alert {
-    padding: 14px;
-    border-radius: 6px;
-    margin-bottom: 20px;
-    border: 1px solid;
-}
-
-.alert-danger {
-    background: rgba(239, 68, 68, 0.1);
-    color: #fca5a5;
-    border-color: #fca5a5;
-}
-
-@media (max-width: 1200px) {
-    .records-container {
-        grid-template-columns: 1fr;
-    }
-
-    .info-row {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width: 768px) {
-    .filter-form {
-        flex-direction: column;
-    }
-
-    .search-box {
-        min-width: unset;
-    }
-
-    .filter-select {
-        width: 100%;
-    }
-
-    .info-row {
-        grid-template-columns: 1fr;
-    }
-
-    .card-header {
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    .status-badge {
-        width: 100%;
-    }
-}
-</style>
 
 <script>
 function deleteRecord(id) {
@@ -537,10 +143,6 @@ function deleteRecord(id) {
                 }
             });
     }
-}
-
-function viewRecord(id) {
-    window.location.href = `/aml-tracker/${id}/edit`;
 }
 </script>
 {% endblock %}
