@@ -276,6 +276,7 @@ const requiredScores = [
 ];
 
 function lookupScore(fieldId, value, category) {
+  console.log('lookupScore called:', fieldId, value, category);
   if (!value) {
     document.getElementById(fieldId + '_score').value = '';
     document.getElementById(fieldId + '_display').textContent = '-';
@@ -289,9 +290,11 @@ function lookupScore(fieldId, value, category) {
   })
   .then(r => r.json())
   .then(d => {
+    console.log('Got score:', fieldId, d.score);
     if (d.score !== null && d.score !== undefined) {
       document.getElementById(fieldId + '_score').value = d.score;
       document.getElementById(fieldId + '_display').textContent = d.score;
+      console.log('Set:', fieldId + '_score', 'to', d.score);
     }
   })
   .catch(e => console.error('Lookup error:', e));
@@ -299,9 +302,11 @@ function lookupScore(fieldId, value, category) {
 
 function manualScore(select, fieldId) {
   const score = select.value;
+  console.log('manualScore called:', fieldId, score);
   if (score) {
     document.getElementById(fieldId + '_score').value = score;
     document.getElementById(fieldId + '_display').textContent = score;
+    console.log('Set:', fieldId + '_score', 'to', score);
   } else {
     document.getElementById(fieldId + '_score').value = '';
     document.getElementById(fieldId + '_display').textContent = '-';
@@ -309,23 +314,34 @@ function manualScore(select, fieldId) {
 }
 
 // Form submission validation
+console.log('Setting up form submission handler...');
 document.querySelector('form').addEventListener('submit', function(e) {
+  console.log('Form submission started');
   const empty = [];
+  const values = {};
+  
   requiredScores.forEach(scoreId => {
-    const val = document.getElementById(scoreId).value;
+    const el = document.getElementById(scoreId);
+    const val = el ? el.value : 'MISSING_ELEMENT';
+    values[scoreId] = val;
+    console.log(`Checking ${scoreId}:`, val);
+    
     if (!val || val === '' || val === '0') {
       empty.push(scoreId.replace('_score', ''));
     }
   });
   
+  console.log('Score values:', values);
+  console.log('Empty fields:', empty);
+  
   if (empty.length > 0) {
     e.preventDefault();
     alert('❌ Please fill in all risk factors:\n\n' + empty.join('\n'));
-    console.error('Missing scores:', empty);
+    console.error('Prevented submission - missing:', empty);
     return false;
   }
   
-  console.log('✅ Form valid - submitting');
+  console.log('✅ Form valid - allowing submission');
   return true;
 });
 </script>
