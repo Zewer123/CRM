@@ -9,11 +9,10 @@
         <a href="{{ url_for('aml_tracker_add') }}" class="btn btn-primary">+ New AML Record</a>
     </div>
 
-    <!-- Filters -->
     <div class="filter-panel">
         <form method="get" class="filter-form">
             <div class="search-box">
-                <input type="text" name="vc_no" placeholder="Search VC No..." value="{{ request.args.get('vc_no', '') }}" class="search-input">
+                <input type="text" name="vc_no" placeholder="Search VC No..." value="{{ vc_no_filter }}" class="search-input">
             </div>
 
             <select name="status" class="filter-select">

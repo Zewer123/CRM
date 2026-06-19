@@ -1077,33 +1077,25 @@ def aml_tracker():
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         status_filter = request.args.get('status', '')
         company_filter = request.args.get('company', '')
-        individual_filter = request.args.get('individual', '')
+        vc_no_filter = request.args.get('vc_no', '')
         submitted_by_filter = request.args.get('submitted_by', '')
-        date_from = request.args.get('from', '')
-        date_to = request.args.get('to', '')
         
         # Build WHERE clause
         where = []
         params = []
         
         if status_filter:
-            where.append('goaml_status = ?')
+            where.append(f'goaml_status = {P()}')
             params.append(status_filter)
         if company_filter:
-            where.append('company_id = ?')
+            where.append(f'company_id = {P()}')
             params.append(company_filter)
-        if individual_filter:
-            where.append('individual_id = ?')
-            params.append(individual_filter)
+        if vc_no_filter:
+            where.append(f'vc_no LIKE {P()}')
+            params.append(f'%{vc_no_filter}%')
         if submitted_by_filter:
-            where.append('submitted_by = ?')
+            where.append(f'submitted_by = {P()}')
             params.append(submitted_by_filter)
-        if date_from:
-            where.append('transaction_date >= ?')
-            params.append(date_from)
-        if date_to:
-            where.append('transaction_date <= ?')
-            params.append(date_to)
         
         where_clause = ' AND '.join(where) if where else '1=1'
         
@@ -1130,18 +1122,15 @@ def aml_tracker():
         return render_template('aml_tracker.html', 
                              records=records,
                              companies=companies,
-                             individuals=individuals,
                              users=users,
                              statuses=statuses,
                              status_filter=status_filter,
                              company_filter=company_filter,
-                             individual_filter=individual_filter,
-                             submitted_by_filter=submitted_by_filter,
-                             date_from=date_from,
-                             date_to=date_to)
+                             vc_no_filter=vc_no_filter,
+                             submitted_by_filter=submitted_by_filter)
     except Exception as e:
         logger.error(f'Error in aml_tracker: {e}')
-        return render_template('aml_tracker.html', records=[], companies=[], individuals=[], 
+        return render_template('aml_tracker.html', records=[], companies=[], 
                              users=[], statuses=[], error=str(e))
 
 @app.route('/aml-tracker/add', methods=['GET', 'POST'])
