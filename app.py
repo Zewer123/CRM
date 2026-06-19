@@ -1050,6 +1050,31 @@ def aml_tracker():
     """List all AML Tracker records with filters"""
     try:
         conn = get_db()
+        
+        # Fallback: Ensure table exists (on-first-use pattern for Railway PostgreSQL)
+        if is_pg(conn):
+            x(conn, '''CREATE TABLE IF NOT EXISTS aml_tracker (
+                id SERIAL PRIMARY KEY, company_id INTEGER, individual_id INTEGER,
+                transaction_date DATE NOT NULL, period TEXT, due_date DATE, vc_no TEXT,
+                payment_mode TEXT, ac_type TEXT, client_name TEXT, transaction_currency TEXT,
+                usd_amount NUMERIC, aed_amount NUMERIC, payment_remarks TEXT, invoice_no TEXT,
+                invoice_amount NUMERIC, invoice_currency TEXT, goaml_submission_date DATE,
+                goaml_status TEXT DEFAULT 'pending', goaml_ref_no TEXT, submitted_by INTEGER NOT NULL,
+                checked_by INTEGER, comment TEXT, verified_ledger BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+            commit(conn)
+        else:
+            x(conn, '''CREATE TABLE IF NOT EXISTS aml_tracker (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, company_id INTEGER, individual_id INTEGER,
+                transaction_date DATE NOT NULL, period TEXT, due_date DATE, vc_no TEXT,
+                payment_mode TEXT, ac_type TEXT, client_name TEXT, transaction_currency TEXT,
+                usd_amount NUMERIC, aed_amount NUMERIC, payment_remarks TEXT, invoice_no TEXT,
+                invoice_amount NUMERIC, invoice_currency TEXT, goaml_submission_date DATE,
+                goaml_status TEXT DEFAULT 'pending', goaml_ref_no TEXT, submitted_by INTEGER NOT NULL,
+                checked_by INTEGER, comment TEXT, verified_ledger BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         status_filter = request.args.get('status', '')
         company_filter = request.args.get('company', '')
         individual_filter = request.args.get('individual', '')
