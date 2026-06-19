@@ -14,7 +14,8 @@
 
 <form method="POST" onsubmit="return validateForm(event)" style="max-width:900px;">
 <div class="card" style="margin-bottom:20px;">
-  <div style="font-weight:700;color:var(--text);margin-bottom:16px;font-size:14px;">Risk Factors - Select values to auto-calculate scores</div>
+  <div style="font-weight:700;color:var(--text);margin-bottom:8px;font-size:14px;">Risk Factors Assessment</div>
+  <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px;">Select a value for each factor - scores calculate automatically (1-3 scale)</div>
   
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
     <!-- 1. JURISDICTION -->
@@ -226,10 +227,27 @@
 <script>
 const lookups = {{ lookups|tojson }};
 
+// Map display IDs
+const displayMap = {
+  'jurisdiction': 'jur_score',
+  'ownership': 'own_score',
+  'delivery_channel': 'del_score',
+  'payment_method': 'pay_score',
+  'transaction_volume': 'vol_score',
+  'product': 'pro_score',
+  'pep_status': 'pep_score',
+  'nationality': 'nat_score',
+  'years_relationship': 'yrl_score',
+  'years_operation': 'yro_score',
+  'third_party': 'trd_score',
+  'sanctions': 'san_score'
+};
+
 function getScore(fieldId, category) {
   const val = document.getElementById(fieldId).value;
   if (!val) {
     document.getElementById(fieldId + '_score').value = '';
+    updateDisplay(fieldId, '-');
     return;
   }
   const score = lookups[category][val];
@@ -244,13 +262,18 @@ function setScore(fieldId, values) {
   if (val) {
     document.getElementById(fieldId + '_score').value = val;
     updateDisplay(fieldId, val);
+  } else {
+    document.getElementById(fieldId + '_score').value = '';
+    updateDisplay(fieldId, '-');
   }
 }
 
 function updateDisplay(fieldId, score) {
-  const displayId = fieldId.substring(0, 3) + '_score';
-  const el = document.getElementById(displayId);
-  if (el) el.textContent = score;
+  const displayId = displayMap[fieldId];
+  if (displayId) {
+    const el = document.getElementById(displayId);
+    if (el) el.textContent = score;
+  }
 }
 
 function validateForm(e) {
@@ -261,17 +284,25 @@ function validateForm(e) {
   ];
   
   const missing = [];
+  const values = {};
   scores.forEach(s => {
-    if (!document.getElementById(s).value) {
-      missing.push(s.replace('_score', ''));
+    const el = document.getElementById(s);
+    const val = el ? el.value : '';
+    values[s] = val;
+    if (!val || val === '0') {
+      missing.push(s.replace('_score', '').replace(/_/g, ' '));
     }
   });
   
+  console.log('Form validation:', {missing, values});
+  
   if (missing.length > 0) {
     e.preventDefault();
-    alert('Please fill ALL factors:\n' + missing.join(', '));
+    alert('❌ Please fill ALL 12 risk factors:\n\n' + missing.join('\n'));
     return false;
   }
+  
+  console.log('✅ Form valid - submitting with scores:', values);
   return true;
 }
 </script>
