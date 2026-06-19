@@ -24,7 +24,7 @@
       </div>
       <a href="{{ url_for('alerts') }}" class="navbar-link {% if request.endpoint == 'alerts' %}active{% endif %}">⚠️ Alerts</a>
       <a href="{{ url_for('health_check') }}" class="navbar-link {% if request.endpoint in ['health_check','health_check_detail'] %}active{% endif %}">🏥 Health Check</a>
-      <a href="{{ url_for('risk_assessment') }}" class="navbar-link {% if request.endpoint in ['risk_assessment','risk_assessment_company','risk_assessment_individual','risk_assessment_company_result','risk_assessment_individual_result'] %}active{% endif %}">⚠️ Risk Assessment</a>
+      <a href="{{ url_for('risk_assessment_list') }}" class="navbar-link {% if request.endpoint in ['risk_assessment_list','risk_assessment','risk_assessment_company','risk_assessment_individual','risk_assessment_company_result','risk_assessment_individual_result'] %}active{% endif %}">⚠️ Risk Assessment</a>
       <a href="{{ url_for('reports') }}" class="navbar-link {% if request.endpoint == 'reports' %}active{% endif %}">📈 Reports</a>
       <a href="{{ url_for('aml_tracker') }}" class="navbar-link {% if request.endpoint in ['aml_tracker', 'aml_tracker_add', 'aml_tracker_edit'] %}active{% endif %}">📋 AML Tracker</a>
       {% endif %}

@@ -1086,6 +1086,57 @@ def api_send_risk_email():
         logger.error(f'Error sending risk email: {e}')
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/risk-assessment-list')
+@compliance_required
+def risk_assessment_list():
+    """View all risk assessments with filters"""
+    try:
+        conn = get_db()
+        
+        # Get company assessments
+        co_assessments = all_(conn, """
+            SELECT ca.id, ca.company_id, c.client_name as name, ca.final_score, 
+                   ca.risk_rating, ca.assessment_date, 'company' as type
+            FROM company_risk_assessments ca
+            JOIN companies c ON ca.company_id = c.id
+            ORDER BY ca.assessment_date DESC
+        """) or []
+        
+        # Get individual assessments  
+        ind_assessments = all_(conn, """
+            SELECT ia.id, ia.individual_id, cl.name, ia.final_score,
+                   ia.risk_rating, ia.assessment_date, 'individual' as type
+            FROM individual_risk_assessments ia
+            JOIN clients cl ON ia.individual_id = cl.id
+            ORDER BY ia.assessment_date DESC
+        """) or []
+        
+        # Combine and sort
+        assessments = sorted(
+            co_assessments + ind_assessments,
+            key=lambda x: x.get('assessment_date', ''),
+            reverse=True
+        )
+        
+        # Count by rating
+        low = sum(1 for a in assessments if a.get('risk_rating') == 'Low')
+        medium = sum(1 for a in assessments if a.get('risk_rating') == 'Medium')
+        high = sum(1 for a in assessments if a.get('risk_rating') == 'High')
+        
+        conn.close()
+        
+        return render_template('risk_assessment_list.html',
+                             assessments=assessments,
+                             total_count=len(assessments),
+                             low_count=low,
+                             medium_count=medium,
+                             high_count=high)
+    except Exception as e:
+        logger.error(f'Error loading risk assessment list: {e}', exc_info=True)
+        try: conn.close()
+        except: pass
+        return f'<h1>Error</h1><p>{str(e)}</p>', 500
+
 @app.route('/risk-assessment')
 @compliance_required
 def risk_assessment():
