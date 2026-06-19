@@ -260,6 +260,12 @@
 {% endblock %}
 {% block scripts %}
 <script>
+const requiredScores = [
+  'nationality_score', 'residence_status_score', 'pep_status_score', 'profession_score',
+  'product_score', 'delivery_channel_score', 'payment_method_score', 'transaction_amount_score',
+  'years_relationship_score', 'place_of_birth_score', 'third_party_score', 'sanctions_score'
+];
+
 function lookupScore(fieldId, value, category) {
   if (!value) {
     document.getElementById(fieldId + '_score').value = '';
@@ -292,5 +298,25 @@ function manualScore(select, fieldId) {
     document.getElementById(fieldId + '_display').textContent = '-';
   }
 }
+
+// Form submission validation
+document.querySelector('form').addEventListener('submit', function(e) {
+  const empty = [];
+  requiredScores.forEach(scoreId => {
+    const val = document.getElementById(scoreId).value;
+    if (!val || val === '' || val === '0') {
+      empty.push(scoreId.replace('_score', '').replace(/_/g, ' '));
+    }
+  });
+  
+  if (empty.length > 0) {
+    e.preventDefault();
+    alert('❌ Please fill in all risk factors:\n\n' + empty.join('\n'));
+    return false;
+  }
+  
+  console.log('✅ Form valid - submitting');
+  return true;
+});
 </script>
 {% endblock %}
