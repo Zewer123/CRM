@@ -3,233 +3,279 @@
 {% block title %}{% if record %}Edit{% else %}New{% endif %} AML Record - Zewer CRM{% endblock %}
 
 {% block content %}
-<div class="container form-container">
+<div class="aml-form-wrapper">
     <div class="form-header">
         <h1>{% if record %}Edit AML Record #{{ record.id }}{% else %}New AML Record{% endif %}</h1>
-        <a href="{{ url_for('aml_tracker') }}" class="btn btn-secondary">← Back</a>
+        <a href="{{ url_for('aml_tracker') }}" class="btn-back">← Back to AML Tracker</a>
     </div>
 
-    <form id="amlForm" class="form-grid">
-        <fieldset>
-            <legend>Transaction Details</legend>
-            
-            <div class="form-group">
-                <label for="transaction_date">Transaction Date *</label>
-                <input type="date" id="transaction_date" name="transaction_date" 
-                       value="{{ record.transaction_date if record else '' }}" required>
-            </div>
+    <form id="amlForm" class="aml-form">
+        <!-- Transaction Details -->
+        <div class="form-section">
+            <h2 class="section-title">📅 Transaction Details</h2>
+            <div class="section-content">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="transaction_date">Transaction Date *</label>
+                        <input type="date" id="transaction_date" name="transaction_date" 
+                               value="{{ record.transaction_date if record else '' }}" required>
+                    </div>
 
-            <div class="form-group">
-                <label for="period">Period</label>
-                <input type="text" id="period" name="period" 
-                       value="{{ record.period if record else '' }}" 
-                       placeholder="Auto-calculated from transaction date" readonly>
-            </div>
+                    <div class="form-group">
+                        <label for="period">Period (Auto)</label>
+                        <input type="text" id="period" name="period" 
+                               value="{{ record.period if record else '' }}" 
+                               placeholder="Auto-calculated" readonly>
+                    </div>
 
-            <div class="form-group">
-                <label for="due_date">Due Date (Auto: +14 days)</label>
-                <input type="date" id="due_date" name="due_date" 
-                       value="{{ record.due_date if record else '' }}" readonly>
-            </div>
+                    <div class="form-group">
+                        <label for="due_date">Due Date (Auto: +14)</label>
+                        <input type="date" id="due_date" name="due_date" 
+                               value="{{ record.due_date if record else '' }}" readonly>
+                    </div>
 
-            <div class="form-group">
-                <label for="vc_no">VC No</label>
-                <input type="text" id="vc_no" name="vc_no" 
-                       value="{{ record.vc_no if record else '' }}" placeholder="Voucher/Reference Number">
+                    <div class="form-group">
+                        <label for="vc_no">VC No</label>
+                        <input type="text" id="vc_no" name="vc_no" 
+                               value="{{ record.vc_no if record else '' }}" placeholder="Voucher #">
+                    </div>
+                </div>
             </div>
-        </fieldset>
+        </div>
 
-        <fieldset>
-            <legend>Client Information</legend>
-            
-            <div class="form-group">
-                <label for="company_id">Company</label>
-                <select id="company_id" name="company_id">
-                    <option value="">Select Company...</option>
-                    {% for c in companies %}
-                        <option value="{{ c.id }}" {% if record and record.company_id == c.id %}selected{% endif %}>
-                            {{ c.company_name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+        <!-- Client Information -->
+        <div class="form-section">
+            <h2 class="section-title">👤 Client Information</h2>
+            <div class="section-content">
+                <div class="form-row">
+                    <div class="form-group full">
+                        <label for="company_id">Company</label>
+                        <select id="company_id" name="company_id" class="form-select">
+                            <option value="">Select Company...</option>
+                            {% for c in companies %}
+                                <option value="{{ c.id }}" {% if record and record.company_id == c.id %}selected{% endif %}>
+                                    {{ c.company_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-            <div class="form-group">
-                <label for="individual_id">Individual</label>
-                <select id="individual_id" name="individual_id">
-                    <option value="">Select Individual...</option>
-                    {% for i in individuals %}
-                        <option value="{{ i.id }}" {% if record and record.individual_id == i.id %}selected{% endif %}>
-                            {{ i.name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+                    <div class="form-group full">
+                        <label for="individual_id">Individual</label>
+                        <select id="individual_id" name="individual_id" class="form-select">
+                            <option value="">Select Individual...</option>
+                            {% for i in individuals %}
+                                <option value="{{ i.id }}" {% if record and record.individual_id == i.id %}selected{% endif %}>
+                                    {{ i.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
 
-            <div class="form-group">
-                <label for="client_name">Client Name</label>
-                <input type="text" id="client_name" name="client_name" 
-                       value="{{ record.client_name if record else '' }}" placeholder="Client Name">
-            </div>
+                <div class="form-row">
+                    <div class="form-group full">
+                        <label for="client_name">Client Name</label>
+                        <input type="text" id="client_name" name="client_name" 
+                               value="{{ record.client_name if record else '' }}" placeholder="Client Name">
+                    </div>
 
-            <div class="form-group">
-                <label for="ac_type">Account Type</label>
-                <input type="text" id="ac_type" name="ac_type" 
-                       value="{{ record.ac_type if record else '' }}" placeholder="e.g., Company, Individual">
+                    <div class="form-group full">
+                        <label for="ac_type">Account Type</label>
+                        <input type="text" id="ac_type" name="ac_type" 
+                               value="{{ record.ac_type if record else '' }}" placeholder="e.g., Company, Individual">
+                    </div>
+                </div>
             </div>
-        </fieldset>
+        </div>
 
-        <fieldset>
-            <legend>Payment & Amount Details</legend>
-            
-            <div class="form-group">
-                <label for="payment_mode">Payment Mode</label>
-                <select id="payment_mode" name="payment_mode">
-                    <option value="">Select Payment Mode</option>
-                    <option value="Cheque" {% if record and record.payment_mode == 'Cheque' %}selected{% endif %}>Cheque</option>
-                    <option value="Bank Transfer" {% if record and record.payment_mode == 'Bank Transfer' %}selected{% endif %}>Bank Transfer</option>
-                    <option value="Cash" {% if record and record.payment_mode == 'Cash' %}selected{% endif %}>Cash</option>
-                    <option value="Wire" {% if record and record.payment_mode == 'Wire' %}selected{% endif %}>Wire</option>
-                    <option value="Credit Card" {% if record and record.payment_mode == 'Credit Card' %}selected{% endif %}>Credit Card</option>
-                    <option value="Crypto" {% if record and record.payment_mode == 'Crypto' %}selected{% endif %}>Crypto</option>
-                </select>
-            </div>
+        <!-- Payment Details -->
+        <div class="form-section">
+            <h2 class="section-title">💳 Payment & Amount Details</h2>
+            <div class="section-content">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="payment_mode">Payment Mode</label>
+                        <select id="payment_mode" name="payment_mode" class="form-select">
+                            <option value="">Select...</option>
+                            <option value="Cheque" {% if record and record.payment_mode == 'Cheque' %}selected{% endif %}>Cheque</option>
+                            <option value="Bank Transfer" {% if record and record.payment_mode == 'Bank Transfer' %}selected{% endif %}>Bank Transfer</option>
+                            <option value="Cash" {% if record and record.payment_mode == 'Cash' %}selected{% endif %}>Cash</option>
+                            <option value="Wire" {% if record and record.payment_mode == 'Wire' %}selected{% endif %}>Wire</option>
+                            <option value="Credit Card" {% if record and record.payment_mode == 'Credit Card' %}selected{% endif %}>Credit Card</option>
+                            <option value="Crypto" {% if record and record.payment_mode == 'Crypto' %}selected{% endif %}>Crypto</option>
+                        </select>
+                    </div>
 
-            <div class="form-group">
-                <label for="transaction_currency">Transaction Currency</label>
-                <input type="text" id="transaction_currency" name="transaction_currency" 
-                       value="{{ record.transaction_currency if record else 'AED' }}" placeholder="USD, AED, etc.">
-            </div>
+                    <div class="form-group">
+                        <label for="transaction_currency">Currency</label>
+                        <input type="text" id="transaction_currency" name="transaction_currency" 
+                               value="{{ record.transaction_currency if record else 'AED' }}" placeholder="AED, USD">
+                    </div>
 
-            <div class="form-group">
-                <label for="usd_amount">Amount (USD)</label>
-                <input type="number" id="usd_amount" name="usd_amount" step="0.01"
-                       value="{{ record.usd_amount if record else '' }}" placeholder="0.00">
-            </div>
+                    <div class="form-group">
+                        <label for="usd_amount">Amount USD</label>
+                        <input type="number" id="usd_amount" name="usd_amount" step="0.01"
+                               value="{{ record.usd_amount if record else '' }}" placeholder="0.00">
+                    </div>
 
-            <div class="form-group">
-                <label for="aed_amount">Amount (AED)</label>
-                <input type="number" id="aed_amount" name="aed_amount" step="0.01"
-                       value="{{ record.aed_amount if record else '' }}" placeholder="0.00">
-            </div>
+                    <div class="form-group">
+                        <label for="aed_amount">Amount AED</label>
+                        <input type="number" id="aed_amount" name="aed_amount" step="0.01"
+                               value="{{ record.aed_amount if record else '' }}" placeholder="0.00">
+                    </div>
+                </div>
 
-            <div class="form-group full-width">
-                <label for="payment_remarks">Payment Remarks</label>
-                <textarea id="payment_remarks" name="payment_remarks" rows="3">{{ record.payment_remarks if record else '' }}</textarea>
+                <div class="form-row">
+                    <div class="form-group full">
+                        <label for="payment_remarks">Payment Remarks</label>
+                        <textarea id="payment_remarks" name="payment_remarks" rows="2" placeholder="Any payment notes...">{{ record.payment_remarks if record else '' }}</textarea>
+                    </div>
+                </div>
             </div>
-        </fieldset>
+        </div>
 
-        <fieldset>
-            <legend>Invoice Details</legend>
-            
-            <div class="form-group">
-                <label for="invoice_no">Invoice No</label>
-                <input type="text" id="invoice_no" name="invoice_no" 
-                       value="{{ record.invoice_no if record else '' }}" placeholder="Invoice Number">
-            </div>
+        <!-- Invoice Details -->
+        <div class="form-section">
+            <h2 class="section-title">📄 Invoice Details</h2>
+            <div class="section-content">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="invoice_no">Invoice No</label>
+                        <input type="text" id="invoice_no" name="invoice_no" 
+                               value="{{ record.invoice_no if record else '' }}" placeholder="Invoice #">
+                    </div>
 
-            <div class="form-group">
-                <label for="invoice_currency">Invoice Currency</label>
-                <input type="text" id="invoice_currency" name="invoice_currency" 
-                       value="{{ record.invoice_currency if record else '' }}" placeholder="USD, AED, etc.">
-            </div>
+                    <div class="form-group">
+                        <label for="invoice_currency">Currency</label>
+                        <input type="text" id="invoice_currency" name="invoice_currency" 
+                               value="{{ record.invoice_currency if record else '' }}" placeholder="AED, USD">
+                    </div>
 
-            <div class="form-group">
-                <label for="invoice_amount">Invoice Amount</label>
-                <input type="number" id="invoice_amount" name="invoice_amount" step="0.01"
-                       value="{{ record.invoice_amount if record else '' }}" placeholder="0.00">
+                    <div class="form-group">
+                        <label for="invoice_amount">Amount</label>
+                        <input type="number" id="invoice_amount" name="invoice_amount" step="0.01"
+                               value="{{ record.invoice_amount if record else '' }}" placeholder="0.00">
+                    </div>
+                </div>
             </div>
-        </fieldset>
+        </div>
 
         {% if record %}
-        <fieldset>
-            <legend>GoAML Submission</legend>
-            
-            <div class="form-group">
-                <label for="goaml_submission_date">GoAML Submission Date</label>
-                <input type="date" id="goaml_submission_date" name="goaml_submission_date" 
-                       value="{{ record.goaml_submission_date if record else '' }}">
-            </div>
+        <!-- GoAML Submission -->
+        <div class="form-section">
+            <h2 class="section-title">🔗 GoAML Submission</h2>
+            <div class="section-content">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="goaml_submission_date">Submission Date</label>
+                        <input type="date" id="goaml_submission_date" name="goaml_submission_date" 
+                               value="{{ record.goaml_submission_date if record else '' }}">
+                    </div>
 
-            <div class="form-group">
-                <label for="goaml_status">GoAML Status</label>
-                <select id="goaml_status" name="goaml_status">
-                    <option value="pending" {% if record and record.goaml_status == 'pending' %}selected{% endif %}>Pending</option>
-                    <option value="submitted" {% if record and record.goaml_status == 'submitted' %}selected{% endif %}>Submitted</option>
-                    <option value="approved" {% if record and record.goaml_status == 'approved' %}selected{% endif %}>Approved</option>
-                    <option value="rejected" {% if record and record.goaml_status == 'rejected' %}selected{% endif %}>Rejected</option>
-                </select>
-            </div>
+                    <div class="form-group">
+                        <label for="goaml_status">Status</label>
+                        <select id="goaml_status" name="goaml_status" class="form-select">
+                            <option value="pending" {% if record and record.goaml_status == 'pending' %}selected{% endif %}>⏳ Pending</option>
+                            <option value="submitted" {% if record and record.goaml_status == 'submitted' %}selected{% endif %}>📤 Submitted</option>
+                            <option value="approved" {% if record and record.goaml_status == 'approved' %}selected{% endif %}>✅ Approved</option>
+                            <option value="rejected" {% if record and record.goaml_status == 'rejected' %}selected{% endif %}>❌ Rejected</option>
+                        </select>
+                    </div>
 
-            <div class="form-group">
-                <label for="goaml_ref_no">GoAML Reference No</label>
-                <input type="text" id="goaml_ref_no" name="goaml_ref_no" 
-                       value="{{ record.goaml_ref_no if record else '' }}" placeholder="GoAML Reference Number">
+                    <div class="form-group">
+                        <label for="goaml_ref_no">Reference No</label>
+                        <input type="text" id="goaml_ref_no" name="goaml_ref_no" 
+                               value="{{ record.goaml_ref_no if record else '' }}" placeholder="GoAML Ref">
+                    </div>
+                </div>
             </div>
-        </fieldset>
+        </div>
 
-        <fieldset>
-            <legend>Verification</legend>
-            
-            <div class="form-group">
-                <label for="checked_by">Checked By</label>
-                <select id="checked_by" name="checked_by">
-                    <option value="">Unassigned</option>
-                    {% for u in users %}
-                        <option value="{{ u.id }}" {% if record and record.checked_by == u.id %}selected{% endif %}>
-                            {{ u.email }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+        <!-- Verification -->
+        <div class="form-section">
+            <h2 class="section-title">✅ Verification</h2>
+            <div class="section-content">
+                <div class="form-row">
+                    <div class="form-group full">
+                        <label for="checked_by">Checked By</label>
+                        <select id="checked_by" name="checked_by" class="form-select">
+                            <option value="">Unassigned</option>
+                            {% for u in users %}
+                                <option value="{{ u.id }}" {% if record and record.checked_by == u.id %}selected{% endif %}>
+                                    {{ u.email }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
 
-            <div class="form-group">
-                <label for="verified_ledger">
-                    <input type="checkbox" id="verified_ledger" name="verified_ledger" 
-                           {% if record and record.verified_ledger %}checked{% endif %}>
-                    Verified Ledger
-                </label>
-            </div>
+                <div class="form-row">
+                    <div class="form-group full">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="verified_ledger" name="verified_ledger" 
+                                   {% if record and record.verified_ledger %}checked{% endif %}>
+                            <span>Verified Ledger</span>
+                        </label>
+                    </div>
+                </div>
 
-            <div class="form-group full-width">
-                <label for="comment">Comment</label>
-                <textarea id="comment" name="comment" rows="3">{{ record.comment if record else '' }}</textarea>
+                <div class="form-row">
+                    <div class="form-group full">
+                        <label for="comment">Comment</label>
+                        <textarea id="comment" name="comment" rows="2">{{ record.comment if record else '' }}</textarea>
+                    </div>
+                </div>
             </div>
-        </fieldset>
+        </div>
         {% else %}
-        <fieldset>
-            <legend>Verification (Optional)</legend>
-            
-            <div class="form-group">
-                <label for="checked_by">Assign to for Verification</label>
-                <select id="checked_by" name="checked_by">
-                    <option value="">Unassigned - Assign Later</option>
-                    {% for u in users %}
-                        <option value="{{ u.id }}">{{ u.email }}</option>
-                    {% endfor %}
-                </select>
-                <small>If assigned, a verification task will be created automatically.</small>
-            </div>
+        <!-- Verification (New Record) -->
+        <div class="form-section">
+            <h2 class="section-title">✅ Verification (Optional)</h2>
+            <div class="section-content">
+                <div class="form-row">
+                    <div class="form-group full">
+                        <label for="checked_by">Assign to for Verification</label>
+                        <select id="checked_by" name="checked_by" class="form-select">
+                            <option value="">Don't assign yet - Assign later</option>
+                            {% for u in users %}
+                                <option value="{{ u.id }}">{{ u.email }}</option>
+                            {% endfor %}
+                        </select>
+                        <small>Assigning will auto-create a verification task</small>
+                    </div>
+                </div>
 
-            <div class="form-group full-width">
-                <label for="comment">Comment</label>
-                <textarea id="comment" name="comment" rows="3" placeholder="Any notes or comments..."></textarea>
+                <div class="form-row">
+                    <div class="form-group full">
+                        <label for="comment">Comment</label>
+                        <textarea id="comment" name="comment" rows="2" placeholder="Any notes..."></textarea>
+                    </div>
+                </div>
             </div>
-        </fieldset>
+        </div>
         {% endif %}
 
+        <!-- Actions -->
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary">{% if record %}Update Record{% else %}Create Record{% endif %}</button>
-            <a href="{{ url_for('aml_tracker') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary btn-lg">
+                {% if record %}
+                    ✏️ Update Record
+                {% else %}
+                    ✨ Create Record
+                {% endif %}
+            </button>
+            <a href="{{ url_for('aml_tracker') }}" class="btn btn-secondary btn-lg">Cancel</a>
         </div>
     </form>
 </div>
 
 <style>
-.form-container {
-    max-width: 900px;
+.aml-form-wrapper {
+    max-width: 1000px;
     margin: 0 auto;
     padding: 20px;
+    background: white;
 }
 
 .form-header {
@@ -238,42 +284,102 @@
     align-items: center;
     margin-bottom: 30px;
     padding-bottom: 20px;
+    border-bottom: 3px solid #d97706;
+}
+
+.form-header h1 {
+    margin: 0;
+    color: #1c1917;
+    font-size: 28px;
+}
+
+.btn-back {
+    padding: 10px 16px;
+    background: #6b7280;
+    color: white;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-back:hover {
+    background: #4b5563;
+}
+
+.aml-form {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.form-section {
+    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.section-title {
+    margin: 0;
+    padding: 14px 20px;
+    background: #2c2c2c;
+    color: #d97706;
+    font-size: 16px;
+    font-weight: 700;
     border-bottom: 2px solid #d97706;
 }
 
-.form-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 25px;
-}
-
-fieldset {
-    border: 1px solid #ddd;
-    border-radius: 8px;
+.section-content {
     padding: 20px;
-    background: #fafafa;
 }
 
-legend {
-    padding: 0 10px;
-    font-size: 16px;
-    font-weight: 600;
-    color: #1c1917;
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.form-row:last-child {
+    margin-bottom: 0;
 }
 
 .form-group {
-    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
 }
 
-.form-group.full-width {
+.form-group.full {
     grid-column: 1 / -1;
 }
 
 label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 500;
-    color: #333;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    font-size: 14px;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.checkbox-label input {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
 }
 
 input[type="text"],
@@ -281,64 +387,74 @@ input[type="date"],
 input[type="number"],
 select,
 textarea {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
     font-size: 14px;
     font-family: inherit;
+    background: white;
+    transition: all 0.3s;
 }
 
-input[type="checkbox"] {
-    margin-right: 8px;
-    width: auto;
-}
-
-input:focus,
+input[type="text"]:focus,
+input[type="date"]:focus,
+input[type="number"]:focus,
 select:focus,
 textarea:focus {
     outline: none;
     border-color: #d97706;
-    box-shadow: 0 0 5px rgba(217, 119, 6, 0.3);
+    box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.1);
+    background: #fffbf0;
+}
+
+input[readonly] {
+    background: #f3f4f6;
+    color: #6b7280;
+    cursor: not-allowed;
 }
 
 textarea {
     resize: vertical;
-    min-height: 80px;
+    min-height: 70px;
 }
 
 small {
     display: block;
-    margin-top: 5px;
-    color: #666;
+    margin-top: 6px;
+    color: #6b7280;
     font-size: 12px;
 }
 
 .form-actions {
     display: flex;
-    gap: 10px;
-    margin-top: 30px;
+    gap: 12px;
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 2px solid #e5e7eb;
 }
 
 .btn {
-    padding: 10px 20px;
+    padding: 12px 24px;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 700;
     text-decoration: none;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     transition: all 0.3s;
 }
 
 .btn-primary {
-    background: #d97706;
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
     color: white;
 }
 
 .btn-primary:hover {
-    background: #b45309;
+    background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
+    box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3);
 }
 
 .btn-secondary {
@@ -348,6 +464,35 @@ small {
 
 .btn-secondary:hover {
     background: #4b5563;
+}
+
+.btn-lg {
+    padding: 14px 28px;
+    font-size: 15px;
+}
+
+@media (max-width: 768px) {
+    .form-header {
+        flex-direction: column;
+        gap: 12px;
+        text-align: center;
+    }
+
+    .form-header h1 {
+        font-size: 24px;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .aml-form-wrapper {
+        padding: 12px;
+    }
+
+    .section-content {
+        padding: 16px;
+    }
 }
 </style>
 
@@ -382,10 +527,9 @@ document.getElementById('amlForm').addEventListener('submit', function(e) {
     const isEdit = window.location.pathname.includes('/edit');
     
     const url = isEdit ? window.location.pathname : '{{ url_for("aml_tracker_add") }}';
-    const method = 'POST';
     
     fetch(url, {
-        method: method,
+        method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },

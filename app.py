@@ -1199,7 +1199,7 @@ def aml_tracker_add():
                session.get('user_id'),
                data.get('checked_by') or None,
                data.get('comment'),
-               1 if data.get('verified_ledger') else 0))
+               'true' if data.get('verified_ledger') else 'false'))
             
             aml_id = lastid(conn)
             
@@ -1272,7 +1272,7 @@ def aml_tracker_edit(id):
                data.get('goaml_ref_no'),
                data.get('checked_by') or None,
                data.get('comment'),
-               1 if data.get('verified_ledger') else 0,
+               'true' if data.get('verified_ledger') else 'false',
                id))
             
             commit(conn)
