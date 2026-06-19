@@ -1064,6 +1064,28 @@ def api_risk_lookup():
     score = RISK_LOOKUPS.get(category, {}).get(value)
     return jsonify({'score': score})
 
+@app.route('/api/send-risk-email', methods=['POST'])
+@compliance_required
+def api_send_risk_email():
+    """Send risk assessment via email"""
+    data = request.get_json()
+    email = data.get('email')
+    company = data.get('company')
+    rating = data.get('rating')
+    score = data.get('score')
+    
+    if not email or not company:
+        return jsonify({'success': False, 'error': 'Missing email or company'}), 400
+    
+    try:
+        # For now, just return success (email sending requires SMTP setup)
+        logger.info(f'Risk assessment email requested for {company} to {email}')
+        # TODO: Integrate actual email sending (SendGrid, SMTP, etc.)
+        return jsonify({'success': True, 'message': f'Risk assessment for {company} ({rating} - {score}) ready to send'})
+    except Exception as e:
+        logger.error(f'Error sending risk email: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/risk-assessment')
 @compliance_required
 def risk_assessment():

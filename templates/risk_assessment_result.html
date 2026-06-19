@@ -13,14 +13,15 @@
         {% else %}
           {{ individual.name }}
         {% endif %}
+        | {{ assessment.assessment_date }}
       </div>
     </div>
   </div>
 </div>
 
 <!-- MAIN RESULT CARD -->
-<div class="card" style="margin-bottom:20px;padding:30px;text-align:center;">
-  <div style="font-size:13px;color:var(--text-dim);font-weight:600;margin-bottom:20px;text-transform:uppercase;letter-spacing:0.5px;">Risk Rating</div>
+<div class="card" style="margin-bottom:20px;padding:30px;text-align:center;" id="printContent">
+  <div style="font-size:13px;color:var(--text-dim);font-weight:600;margin-bottom:20px;text-transform:uppercase;letter-spacing:0.5px;">RISK ASSESSMENT RESULT</div>
   
   <div style="font-size:60px;font-weight:700;color:{{ risk_color }};margin-bottom:10px;">
     {{ assessment.risk_rating }}
@@ -30,7 +31,7 @@
     Score: {{ assessment.final_score }}
   </div>
   
-  <div style="display:inline-block;padding:12px 24px;background:{{ risk_color }}15;border:2px solid {{ risk_color }};border-radius:8px;">
+  <div style="display:inline-block;padding:12px 24px;background:{{ risk_color }}15;border:2px solid {{ risk_color }};border-radius:8px;margin-bottom:20px;">
     <div style="font-weight:700;color:{{ risk_color }};font-size:14px;">
       {% if assessment.risk_rating == 'Low' %}
         ✓ Low Risk - Proceed with standard KYC
@@ -43,115 +44,64 @@
   </div>
 
   <div style="margin-top:30px;padding-top:30px;border-top:1px solid var(--border);">
-    <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Assessment Date</div>
-    <div style="font-size:16px;font-weight:600;color:var(--text);">{{ assessment.assessment_date }}</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Assessment Date & Time</div>
+    <div style="font-size:14px;font-weight:600;color:var(--text);">{{ assessment.assessment_date }} | {{ assessment.created_at|default('Just now') }}</div>
   </div>
 </div>
 
 <!-- FACTOR BREAKDOWN -->
-<div class="card" style="margin-bottom:20px;">
-  <div style="font-weight:700;color:var(--text);margin-bottom:16px;font-size:14px;">Factor Scores</div>
+<div class="card" style="margin-bottom:20px;" id="factorsContent">
+  <div style="font-weight:700;color:var(--text);margin-bottom:16px;font-size:14px;">Risk Factor Scores</div>
   
   {% if assessment_type == 'company' %}
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+    <div style="padding:12px;background:var(--surface2);border-radius:6px;text-align:center;">
       <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Jurisdiction</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.jurisdiction_score }}</div>
+      <div style="font-size:20px;font-weight:700;color:var(--primary);">{{ assessment.jurisdiction_score }}</div>
     </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
+    <div style="padding:12px;background:var(--surface2);border-radius:6px;text-align:center;">
       <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Ownership</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.ownership_score }}</div>
+      <div style="font-size:20px;font-weight:700;color:var(--primary);">{{ assessment.ownership_score }}</div>
     </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Delivery Channel</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.delivery_channel_score }}</div>
+    <div style="padding:12px;background:var(--surface2);border-radius:6px;text-align:center;">
+      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Delivery</div>
+      <div style="font-size:20px;font-weight:700;color:var(--primary);">{{ assessment.delivery_channel_score }}</div>
     </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Payment Method</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.payment_method_score }}</div>
+    <div style="padding:12px;background:var(--surface2);border-radius:6px;text-align:center;">
+      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Payment</div>
+      <div style="font-size:20px;font-weight:700;color:var(--primary);">{{ assessment.payment_method_score }}</div>
     </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Transaction Volume</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.transaction_volume_score }}</div>
+    <div style="padding:12px;background:var(--surface2);border-radius:6px;text-align:center;">
+      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Volume</div>
+      <div style="font-size:20px;font-weight:700;color:var(--primary);">{{ assessment.transaction_volume_score }}</div>
     </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
+    <div style="padding:12px;background:var(--surface2);border-radius:6px;text-align:center;">
       <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Product</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.product_score }}</div>
+      <div style="font-size:20px;font-weight:700;color:var(--primary);">{{ assessment.product_score }}</div>
     </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">PEP Status</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.pep_status_score }}</div>
+    <div style="padding:12px;background:var(--surface2);border-radius:6px;text-align:center;">
+      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">PEP</div>
+      <div style="font-size:20px;font-weight:700;color:var(--primary);">{{ assessment.pep_status_score }}</div>
     </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
+    <div style="padding:12px;background:var(--surface2);border-radius:6px;text-align:center;">
       <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Nationality</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.nationality_score }}</div>
+      <div style="font-size:20px;font-weight:700;color:var(--primary);">{{ assessment.nationality_score }}</div>
     </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Years Relationship</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.years_relationship_score }}</div>
+    <div style="padding:12px;background:var(--surface2);border-radius:6px;text-align:center;">
+      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Rel Yrs</div>
+      <div style="font-size:20px;font-weight:700;color:var(--primary);">{{ assessment.years_relationship_score }}</div>
     </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Years Operation</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.years_operation_score }}</div>
+    <div style="padding:12px;background:var(--surface2);border-radius:6px;text-align:center;">
+      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Op Yrs</div>
+      <div style="font-size:20px;font-weight:700;color:var(--primary);">{{ assessment.years_operation_score }}</div>
     </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Third Party</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.third_party_score }}</div>
+    <div style="padding:12px;background:var(--surface2);border-radius:6px;text-align:center;">
+      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">3rd Party</div>
+      <div style="font-size:20px;font-weight:700;color:var(--primary);">{{ assessment.third_party_score }}</div>
     </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
+    <div style="padding:12px;background:var(--surface2);border-radius:6px;text-align:center;">
       <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Sanctions</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.sanctions_score }}</div>
-    </div>
-  </div>
-  {% else %}
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Nationality</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.nationality_score }}</div>
-    </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Residence Status</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.residence_status_score }}</div>
-    </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">PEP Status</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.pep_status_score }}</div>
-    </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Profession</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.profession_score }}</div>
-    </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Product</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.product_score }}</div>
-    </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Delivery Channel</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.delivery_channel_score }}</div>
-    </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Payment Method</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.payment_method_score }}</div>
-    </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Transaction Amount</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.transaction_amount_score }}</div>
-    </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Years Relationship</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.years_relationship_score }}</div>
-    </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Place of Birth</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.place_of_birth_score }}</div>
-    </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Third Party</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.third_party_score }}</div>
-    </div>
-    <div style="padding:12px;background:var(--surface2);border-radius:6px;">
-      <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">Sanctions</div>
-      <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ assessment.sanctions_score }}</div>
+      <div style="font-size:20px;font-weight:700;color:var(--primary);">{{ assessment.sanctions_score }}</div>
     </div>
   </div>
   {% endif %}
@@ -159,20 +109,83 @@
 
 <!-- NOTES -->
 {% if assessment.notes %}
-<div class="card" style="margin-bottom:20px;">
+<div class="card" style="margin-bottom:20px;" id="notesContent">
   <div style="font-weight:700;color:var(--text);margin-bottom:12px;font-size:14px;">Assessment Notes</div>
-  <div style="color:var(--text-dim);font-size:13px;line-height:1.6;">{{ assessment.notes }}</div>
+  <div style="color:var(--text-dim);font-size:13px;line-height:1.6;white-space:pre-wrap;">{{ assessment.notes }}</div>
 </div>
 {% endif %}
 
-<!-- ACTIONS -->
-<div style="display:flex;gap:10px;">
-  <button onclick="window.print()" style="flex:1;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;color:var(--text);">
-    📄 Print Assessment
+<!-- ACTION BUTTONS -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;">
+  <button onclick="window.print()" style="padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;color:var(--text);">
+    🖨 Print
   </button>
-  <a href="{{ url_for('risk_assessment') }}" style="flex:1;padding:10px 16px;background:var(--primary);color:white;border:none;border-radius:6px;font-weight:600;font-size:13px;text-decoration:none;text-align:center;cursor:pointer;">
-    ← Back to Risk Assessment
+  <button onclick="sendEmail()" style="padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;color:var(--text);">
+    📧 Email
+  </button>
+  <button onclick="downloadPDF()" style="padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;color:var(--text);">
+    📥 Download PDF
+  </button>
+  <a href="{{ url_for('risk_assessment') }}" style="padding:12px 16px;background:var(--primary);color:white;border:none;border-radius:6px;font-weight:600;font-size:13px;text-decoration:none;text-align:center;cursor:pointer;">
+    ← New Assessment
   </a>
 </div>
 
+{% endblock %}
+{% block scripts %}
+<script>
+function sendEmail() {
+  const company = "{{ company.client_name if assessment_type == 'company' else individual.name }}";
+  const rating = "{{ assessment.risk_rating }}";
+  const score = "{{ assessment.final_score }}";
+  const email = prompt('Enter recipient email address:', '');
+  if (!email) return;
+  
+  fetch('/api/send-risk-email', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      email: email,
+      assessment_id: '{{ assessment.id }}',
+      company: company,
+      rating: rating,
+      score: score
+    })
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) {
+      alert('✅ Risk assessment emailed successfully!');
+    } else {
+      alert('❌ Error: ' + (d.error || 'Unknown error'));
+    }
+  })
+  .catch(e => {
+    alert('❌ Error sending email: ' + e.message);
+  });
+}
+
+function downloadPDF() {
+  const element = document.getElementById('printContent');
+  const opt = {
+    margin: 10,
+    filename: 'Risk_Assessment_{{ assessment.assessment_date }}.pdf',
+    image: {type: 'jpeg', quality: 0.98},
+    html2canvas: {scale: 2},
+    jsPDF: {orientation: 'portrait', unit: 'mm', format: 'a4'}
+  };
+  
+  // Check if html2pdf library is available
+  if (typeof html2pdf === 'undefined') {
+    alert('📥 Use browser print dialog (Ctrl+P) → Save as PDF');
+    window.print();
+    return;
+  }
+  
+  html2pdf().set(opt).from(element).save();
+}
+</script>
+
+<!-- Include html2pdf library for PDF download -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 {% endblock %}
