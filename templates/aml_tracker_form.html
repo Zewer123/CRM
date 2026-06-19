@@ -82,8 +82,11 @@
 
                     <div class="form-group full">
                         <label for="ac_type">Account Type</label>
-                        <input type="text" id="ac_type" name="ac_type" 
-                               value="{{ record.ac_type if record else '' }}" placeholder="e.g., Company, Individual">
+                        <select id="ac_type" name="ac_type" class="form-select">
+                            <option value="">Select Type...</option>
+                            <option value="Company" {% if record and record.ac_type == 'Company' %}selected{% endif %}>Company</option>
+                            <option value="Individual" {% if record and record.ac_type == 'Individual' %}selected{% endif %}>Individual</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -109,8 +112,13 @@
 
                     <div class="form-group">
                         <label for="transaction_currency">Currency</label>
-                        <input type="text" id="transaction_currency" name="transaction_currency" 
-                               value="{{ record.transaction_currency if record else 'AED' }}" placeholder="AED, USD">
+                        <select id="transaction_currency" name="transaction_currency" class="form-select">
+                            <option value="">Select...</option>
+                            <option value="AED" {% if record and record.transaction_currency == 'AED' %}selected{% endif %}>AED</option>
+                            <option value="USD" {% if record and record.transaction_currency == 'USD' %}selected{% endif %}>USD</option>
+                            <option value="GBP" {% if record and record.transaction_currency == 'GBP' %}selected{% endif %}>GBP</option>
+                            <option value="EUR" {% if record and record.transaction_currency == 'EUR' %}selected{% endif %}>EUR</option>
+                        </select>
                     </div>
 
                     <div class="form-group">
@@ -148,8 +156,13 @@
 
                     <div class="form-group">
                         <label for="invoice_currency">Currency</label>
-                        <input type="text" id="invoice_currency" name="invoice_currency" 
-                               value="{{ record.invoice_currency if record else '' }}" placeholder="AED, USD">
+                        <select id="invoice_currency" name="invoice_currency" class="form-select">
+                            <option value="">Select...</option>
+                            <option value="AED" {% if record and record.invoice_currency == 'AED' %}selected{% endif %}>AED</option>
+                            <option value="USD" {% if record and record.invoice_currency == 'USD' %}selected{% endif %}>USD</option>
+                            <option value="GBP" {% if record and record.invoice_currency == 'GBP' %}selected{% endif %}>GBP</option>
+                            <option value="EUR" {% if record and record.invoice_currency == 'EUR' %}selected{% endif %}>EUR</option>
+                        </select>
                     </div>
 
                     <div class="form-group">
@@ -393,7 +406,31 @@ textarea {
     font-size: 14px;
     font-family: inherit;
     background: white;
+    color: #1f2937;
     transition: all 0.3s;
+}
+
+input[type="text"]::placeholder,
+input[type="date"]::placeholder,
+input[type="number"]::placeholder,
+textarea::placeholder {
+    color: #9ca3af;
+}
+
+input[type="text"],
+input[type="date"],
+input[type="number"],
+textarea {
+    color: #1f2937;
+}
+
+select {
+    color: #1f2937;
+}
+
+select option {
+    color: #1f2937;
+    background: white;
 }
 
 input[type="text"]:focus,
