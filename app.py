@@ -1108,6 +1108,26 @@ def risk_assessment_list():
     try:
         conn = get_db()
         
+        # Ensure tables exist on Railway
+        if is_pg(conn):
+            x(conn, '''CREATE TABLE IF NOT EXISTS company_risk_assessments (
+                id SERIAL PRIMARY KEY, company_id INTEGER NOT NULL,
+                jurisdiction_score FLOAT, ownership_score FLOAT, delivery_channel_score FLOAT,
+                payment_method_score FLOAT, transaction_volume_score FLOAT, product_score FLOAT,
+                pep_status_score FLOAT, nationality_score FLOAT, years_relationship_score FLOAT,
+                years_operation_score FLOAT, third_party_score FLOAT, sanctions_score FLOAT,
+                final_score FLOAT, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+            x(conn, '''CREATE TABLE IF NOT EXISTS individual_risk_assessments (
+                id SERIAL PRIMARY KEY, individual_id INTEGER NOT NULL,
+                nationality_score FLOAT, residence_status_score FLOAT, pep_status_score FLOAT,
+                profession_score FLOAT, product_score FLOAT, delivery_channel_score FLOAT,
+                payment_method_score FLOAT, transaction_amount_score FLOAT, years_relationship_score FLOAT,
+                place_of_birth_score FLOAT, third_party_score FLOAT, sanctions_score FLOAT,
+                final_score FLOAT, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+            commit(conn)
+        
         # Get company assessments
         co_assessments = all_(conn, """
             SELECT ca.id, ca.company_id, c.client_name as name, ca.final_score, 
