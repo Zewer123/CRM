@@ -14,127 +14,225 @@
 
 <form method="POST" style="max-width:900px;">
 <div class="card" style="margin-bottom:20px;">
-  <div style="font-weight:700;color:var(--text);margin-bottom:16px;font-size:14px;">Risk Factors (1=Low, 2=Medium, 3=High)</div>
+  <div style="font-weight:700;color:var(--text);margin-bottom:16px;font-size:14px;">Risk Factors - Select values to auto-calculate scores</div>
   
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-    <!-- NATIONALITY -->
+    <!-- 1. NATIONALITY -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        1. Nationality
+        1. Nationality <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="nationality_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Low Risk, 3=High Risk</div>
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;">
+          <select id="nationality" name="nationality" onchange="lookupScore('nationality', this.value, 'countries')" required
+            style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+            <option value="">Select Country</option>
+            {% for country in lookups.countries %}
+            <option value="{{ country }}" {% if prefill.nationality == country %}selected{% endif %}>{{ country }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;" id="nationality_display">-</div>
+      </div>
+      <input type="hidden" name="nationality_score" id="nationality_score">
     </div>
 
-    <!-- RESIDENCE STATUS -->
+    <!-- 2. RESIDENCE STATUS -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        2. Residence Status
+        2. Residence Status <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="residence_status_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Resident, 3=Non-Resident</div>
+      <div style="display:flex;gap:8px;">
+        <select id="residence_status" name="residence_status" onchange="manualScore(this, 'residence_status')" required
+          style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+          <option value="">Select</option>
+          <option value="1" {% if prefill.residence_status == 'Resident' %}selected{% endif %}>Resident</option>
+          <option value="3" {% if prefill.residence_status == 'Non-Resident' %}selected{% endif %}>Non-Resident</option>
+        </select>
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;" id="residence_status_display">-</div>
+      </div>
+      <input type="hidden" name="residence_status_score" id="residence_status_score">
     </div>
 
-    <!-- PEP STATUS -->
+    <!-- 3. PEP STATUS -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        3. PEP Status
+        3. PEP Status <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="pep_status_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=No, 2=Local, 3=Foreign</div>
+      <div style="display:flex;gap:8px;">
+        <select id="pep_status" name="pep_status" onchange="manualScore(this, 'pep_status')" required
+          style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+          <option value="">Select</option>
+          <option value="1">No</option>
+          <option value="2">Yes - Local PEP</option>
+          <option value="3">Yes - Foreign PEP</option>
+        </select>
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;" id="pep_status_display">-</div>
+      </div>
+      <input type="hidden" name="pep_status_score" id="pep_status_score">
     </div>
 
-    <!-- PROFESSION -->
+    <!-- 4. PROFESSION -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        4. Profession
+        4. Profession <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="profession_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Low Risk, 3=High Risk</div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="profession" name="profession" placeholder="e.g., Engineer, Doctor, Accountant" value="{{ prefill.profession }}"
+          style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);text-align:center;font-size:11px;">Manual</div>
+      </div>
+      <input type="hidden" name="profession_score" id="profession_score" value="2">
     </div>
 
-    <!-- PRODUCT AVAILED -->
+    <!-- 5. PRODUCT -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        5. Product Availed
+        5. Product <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="product_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Low Risk, 3=High Risk</div>
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;">
+          <select id="product" name="product" onchange="lookupScore('product', this.value, 'products')" required
+            style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+            <option value="">Select Product</option>
+            {% for prod in lookups.products %}
+            <option value="{{ prod }}">{{ prod }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;" id="product_display">-</div>
+      </div>
+      <input type="hidden" name="product_score" id="product_score">
     </div>
 
-    <!-- DELIVERY CHANNEL -->
+    <!-- 6. DELIVERY CHANNEL -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        6. Delivery Channel
+        6. Delivery Channel <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="delivery_channel_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Face-to-Face, 3=Remote</div>
+      <div style="display:flex;gap:8px;">
+        <select id="delivery_channel" name="delivery_channel" onchange="manualScore(this, 'delivery_channel')" required
+          style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+          <option value="">Select</option>
+          <option value="1">Face-to-Face</option>
+          <option value="2">e-KYC</option>
+          <option value="3">Remote</option>
+        </select>
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;" id="delivery_channel_display">-</div>
+      </div>
+      <input type="hidden" name="delivery_channel_score" id="delivery_channel_score">
     </div>
 
-    <!-- PAYMENT METHOD -->
+    <!-- 7. PAYMENT METHOD -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        7. Payment Method
+        7. Payment Method <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="payment_method_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Cheque, 3=Cash/Crypto</div>
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;">
+          <select id="payment_method" name="payment_method" onchange="lookupScore('payment_method', this.value, 'payment_methods')" required
+            style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+            <option value="">Select Method</option>
+            {% for method in lookups.payment_methods %}
+            <option value="{{ method }}">{{ method }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;" id="payment_method_display">-</div>
+      </div>
+      <input type="hidden" name="payment_method_score" id="payment_method_score">
     </div>
 
-    <!-- TRANSACTION AMOUNT -->
+    <!-- 8. TRANSACTION AMOUNT -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        8. Transaction Amount
+        8. Expected Transaction Amount <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="transaction_amount_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Low, 3=High (>100K AED)</div>
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;">
+          <select id="transaction_amount" name="transaction_amount" onchange="lookupScore('transaction_amount', this.value, 'amount_ranges_individual')" required
+            style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+            <option value="">Select Amount</option>
+            {% for amount in lookups.amount_ranges_individual %}
+            <option value="{{ amount }}">{{ amount }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;" id="transaction_amount_display">-</div>
+      </div>
+      <input type="hidden" name="transaction_amount_score" id="transaction_amount_score">
     </div>
 
-    <!-- YEARS IN RELATIONSHIP -->
+    <!-- 9. YEARS IN RELATIONSHIP -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        9. Years in Relationship
+        9. Years in Relationship <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="years_relationship_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=5+yrs, 3=<1yr</div>
+      <div style="display:flex;gap:8px;">
+        <select id="years_relationship" name="years_relationship" onchange="manualScore(this, 'years_relationship')" required
+          style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+          <option value="">Select</option>
+          <option value="1" {% if prefill.years_relationship == 1 %}selected{% endif %}>5+ years</option>
+          <option value="2" {% if prefill.years_relationship == 2 %}selected{% endif %}>1-5 years</option>
+          <option value="3" {% if prefill.years_relationship == 3 %}selected{% endif %}>< 1 year</option>
+        </select>
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;" id="years_relationship_display">-</div>
+      </div>
+      <input type="hidden" name="years_relationship_score" id="years_relationship_score">
     </div>
 
-    <!-- PLACE OF BIRTH -->
+    <!-- 10. PLACE OF BIRTH -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        10. Place of Birth
+        10. Place of Birth <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="place_of_birth_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Low Risk, 3=High Risk</div>
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;">
+          <select id="place_of_birth" name="place_of_birth" onchange="lookupScore('place_of_birth', this.value, 'countries')" required
+            style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+            <option value="">Select Country</option>
+            {% for country in lookups.countries %}
+            <option value="{{ country }}" {% if prefill.place_of_birth == country %}selected{% endif %}>{{ country }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;" id="place_of_birth_display">-</div>
+      </div>
+      <input type="hidden" name="place_of_birth_score" id="place_of_birth_score">
     </div>
 
-    <!-- THIRD PARTY -->
+    <!-- 11. THIRD PARTY -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        11. Third Party Involvement
+        11. Third Party Involvement <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="third_party_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=No, 3=Yes</div>
+      <div style="display:flex;gap:8px;">
+        <select id="third_party" name="third_party" onchange="lookupScore('third_party', this.value, 'third_party')" required
+          style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+          <option value="">Select</option>
+          <option value="No">No</option>
+          <option value="Yes">Yes</option>
+        </select>
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;" id="third_party_display">-</div>
+      </div>
+      <input type="hidden" name="third_party_score" id="third_party_score">
     </div>
 
-    <!-- SANCTIONS -->
+    <!-- 12. SANCTIONS -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        12. Negative Media/Sanctions List
+        12. Negative Media/Sanctions <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="sanctions_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=No, 3=Yes</div>
+      <div style="display:flex;gap:8px;">
+        <select id="sanctions" name="sanctions" onchange="manualScore(this, 'sanctions')" required
+          style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+          <option value="">Select</option>
+          <option value="1">No</option>
+          <option value="3">Yes</option>
+        </select>
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;" id="sanctions_display">-</div>
+      </div>
+      <input type="hidden" name="sanctions_score" id="sanctions_score">
     </div>
   </div>
 </div>
@@ -144,7 +242,7 @@
   <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px;">
     Assessment Notes (Optional)
   </label>
-  <textarea name="notes" rows="4" placeholder="Add any relevant notes or observations..."
+  <textarea name="notes" rows="3" placeholder="Add any observations..."
     style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;font-family:inherit;resize:vertical;"></textarea>
 </div>
 
@@ -159,4 +257,40 @@
 </div>
 </form>
 
+{% endblock %}
+{% block scripts %}
+<script>
+function lookupScore(fieldId, value, category) {
+  if (!value) {
+    document.getElementById(fieldId + '_score').value = '';
+    document.getElementById(fieldId + '_display').textContent = '-';
+    return;
+  }
+  
+  fetch('/api/risk-lookup', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({category: category, value: value})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.score !== null) {
+      document.getElementById(fieldId + '_score').value = d.score;
+      document.getElementById(fieldId + '_display').textContent = d.score;
+    }
+  })
+  .catch(e => console.error('Error:', e));
+}
+
+function manualScore(select, fieldId) {
+  const score = select.value;
+  if (score) {
+    document.getElementById(fieldId + '_score').value = score;
+    document.getElementById(fieldId + '_display').textContent = score;
+  } else {
+    document.getElementById(fieldId + '_score').value = '';
+    document.getElementById(fieldId + '_display').textContent = '-';
+  }
+}
+</script>
 {% endblock %}

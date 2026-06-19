@@ -22,6 +22,18 @@ try:
     HAS_CLD = True
 except: HAS_CLD = False
 
+# ── RISK ASSESSMENT LOOKUPS ──────────────────────────────────
+RISK_LOOKUPS = {
+    'countries': {'AFGHANISTAN':3,'ALAND ISLANDS':2,'ALBANIA':2,'ALGERIA':3,'AMERICAN SAMOA':2,'ANDORRA':2,'ANGOLA':3,'ANGUILLA':2,'ANTIGUA & BARBUDA':2,'ARGENTINA':2,'ARMENIA':2,'ARUBA':2,'AUSTRALIA':1,'AUSTRIA':2,'AZERBAIJAN':2,'BAHAMAS':2,'BAHRAIN':2,'BANGLADESH':2,'BARBADOS':2,'BELARUS':3,'BELGIUM':2,'BELIZE':2,'BENIN':2,'BERMUDA':2,'BHUTAN':1,'BOLIVIA':3,'BOSNIA AND HERZEGOVINA':2,'BOTSWANA':2,'BRAZIL':2,'BRITISH VIRGIN ISLANDS':2,'BRUNEI':1,'BULGARIA':2,'BURKINA FASO':3,'BURUNDI':3,'CAMBODIA':3,'CAMEROON':2,'CANADA':1,'CAPE VERDE':2,'CAYMAN ISLANDS':2,'CENTRAL AFRICAN REPUBLIC':3,'CHAD':3,'CHILE':2,'CHINA':2,'CHRISTMAS ISLAND':2,'COCOS (KEELING) ISLANDS':2,'COLOMBIA':2,'COMOROS':3,'CONGO':3,'COOK ISLANDS':2,'COSTA RICA':2,'COTE D IVOIRE':3,'CROATIA':2,'CUBA':3,'CURACAO':2,'CYPRUS':2,'CZECH REPUBLIC':2,'DEMOCRATIC REPUBLIC OF CONGO':3,'DENMARK':1,'DJIBOUTI':2,'DOMINICA':2,'DOMINICAN REPUBLIC':2,'EAST TIMOR':2,'ECUADOR':2,'EGYPT':3,'EL SALVADOR':3,'EQUATORIAL GUINEA':3,'ERITREA':3,'ESTONIA':2,'ETHIOPIA':3,'FALKLAND ISLANDS':2,'FAROE ISLANDS':2,'FIJI':2,'FINLAND':1,'FRANCE':1,'FRENCH GUIANA':2,'FRENCH POLYNESIA':2,'GABON':3,'GAMBIA':3,'GEORGIA':2,'GERMANY':1,'GHANA':3,'GIBRALTAR':2,'GREECE':2,'GREENLAND':2,'GRENADA':2,'GUADELOUPE':2,'GUAM':2,'GUATEMALA':3,'GUERNSEY':2,'GUINEA':3,'GUINEA BISSAU':3,'GUYANA':2,'HAITI':3,'HONDURAS':3,'HONG KONG':1,'HUNGARY':2,'ICELAND':1,'INDIA':2,'INDONESIA':2,'IRAN':3,'IRAQ':3,'IRELAND':1,'ISLE OF MAN':2,'ISRAEL':2,'ITALY':2,'JAMAICA':2,'JAPAN':1,'JERSEY':2,'JORDAN':2,'KAZAKHSTAN':3,'KENYA':3,'KIRIBATI':2,'KOREA NORTH':3,'KOREA SOUTH':1,'KOSOVO':2,'KUWAIT':2,'KYRGYZSTAN':3,'LAOS':3,'LATVIA':2,'LEBANON':3,'LESOTHO':2,'LIBERIA':3,'LIBYA':3,'LIECHTENSTEIN':2,'LITHUANIA':2,'LUXEMBOURG':1,'MACAO':2,'MACEDONIA':2,'MADAGASCAR':2,'MALAWI':2,'MALAYSIA':2,'MALDIVES':2,'MALI':3,'MALTA':2,'MARSHALL ISLANDS':2,'MARTINIQUE':2,'MAURITANIA':3,'MAURITIUS':2,'MAYOTTE':2,'MEXICO':3,'MICRONESIA':2,'MOLDOVA':3,'MONACO':2,'MONGOLIA':2,'MONTENEGRO':2,'MONTSERRAT':2,'MOROCCO':2,'MOZAMBIQUE':3,'MYANMAR':3,'NAMIBIA':2,'NAURU':2,'NEPAL':2,'NETHERLANDS':1,'NEW CALEDONIA':2,'NEW ZEALAND':1,'NICARAGUA':3,'NIGER':3,'NIGERIA':3,'NIUE':2,'NORFOLK ISLAND':2,'NORTHERN MARIANA ISLANDS':2,'NORWAY':1,'OMAN':2,'PAKISTAN':3,'PALAU':2,'PALESTINE':3,'PANAMA':3,'PAPUA NEW GUINEA':3,'PARAGUAY':2,'PERU':3,'PHILIPPINES':2,'PITCAIRN':2,'POLAND':2,'PORTUGAL':2,'PUERTO RICO':2,'QATAR':2,'REUNION':2,'ROMANIA':2,'RUSSIAN FEDERATION':3,'RWANDA':3,'SAINT BARTHELEMY':2,'SAINT HELENA':2,'SAINT KITTS & NEVIS':2,'SAINT LUCIA':2,'SAINT MARTIN':2,'SAINT PIERRE & MIQUELON':2,'SAINT VINCENT & THE GRENADINES':2,'SAMOA':2,'SAN MARINO':2,'SAO TOME & PRINCIPE':2,'SAUDI ARABIA':2,'SENEGAL':2,'SERBIA':2,'SEYCHELLES':2,'SIERRA LEONE':3,'SINGAPORE':1,'SINT MAARTEN':2,'SLOVAKIA':2,'SLOVENIA':2,'SOLOMON ISLANDS':2,'SOMALIA':3,'SOUTH AFRICA':2,'SOUTH SUDAN':3,'SPAIN':2,'SRI LANKA':2,'SUDAN':3,'SURINAME':2,'SWAZILAND':2,'SWEDEN':1,'SWITZERLAND':1,'SYRIA':3,'TAIWAN':2,'TAJIKISTAN':3,'TANZANIA':3,'THAILAND':2,'TIMOR-LESTE':2,'TOGO':3,'TOKELAU':2,'TONGA':2,'TRINIDAD AND TOBAGO':2,'TUNISIA':2,'TURKEY':2,'TURKMENISTAN':3,'TURKS & CAICOS ISLANDS':2,'TUVALU':2,'UGANDA':3,'UKRAINE':3,'UNITED ARAB EMIRATES':2,'UNITED KINGDOM':1,'UNITED STATES':1,'URUGUAY':2,'UZBEKISTAN':3,'VANUATU':2,'VATICAN':2,'VENEZUELA':3,'VIETNAM':2,'VIRGIN ISLANDS':2,'WALLIS & FUTUNA':2,'WESTERN SAHARA':3,'YEMEN':3,'ZAMBIA':3,'ZIMBABWE':3,'NOT APPLICABLE':1},
+    'nature_of_business': {'Accounting Firm':2,'Advertising':2,'Airlines':2,'Arms Dealer':3,'Auction':2,'Auditors / Audit Firm':2,'Automobile Service':1,'Banking':3,'Brokerage Business':3,'Building Contracting':2,'Building Maintenance':1,'Building Management':1,'Car Business (New & Used Sales)':2,'Cargo & Logistics':3,'Carpentry':1,'Carpets Trading':1,'Catering':1,'Charities/Non-Profit Organizations':3,'Chemicals Trading':3,'Cleaning and Maintenance':1,'Commission Agent':2,'Communication Department':2,'Computer/Laptop Sales':1,'Computer/Laptop Service & Repairs':1,'Construction Items Shop':1,'Consultancy Services':3,'Corporate Services':3,'Cosmetics Trading':1,'Credit provider':2,'Dealers in Precious Metals & Stones':3,'Engineering':2,'Exchange Service':3,'Fast Moving Consumer Goods (FMCG)':1,'Financial Consultant':3,'Fish Trading':1,'Food Supplier':1,'Foreign Exchange':3,'Fruits & Vegetable Trading':1,'Fuel Station':1,'Furniture Trading':2,'General Trading Company':2,'Gift Shop':1,'Gold Smith':3,'Grocery':1,'Healthcare':1,'Heavy Equipment Leasing':2,'HMO/Travel Clinic':1,'Hotel':1,'HR / Recruitment Consultant':2,'Import/Export':2,'Insurance':2,'Interior Decoration':1,'Internet Service Provider':1,'Investment Company':3,'Jewellery Trading':3,'Laundry Services':1,'Law Firm':2,'Leather Items Trading':1,'Leasing Company':2,'Logistics':3,'Machinery Supplier':1,'Marble Trading':1,'Marketing':1,'Medicals/Pharmaceutical':1,'Metals & Minerals Trading':2,'Mining':1,'Mobile Phone Sales':1,'Mobile Phone Service & Repairs':1,'Money Lender':3,'Motor Vehicle Agent':2,'Motor Vehicle Spare Parts':1,'Nursery/School':1,'Nut Trading':1,'Oil Gas Supply':3,'Packaging Material Supplier':1,'Paper Trading':1,'Perfumes Trading':1,'Petrol Station':1,'Pharmaceutical':1,'Photography':1,'Plastic Item Trading':1,'Printing Press':1,'Professional Services':2,'Property Leasing':1,'Property Rental':1,'Publishing':1,'Real Estate':2,'Restaurant':1,'Retail':1,'Retail Gems & Jewellery':3,'Retail Supermarket':1,'Sales Agent/Distributor':2,'Sanitary Ware Trading':1,'Security Services':1,'Shell Company':3,'Shoe Shop':1,'Showroom':1,'Spare Parts Trading':1,'Sports':1,'Stationery Shop':1,'Steel Trading':2,'Stone Supplier':2,'Transportation':1,'Travel & Tourism':1,'Travel Agency':2,'Trading Company':2,'Tube Well Contractor':1,'Wholesale Jewellery':3,'Wholesale Trade':2,'Window Material Trading':1},
+    'products': {'Hotels & Resorts':3,'Luxury Villas':3,'Penthouses':3,'Residential Apartments':2,'Retail Shops':2,'Townhouses':2,'Vacant Land':3,'Warehouses':1,'Office Spaces':2,'Permanent Desk':2,'Virtual Office':3,'PO Box':3,'Antique & Vintage Jewellery':2,'Bullion':3,'Collectible Coins':2,'Designer & Branded Jewellery':3,'Fine Jewellery':2,'Investment-Grade Precious Metals':3,'Luxury Watches':3,'Polished Diamonds':3,'Raw Precious Metals':2,'Uncut & Rough Gemstones':3,'Wholesale Jewellery':3},
+    'amount_ranges_company': {'Amount up to AED 55,000':1,'Amount upto AED 500,000':2,'Amount more than AED 500,000':3},
+    'amount_ranges_individual': {'Amount up to AED 100,000':1,'Amount more than AED 100,000':3},
+    'payment_methods': {'Cash':3,'Cheque':1,'Crypto':3,'Bank Transfer (Local)':2,'Bank Transfer (International)':3,'Debit/Credit Card':2,'Gold to Gold Exchange':3,'All of the Above':3},
+    'third_party': {'Yes':3,'No':1},
+    'yes_no': {'Yes':3,'No':1},
+}
+
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'zewer-aml-secret-2026')
 
@@ -1038,6 +1050,20 @@ def calculate_risk_score(scores):
     else:
         return round(avg, 2), 'High'
 
+@app.route('/api/risk-lookup', methods=['POST'])
+@compliance_required
+def api_risk_lookup():
+    """Lookup risk score for a value in a category"""
+    data = request.get_json()
+    category = data.get('category')
+    value = data.get('value')
+    
+    if not category or not value:
+        return jsonify({'score': None}), 400
+    
+    score = RISK_LOOKUPS.get(category, {}).get(value)
+    return jsonify({'score': score})
+
 @app.route('/risk-assessment')
 @compliance_required
 def risk_assessment():
@@ -1103,8 +1129,50 @@ def risk_assessment_company(id):
             conn.close()
             return redirect(url_for('risk_assessment'))
     
+    # Prepare pre-fill data
+    prefill = {
+        'jurisdiction': co.get('country_of_incorporation', 'UNITED ARAB EMIRATES'),
+        'nature_of_business': co.get('nature', ''),
+        'product': co.get('type_of_client', ''),
+        'payment_method': '',
+        'pep_status': 'No' if (co.get('pep') or '').lower() != 'yes' else 'Yes',
+        'third_party': 'No',
+    }
+    
+    # Calculate years in operation
+    years_operation = 3  # default high risk
+    if co.get('incorporation_date'):
+        try:
+            inc_date = co['incorporation_date'] if isinstance(co['incorporation_date'], str) else str(co['incorporation_date'])[:10]
+            from datetime import datetime
+            inc = datetime.strptime(inc_date, '%Y-%m-%d').date()
+            years_diff = (dubai_today() - inc).days / 365.25
+            if years_diff >= 5:
+                years_operation = 1
+            elif years_diff >= 1:
+                years_operation = 2
+        except:
+            pass
+    prefill['years_operation'] = years_operation
+    
+    # Calculate years in relationship
+    years_relationship = 3  # default high risk
+    if co.get('ac_opening_date'):
+        try:
+            opening = co['ac_opening_date'] if isinstance(co['ac_opening_date'], str) else str(co['ac_opening_date'])[:10]
+            from datetime import datetime
+            open_dt = datetime.strptime(opening, '%Y-%m-%d').date()
+            years_diff = (dubai_today() - open_dt).days / 365.25
+            if years_diff >= 5:
+                years_relationship = 1
+            elif years_diff >= 1:
+                years_relationship = 2
+        except:
+            pass
+    prefill['years_relationship'] = years_relationship
+    
     conn.close()
-    return render_template('risk_assessment_company.html', company=co)
+    return render_template('risk_assessment_company.html', company=co, prefill=prefill, lookups=RISK_LOOKUPS)
 
 @app.route('/risk-assessment/company/<int:id>/result')
 @compliance_required
@@ -1180,8 +1248,35 @@ def risk_assessment_individual(id):
             conn.close()
             return redirect(url_for('risk_assessment'))
     
+    # Prepare pre-fill data
+    prefill = {
+        'nationality': ind.get('nationality', ''),
+        'residence_status': 'Resident' if ind.get('is_resident') else 'Non-Resident',
+        'pep_status': ind.get('pep_status', 'No'),
+        'profession': ind.get('profession', ''),
+        'place_of_birth': ind.get('nationality', ''),
+        'payment_method': '',
+        'third_party': 'No',
+    }
+    
+    # Calculate years in relationship
+    years_relationship = 3  # default high risk
+    if ind.get('created_at'):
+        try:
+            created = ind['created_at'] if isinstance(ind['created_at'], str) else str(ind['created_at'])[:10]
+            from datetime import datetime
+            created_dt = datetime.strptime(created, '%Y-%m-%d').date()
+            years_diff = (dubai_today() - created_dt).days / 365.25
+            if years_diff >= 5:
+                years_relationship = 1
+            elif years_diff >= 1:
+                years_relationship = 2
+        except:
+            pass
+    prefill['years_relationship'] = years_relationship
+    
     conn.close()
-    return render_template('risk_assessment_individual.html', individual=ind)
+    return render_template('risk_assessment_individual.html', individual=ind, prefill=prefill, lookups=RISK_LOOKUPS)
 
 @app.route('/risk-assessment/individual/<int:id>/result')
 @compliance_required

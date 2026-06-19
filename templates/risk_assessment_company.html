@@ -14,127 +14,231 @@
 
 <form method="POST" style="max-width:900px;">
 <div class="card" style="margin-bottom:20px;">
-  <div style="font-weight:700;color:var(--text);margin-bottom:16px;font-size:14px;">Risk Factors (1=Low, 2=Medium, 3=High)</div>
+  <div style="font-weight:700;color:var(--text);margin-bottom:16px;font-size:14px;">Risk Factors - Select values to auto-calculate scores</div>
   
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-    <!-- JURISDICTION -->
+    <!-- 1. JURISDICTION -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        1. Jurisdiction of Registration
+        1. Jurisdiction of Registration <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="jurisdiction_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">UAE=2, Other=varies</div>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <div style="flex:1;">
+          <select id="jurisdiction" name="jurisdiction" onchange="lookupScore('jurisdiction', this.value, 'countries')" required
+            style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+            <option value="">Select Country</option>
+            {% for country in lookups.countries %}
+            <option value="{{ country }}" {% if prefill.jurisdiction == country %}selected{% endif %}>{{ country }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <input type="hidden" name="jurisdiction_score" id="jurisdiction_score" value="{{ prefill.get('jurisdiction_score', '') }}">
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;font-size:14px;" id="jurisdiction_display">-</div>
+      </div>
     </div>
 
-    <!-- OWNERSHIP STRUCTURE -->
+    <!-- 2. OWNERSHIP STRUCTURE -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        2. Ownership Structure Complexity
+        2. Ownership Structure Complexity <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="ownership_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Easy, 3=Complex</div>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <select id="ownership" name="ownership" onchange="manualScore(this, 'ownership')" required
+          style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+          <option value="">Select</option>
+          <option value="1">Easy - Single owner</option>
+          <option value="2">Moderate - Few owners</option>
+          <option value="3">Complex - Trust/Family Office/Multiple structures</option>
+        </select>
+        <input type="hidden" name="ownership_score" id="ownership_score">
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;font-size:14px;" id="ownership_display">-</div>
+      </div>
     </div>
 
-    <!-- DELIVERY CHANNEL -->
+    <!-- 3. DELIVERY CHANNEL -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        3. Delivery Channel
+        3. Delivery Channel <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="delivery_channel_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Face-to-Face, 3=Remote</div>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <select id="delivery_channel" name="delivery_channel" onchange="manualScore(this, 'delivery_channel')" required
+          style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+          <option value="">Select</option>
+          <option value="1">Face-to-Face</option>
+          <option value="2">Non Face-to-Face (e-KYC)</option>
+          <option value="3">Remote/Other</option>
+        </select>
+        <input type="hidden" name="delivery_channel_score" id="delivery_channel_score">
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;font-size:14px;" id="delivery_channel_display">-</div>
+      </div>
     </div>
 
-    <!-- PAYMENT METHOD -->
+    <!-- 4. PAYMENT METHOD -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        4. Payment Method
+        4. Payment Method <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="payment_method_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Cheque, 3=Cash/Crypto</div>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <div style="flex:1;">
+          <select id="payment_method" name="payment_method" onchange="lookupScore('payment_method', this.value, 'payment_methods')" required
+            style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+            <option value="">Select Method</option>
+            {% for method in lookups.payment_methods %}
+            <option value="{{ method }}">{{ method }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <input type="hidden" name="payment_method_score" id="payment_method_score">
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;font-size:14px;" id="payment_method_display">-</div>
+      </div>
     </div>
 
-    <!-- TRANSACTION VOLUME -->
+    <!-- 5. TRANSACTION VOLUME -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        5. Transaction Volume
+        5. Expected Transaction Volume <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="transaction_volume_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Low, 3=High (>500K AED)</div>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <div style="flex:1;">
+          <select id="transaction_volume" name="transaction_volume" onchange="lookupScore('transaction_volume', this.value, 'amount_ranges_company')" required
+            style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+            <option value="">Select Amount</option>
+            {% for amount in lookups.amount_ranges_company %}
+            <option value="{{ amount }}">{{ amount }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <input type="hidden" name="transaction_volume_score" id="transaction_volume_score">
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;font-size:14px;" id="transaction_volume_display">-</div>
+      </div>
     </div>
 
-    <!-- PRODUCT AVAILED -->
+    <!-- 6. PRODUCT -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        6. Product Availed
+        6. Product Availed <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="product_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Low Risk, 3=High Risk</div>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <div style="flex:1;">
+          <select id="product" name="product" onchange="lookupScore('product', this.value, 'products')" required
+            style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+            <option value="">Select Product</option>
+            {% for prod in lookups.products %}
+            <option value="{{ prod }}">{{ prod }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <input type="hidden" name="product_score" id="product_score">
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;font-size:14px;" id="product_display">-</div>
+      </div>
     </div>
 
-    <!-- PEP STATUS -->
+    <!-- 7. PEP STATUS -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        7. PEP Status
+        7. PEP Status <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="pep_status_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=No, 2=Local PEP, 3=Foreign</div>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <select id="pep_status" name="pep_status" onchange="manualScore(this, 'pep_status')" required
+          style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+          <option value="">Select</option>
+          <option value="1">No</option>
+          <option value="2">Yes - Local PEP</option>
+          <option value="3">Yes - Foreign PEP</option>
+        </select>
+        <input type="hidden" name="pep_status_score" id="pep_status_score">
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;font-size:14px;" id="pep_status_display">-</div>
+      </div>
     </div>
 
-    <!-- NATIONALITY -->
+    <!-- 8. NATIONALITY -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        8. Nationality of Shareholders
+        8. Nationality of Shareholders <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="nationality_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Low Risk, 3=High Risk</div>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <div style="flex:1;">
+          <select id="nationality" name="nationality" onchange="lookupScore('nationality', this.value, 'countries')" required
+            style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+            <option value="">Select Country</option>
+            {% for country in lookups.countries %}
+            <option value="{{ country }}">{{ country }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <input type="hidden" name="nationality_score" id="nationality_score">
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;font-size:14px;" id="nationality_display">-</div>
+      </div>
     </div>
 
-    <!-- YEARS IN RELATIONSHIP -->
+    <!-- 9. YEARS IN RELATIONSHIP -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        9. Years in Relationship
+        9. Years in Relationship <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="years_relationship_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=5+yrs, 3=<1yr</div>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <select id="years_relationship" name="years_relationship" onchange="manualScore(this, 'years_relationship')" required
+          style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+          <option value="">Select</option>
+          <option value="1" {% if prefill.years_relationship == 1 %}selected{% endif %}>More than 5 years</option>
+          <option value="2" {% if prefill.years_relationship == 2 %}selected{% endif %}>1 to 5 years</option>
+          <option value="3" {% if prefill.years_relationship == 3 %}selected{% endif %}>Less than 1 year</option>
+        </select>
+        <input type="hidden" name="years_relationship_score" id="years_relationship_score">
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;font-size:14px;" id="years_relationship_display">-</div>
+      </div>
     </div>
 
-    <!-- YEARS IN OPERATION -->
+    <!-- 10. YEARS IN OPERATION -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        10. Years in Operation
+        10. Years in Operation <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="years_operation_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=5+yrs, 3=<1yr</div>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <select id="years_operation" name="years_operation" onchange="manualScore(this, 'years_operation')" required
+          style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+          <option value="">Select</option>
+          <option value="1" {% if prefill.years_operation == 1 %}selected{% endif %}>More than 5 years</option>
+          <option value="2" {% if prefill.years_operation == 2 %}selected{% endif %}>1 to 5 years</option>
+          <option value="3" {% if prefill.years_operation == 3 %}selected{% endif %}>Less than 1 year</option>
+        </select>
+        <input type="hidden" name="years_operation_score" id="years_operation_score">
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;font-size:14px;" id="years_operation_display">-</div>
+      </div>
     </div>
 
-    <!-- THIRD PARTY -->
+    <!-- 11. THIRD PARTY -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        11. Third Party Involvement
+        11. Third Party Involvement <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="third_party_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=No, 3=Yes</div>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <select id="third_party" name="third_party" onchange="lookupScore('third_party', this.value, 'third_party')" required
+          style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+          <option value="">Select</option>
+          <option value="No">No</option>
+          <option value="Yes">Yes</option>
+        </select>
+        <input type="hidden" name="third_party_score" id="third_party_score">
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;font-size:14px;" id="third_party_display">-</div>
+      </div>
     </div>
 
-    <!-- SANCTIONS -->
+    <!-- 12. SANCTIONS -->
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
-        12. Negative Media/Sanctions List
+        12. Negative Media/Sanctions List <span style="color:#ef4444;">*</span>
       </label>
-      <input type="number" name="sanctions_score" min="1" max="3" step="0.1" required
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=No, 3=Yes</div>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <select id="sanctions" name="sanctions" onchange="manualScore(this, 'sanctions')" required
+          style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+          <option value="">Select</option>
+          <option value="1">No</option>
+          <option value="3">Yes</option>
+        </select>
+        <input type="hidden" name="sanctions_score" id="sanctions_score">
+        <div style="width:45px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--primary);font-weight:700;text-align:center;font-size:14px;" id="sanctions_display">-</div>
+      </div>
     </div>
   </div>
 </div>
@@ -159,4 +263,42 @@
 </div>
 </form>
 
+{% endblock %}
+{% block scripts %}
+<script>
+const lookupTable = {{ lookups|tojson }};
+
+function lookupScore(fieldId, value, category) {
+  if (!value) {
+    document.getElementById(fieldId + '_score').value = '';
+    document.getElementById(fieldId + '_display').textContent = '-';
+    return;
+  }
+  
+  fetch('/api/risk-lookup', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({category: category, value: value})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.score !== null && d.score !== undefined) {
+      document.getElementById(fieldId + '_score').value = d.score;
+      document.getElementById(fieldId + '_display').textContent = d.score;
+    }
+  })
+  .catch(e => console.error('Lookup error:', e));
+}
+
+function manualScore(select, fieldId) {
+  const score = select.value;
+  if (score) {
+    document.getElementById(fieldId + '_score').value = score;
+    document.getElementById(fieldId + '_display').textContent = score;
+  } else {
+    document.getElementById(fieldId + '_score').value = '';
+    document.getElementById(fieldId + '_display').textContent = '-';
+  }
+}
+</script>
 {% endblock %}
