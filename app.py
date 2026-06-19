@@ -1090,11 +1090,21 @@ def api_send_risk_email():
 @compliance_required
 def risk_assessment():
     """Select company or individual for risk assessment"""
-    conn = get_db()
-    companies = all_(conn, 'SELECT id, ac_code, client_name FROM companies ORDER BY client_name')
-    individuals = all_(conn, 'SELECT id, name FROM clients ORDER BY name')
-    conn.close()
-    return render_template('risk_assessment.html', companies=companies, individuals=individuals)
+    try:
+        conn = get_db()
+        companies = all_(conn, 'SELECT id, ac_code, client_name FROM companies ORDER BY client_name')
+        # Individuals are stored in clients table
+        individuals = all_(conn, 'SELECT id, name FROM clients WHERE is_active IS NOT NULL OR is_active = 1 ORDER BY name')
+        conn.close()
+        logger.info(f'Risk assessment: {len(companies or [])} companies, {len(individuals or [])} individuals')
+        return render_template('risk_assessment.html', 
+                             companies=companies or [], 
+                             individuals=individuals or [])
+    except Exception as e:
+        logger.error(f'Error in risk_assessment: {e}', exc_info=True)
+        try: conn.close()
+        except: pass
+        return f'<h1>Error</h1><p>{str(e)}</p>', 500
 
 @app.route('/risk-assessment/company/<int:id>', methods=['GET','POST'])
 @compliance_required
