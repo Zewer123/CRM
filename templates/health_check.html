@@ -4,9 +4,10 @@
 
 <div class="page-header">
   <div class="page-title">🏥 Health Check</div>
-  <div style="font-size:13px;color:var(--text-dim);">Full compliance health report per company</div>
+  <div style="font-size:13px;color:var(--text-dim);">All companies - compliance health reports</div>
 </div>
 
+<!-- SEARCH & FILTER -->
 <div class="card" style="margin-bottom:20px;">
   <div style="position:relative;">
     <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--text-dim);">🔍</span>
@@ -16,24 +17,38 @@
   <div style="margin-top:10px;font-size:12px;color:var(--text-dim);" id="coCount">{{ companies|length }} companies</div>
 </div>
 
-<div id="coList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;">
-  {% for c in companies %}
-  <a href="{{ url_for('health_check_detail', id=c.id) }}" class="co-card"
-     data-name="{{ c.client_name|lower }}" data-code="{{ c.ac_code|lower }}"
-     style="display:flex;align-items:center;gap:14px;padding:16px;background:var(--surface);
-       border:1px solid var(--border);border-radius:10px;text-decoration:none;transition:all 0.15s;">
-    <div style="width:44px;height:44px;border-radius:10px;background:rgba(217,119,6,0.12);
-      display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">🏢</div>
-    <div style="min-width:0;flex:1;">
-      <div style="font-weight:700;color:var(--text);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.client_name }}</div>
-      <div style="font-size:11px;color:var(--primary);margin-top:3px;font-weight:600;">{{ c.ac_code }}</div>
-    </div>
-    <div style="color:var(--text-dim);font-size:20px;flex-shrink:0;">›</div>
-  </a>
+<!-- LIST VIEW -->
+<div style="display:grid;gap:10px;">
+  {% if companies %}
+    {% for c in companies %}
+    <a href="{{ url_for('health_check_detail', id=c.id) }}" class="co-card"
+       data-name="{{ c.client_name|lower }}" data-code="{{ c.ac_code|lower }}"
+       style="display:grid;grid-template-columns:1fr auto auto auto;gap:16px;padding:16px;background:var(--surface);
+         border:1px solid var(--border);border-radius:8px;text-decoration:none;transition:all 0.15s;align-items:center;">
+      
+      <!-- Company Info -->
+      <div style="min-width:0;">
+        <div style="font-weight:700;color:var(--text);font-size:14px;">🏢 {{ c.client_name }}</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">{{ c.ac_code }}</div>
+      </div>
+      
+      <!-- Status Badge -->
+      <div style="text-align:center;">
+        <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:6px;">HEALTH</div>
+        <div style="width:50px;height:50px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;">
+          <div style="font-size:20px;">📊</div>
+        </div>
+      </div>
+      
+      <!-- Arrow -->
+      <div style="color:var(--primary);font-size:24px;font-weight:700;">→</div>
+    </a>
+    {% endfor %}
   {% else %}
-  <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-dim);">No companies found.</div>
-  {% endfor %}
+    <div style="text-align:center;padding:60px;color:var(--text-dim);">No companies found.</div>
+  {% endif %}
 </div>
+
 <div id="noResults" style="display:none;text-align:center;padding:60px;color:var(--text-dim);">No companies match your search.</div>
 
 {% endblock %}
