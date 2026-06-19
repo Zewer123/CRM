@@ -1164,7 +1164,7 @@ def risk_assessment_list():
         
         # Combine
         assessments = companies + individuals
-        assessments = sorted(assessments, key=lambda x: x.get('assessment_date', '2000-01-01') or '2000-01-01', reverse=True)
+        assessments = sorted(assessments, key=lambda x: str(x.get('assessment_date') or '2000-01-01'), reverse=True)
         
         # Count by rating (only done ones)
         done_assessments = [a for a in assessments if a.get('status') == 'done']
