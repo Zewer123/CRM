@@ -926,6 +926,13 @@ def health_check_detail(id):
     if not co: conn.close(); return redirect(url_for('health_check'))
     if 'health_note' not in co: co['health_note'] = ''
     ubos = all_(conn, 'SELECT * FROM ubos WHERE company_id=? ORDER BY share_percentage DESC', (id,))
+    
+    # Get latest risk assessment
+    risk_assessment = one(conn, """
+        SELECT final_score, risk_rating FROM company_risk_assessments 
+        WHERE company_id = ? ORDER BY assessment_date DESC LIMIT 1
+    """, (id,))
+    
     conn.close()
     today = dubai_today()
 
@@ -989,6 +996,14 @@ def health_check_detail(id):
     risk = (co.get('risk_status') or '').lower()
     if risk == 'high': score -= 10; deductions.append('High risk client')
     elif risk == 'medium': score -= 5; deductions.append('Medium risk client')
+    
+    # Factor in risk assessment if available
+    if risk_assessment:
+        if risk_assessment.get('risk_rating') == 'High':
+            score -= 10; deductions.append(f"Risk Assessment: High ({risk_assessment.get('final_score')})")
+        elif risk_assessment.get('risk_rating') == 'Medium':
+            score -= 5; deductions.append(f"Risk Assessment: Medium ({risk_assessment.get('final_score')})")
+        # Low risk doesn't deduct
 
     kyc = (co.get('kyc_status') or '').lower()
     if 'not' in kyc or 'pending' in kyc: score -= 8; deductions.append('KYC not completed')
@@ -1007,7 +1022,7 @@ def health_check_detail(id):
     return render_template('health_check_detail.html',
         company=co, ubos=ubos, docs=docs, summary=summary,
         score=score, grade=grade, grade_color=grade_color,
-        deductions=deductions, today=str(today))
+        deductions=deductions, today=str(today), risk_assessment=risk_assessment)
 
 @app.route('/api/company/<int:id>/health-note', methods=['POST'])
 @compliance_required
