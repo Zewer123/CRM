@@ -130,6 +130,8 @@ def _run_migrations(conn):
         "client_documents (id {pk}, client_id INTEGER NOT NULL, doc_type TEXT NOT NULL, file_name TEXT NOT NULL, file_url TEXT NOT NULL, public_id TEXT, uploaded_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "additional_tasks (id {pk}, title TEXT NOT NULL, task_details TEXT, remarks TEXT, from_datetime TIMESTAMP NOT NULL, to_datetime TIMESTAMP NOT NULL, created_by INTEGER NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "aml_tracker (id {pk}, company_id INTEGER, individual_id INTEGER, transaction_date DATE NOT NULL, period TEXT, due_date DATE, vc_no TEXT, payment_mode TEXT, ac_type TEXT, client_name TEXT, transaction_currency TEXT, usd_amount NUMERIC, aed_amount NUMERIC, payment_remarks TEXT, invoice_no TEXT, invoice_amount NUMERIC, invoice_currency TEXT, goaml_submission_date DATE, goaml_status TEXT DEFAULT 'pending', goaml_ref_no TEXT, submitted_by INTEGER NOT NULL, checked_by INTEGER, comment TEXT, verified_ledger BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "company_risk_assessments (id {pk}, company_id INTEGER NOT NULL, jurisdiction_score NUMERIC, ownership_score NUMERIC, delivery_channel_score NUMERIC, payment_method_score NUMERIC, transaction_volume_score NUMERIC, product_score NUMERIC, pep_status_score NUMERIC, nationality_score NUMERIC, years_relationship_score NUMERIC, years_operation_score NUMERIC, third_party_score NUMERIC, sanctions_score NUMERIC, final_score NUMERIC, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "individual_risk_assessments (id {pk}, individual_id INTEGER NOT NULL, nationality_score NUMERIC, residence_status_score NUMERIC, pep_status_score NUMERIC, profession_score NUMERIC, product_score NUMERIC, delivery_channel_score NUMERIC, payment_method_score NUMERIC, transaction_amount_score NUMERIC, years_relationship_score NUMERIC, place_of_birth_score NUMERIC, third_party_score NUMERIC, sanctions_score NUMERIC, final_score NUMERIC, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
     ]
     pk = "SERIAL PRIMARY KEY" if pg else "INTEGER PRIMARY KEY AUTOINCREMENT"
     for t in new_tables:
@@ -1019,6 +1021,186 @@ def api_save_health_note(id):
         try: conn.close()
         except: pass
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# ──────────── RISK ASSESSMENT ────────────
+def calculate_risk_score(scores):
+    """Calculate final risk score and rating from individual factor scores."""
+    if not scores:
+        return None, 'Unspecified'
+    valid = [s for s in scores if s is not None and s > 0]
+    if not valid:
+        return None, 'Unspecified'
+    avg = sum(valid) / len(valid)
+    if avg <= 1.00:
+        return round(avg, 2), 'Low'
+    elif avg <= 2.00:
+        return round(avg, 2), 'Medium'
+    else:
+        return round(avg, 2), 'High'
+
+@app.route('/risk-assessment')
+@compliance_required
+def risk_assessment():
+    """Select company or individual for risk assessment"""
+    conn = get_db()
+    companies = all_(conn, 'SELECT id, ac_code, client_name FROM companies ORDER BY client_name')
+    individuals = all_(conn, 'SELECT id, name FROM clients ORDER BY name')
+    conn.close()
+    return render_template('risk_assessment.html', companies=companies, individuals=individuals)
+
+@app.route('/risk-assessment/company/<int:id>', methods=['GET','POST'])
+@compliance_required
+def risk_assessment_company(id):
+    """Risk assessment form for company"""
+    conn = get_db()
+    co = one(conn, 'SELECT * FROM companies WHERE id=?', (id,))
+    if not co:
+        conn.close()
+        return redirect(url_for('risk_assessment'))
+    
+    if request.method == 'POST':
+        data = request.form
+        try:
+            scores = [
+                float(data.get('jurisdiction_score') or 0),
+                float(data.get('ownership_score') or 0),
+                float(data.get('delivery_channel_score') or 0),
+                float(data.get('payment_method_score') or 0),
+                float(data.get('transaction_volume_score') or 0),
+                float(data.get('product_score') or 0),
+                float(data.get('pep_status_score') or 0),
+                float(data.get('nationality_score') or 0),
+                float(data.get('years_relationship_score') or 0),
+                float(data.get('years_operation_score') or 0),
+                float(data.get('third_party_score') or 0),
+                float(data.get('sanctions_score') or 0),
+            ]
+            final_score, risk_rating = calculate_risk_score(scores)
+            
+            # Ensure table exists
+            try:
+                if is_pg(conn):
+                    x(conn, 'ALTER TABLE company_risk_assessments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+                commit(conn)
+            except:
+                try: conn.rollback()
+                except: pass
+            
+            x(conn, '''INSERT INTO company_risk_assessments 
+               (company_id, jurisdiction_score, ownership_score, delivery_channel_score, payment_method_score,
+                transaction_volume_score, product_score, pep_status_score, nationality_score, 
+                years_relationship_score, years_operation_score, third_party_score, sanctions_score,
+                final_score, risk_rating, assessment_date, notes, assessed_by)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+               (id, scores[0], scores[1], scores[2], scores[3], scores[4], scores[5], scores[6],
+                scores[7], scores[8], scores[9], scores[10], scores[11], final_score, risk_rating,
+                dubai_today(), data.get('notes',''), session.get('user_id')))
+            commit(conn)
+            conn.close()
+            return redirect(url_for('risk_assessment_company_result', id=id))
+        except Exception as e:
+            logger.error(f'Error saving company risk assessment: {e}')
+            conn.close()
+            return redirect(url_for('risk_assessment'))
+    
+    conn.close()
+    return render_template('risk_assessment_company.html', company=co)
+
+@app.route('/risk-assessment/company/<int:id>/result')
+@compliance_required
+def risk_assessment_company_result(id):
+    """Display company risk assessment result"""
+    conn = get_db()
+    co = one(conn, 'SELECT * FROM companies WHERE id=?', (id,))
+    assessment = one(conn, '''SELECT * FROM company_risk_assessments 
+                             WHERE company_id=? ORDER BY created_at DESC LIMIT 1''', (id,))
+    conn.close()
+    
+    if not co or not assessment:
+        return redirect(url_for('risk_assessment'))
+    
+    # Determine color based on risk rating
+    color_map = {'Low': '#22c55e', 'Medium': '#f59e0b', 'High': '#ef4444'}
+    risk_color = color_map.get(assessment.get('risk_rating', 'Unspecified'), '#6b7280')
+    
+    return render_template('risk_assessment_result.html',
+        company=co, assessment=assessment, risk_color=risk_color, assessment_type='company')
+
+@app.route('/risk-assessment/individual/<int:id>', methods=['GET','POST'])
+@compliance_required
+def risk_assessment_individual(id):
+    """Risk assessment form for individual/client"""
+    conn = get_db()
+    ind = one(conn, 'SELECT * FROM clients WHERE id=?', (id,))
+    if not ind:
+        conn.close()
+        return redirect(url_for('risk_assessment'))
+    
+    if request.method == 'POST':
+        data = request.form
+        try:
+            scores = [
+                float(data.get('nationality_score') or 0),
+                float(data.get('residence_status_score') or 0),
+                float(data.get('pep_status_score') or 0),
+                float(data.get('profession_score') or 0),
+                float(data.get('product_score') or 0),
+                float(data.get('delivery_channel_score') or 0),
+                float(data.get('payment_method_score') or 0),
+                float(data.get('transaction_amount_score') or 0),
+                float(data.get('years_relationship_score') or 0),
+                float(data.get('place_of_birth_score') or 0),
+                float(data.get('third_party_score') or 0),
+                float(data.get('sanctions_score') or 0),
+            ]
+            final_score, risk_rating = calculate_risk_score(scores)
+            
+            try:
+                if is_pg(conn):
+                    x(conn, 'ALTER TABLE individual_risk_assessments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+                commit(conn)
+            except:
+                try: conn.rollback()
+                except: pass
+            
+            x(conn, '''INSERT INTO individual_risk_assessments 
+               (individual_id, nationality_score, residence_status_score, pep_status_score, profession_score,
+                product_score, delivery_channel_score, payment_method_score, transaction_amount_score,
+                years_relationship_score, place_of_birth_score, third_party_score, sanctions_score,
+                final_score, risk_rating, assessment_date, notes, assessed_by)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+               (id, scores[0], scores[1], scores[2], scores[3], scores[4], scores[5], scores[6],
+                scores[7], scores[8], scores[9], scores[10], scores[11], final_score, risk_rating,
+                dubai_today(), data.get('notes',''), session.get('user_id')))
+            commit(conn)
+            conn.close()
+            return redirect(url_for('risk_assessment_individual_result', id=id))
+        except Exception as e:
+            logger.error(f'Error saving individual risk assessment: {e}')
+            conn.close()
+            return redirect(url_for('risk_assessment'))
+    
+    conn.close()
+    return render_template('risk_assessment_individual.html', individual=ind)
+
+@app.route('/risk-assessment/individual/<int:id>/result')
+@compliance_required
+def risk_assessment_individual_result(id):
+    """Display individual risk assessment result"""
+    conn = get_db()
+    ind = one(conn, 'SELECT * FROM clients WHERE id=?', (id,))
+    assessment = one(conn, '''SELECT * FROM individual_risk_assessments 
+                             WHERE individual_id=? ORDER BY created_at DESC LIMIT 1''', (id,))
+    conn.close()
+    
+    if not ind or not assessment:
+        return redirect(url_for('risk_assessment'))
+    
+    color_map = {'Low': '#22c55e', 'Medium': '#f59e0b', 'High': '#ef4444'}
+    risk_color = color_map.get(assessment.get('risk_rating', 'Unspecified'), '#6b7280')
+    
+    return render_template('risk_assessment_result.html',
+        individual=ind, assessment=assessment, risk_color=risk_color, assessment_type='individual')
 
 @app.route('/reports')
 @compliance_required

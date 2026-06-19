@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Individual Risk Assessment - Zewer AML{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <a href="{{ url_for('risk_assessment') }}" style="color:var(--primary);text-decoration:none;font-size:18px;">←</a>
+    <div>
+      <div class="page-title">Individual Risk Assessment</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">{{ individual.name }}</div>
+    </div>
+  </div>
+</div>
+
+<form method="POST" style="max-width:900px;">
+<div class="card" style="margin-bottom:20px;">
+  <div style="font-weight:700;color:var(--text);margin-bottom:16px;font-size:14px;">Risk Factors (1=Low, 2=Medium, 3=High)</div>
+  
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <!-- NATIONALITY -->
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
+        1. Nationality
+      </label>
+      <input type="number" name="nationality_score" min="1" max="3" step="0.1" required
+        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Low Risk, 3=High Risk</div>
+    </div>
+
+    <!-- RESIDENCE STATUS -->
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
+        2. Residence Status
+      </label>
+      <input type="number" name="residence_status_score" min="1" max="3" step="0.1" required
+        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Resident, 3=Non-Resident</div>
+    </div>
+
+    <!-- PEP STATUS -->
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
+        3. PEP Status
+      </label>
+      <input type="number" name="pep_status_score" min="1" max="3" step="0.1" required
+        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=No, 2=Local, 3=Foreign</div>
+    </div>
+
+    <!-- PROFESSION -->
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
+        4. Profession
+      </label>
+      <input type="number" name="profession_score" min="1" max="3" step="0.1" required
+        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Low Risk, 3=High Risk</div>
+    </div>
+
+    <!-- PRODUCT AVAILED -->
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
+        5. Product Availed
+      </label>
+      <input type="number" name="product_score" min="1" max="3" step="0.1" required
+        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Low Risk, 3=High Risk</div>
+    </div>
+
+    <!-- DELIVERY CHANNEL -->
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
+        6. Delivery Channel
+      </label>
+      <input type="number" name="delivery_channel_score" min="1" max="3" step="0.1" required
+        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Face-to-Face, 3=Remote</div>
+    </div>
+
+    <!-- PAYMENT METHOD -->
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
+        7. Payment Method
+      </label>
+      <input type="number" name="payment_method_score" min="1" max="3" step="0.1" required
+        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Cheque, 3=Cash/Crypto</div>
+    </div>
+
+    <!-- TRANSACTION AMOUNT -->
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
+        8. Transaction Amount
+      </label>
+      <input type="number" name="transaction_amount_score" min="1" max="3" step="0.1" required
+        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Low, 3=High (>100K AED)</div>
+    </div>
+
+    <!-- YEARS IN RELATIONSHIP -->
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
+        9. Years in Relationship
+      </label>
+      <input type="number" name="years_relationship_score" min="1" max="3" step="0.1" required
+        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=5+yrs, 3=<1yr</div>
+    </div>
+
+    <!-- PLACE OF BIRTH -->
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
+        10. Place of Birth
+      </label>
+      <input type="number" name="place_of_birth_score" min="1" max="3" step="0.1" required
+        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=Low Risk, 3=High Risk</div>
+    </div>
+
+    <!-- THIRD PARTY -->
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
+        11. Third Party Involvement
+      </label>
+      <input type="number" name="third_party_score" min="1" max="3" step="0.1" required
+        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=No, 3=Yes</div>
+    </div>
+
+    <!-- SANCTIONS -->
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">
+        12. Negative Media/Sanctions List
+      </label>
+      <input type="number" name="sanctions_score" min="1" max="3" step="0.1" required
+        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">1=No, 3=Yes</div>
+    </div>
+  </div>
+</div>
+
+<!-- NOTES -->
+<div class="card" style="margin-bottom:20px;">
+  <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px;">
+    Assessment Notes (Optional)
+  </label>
+  <textarea name="notes" rows="4" placeholder="Add any relevant notes or observations..."
+    style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;font-family:inherit;resize:vertical;"></textarea>
+</div>
+
+<!-- ACTIONS -->
+<div style="display:flex;gap:10px;">
+  <button type="submit" style="flex:1;padding:10px 16px;background:var(--primary);color:white;border:none;border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;">
+    Calculate Risk
+  </button>
+  <a href="{{ url_for('risk_assessment') }}" style="padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:13px;text-decoration:none;color:var(--text);text-align:center;">
+    Cancel
+  </a>
+</div>
+</form>
+
+{% endblock %}

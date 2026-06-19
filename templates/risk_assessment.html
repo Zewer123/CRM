@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Risk Assessment - Zewer AML{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div class="page-title">⚠️ Risk Assessment</div>
+  <div style="font-size:13px;color:var(--text-dim);">AML customer risk evaluation & rating</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+  <!-- COMPANIES SECTION -->
+  <div>
+    <div style="font-weight:700;color:var(--text);margin-bottom:14px;font-size:15px;">🏢 Companies</div>
+    <div style="position:relative;margin-bottom:12px;">
+      <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--text-dim);">🔍</span>
+      <input type="text" id="coSearch" placeholder="Search companies..." oninput="filterCos()"
+        style="width:100%;padding:10px 16px 10px 44px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box;">
+    </div>
+    <div id="coList" style="max-height:500px;overflow-y:auto;display:grid;gap:8px;">
+      {% for c in companies %}
+      <a href="{{ url_for('risk_assessment_company', id=c.id) }}" class="co-card"
+         data-name="{{ c.client_name|lower }}" data-code="{{ c.ac_code|lower }}"
+         style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--surface);
+           border:1px solid var(--border);border-radius:8px;text-decoration:none;transition:all 0.15s;cursor:pointer;">
+        <div style="width:40px;height:40px;border-radius:8px;background:rgba(217,119,6,0.12);
+          display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏢</div>
+        <div style="min-width:0;flex:1;">
+          <div style="font-weight:600;color:var(--text);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.client_name }}</div>
+          <div style="font-size:11px;color:var(--primary);margin-top:2px;">{{ c.ac_code }}</div>
+        </div>
+        <div style="color:var(--text-dim);font-size:18px;flex-shrink:0;">→</div>
+      </a>
+      {% else %}
+      <div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px;">No companies found</div>
+      {% endfor %}
+    </div>
+    <div id="noCoResults" style="display:none;text-align:center;padding:40px;color:var(--text-dim);font-size:13px;">No companies match</div>
+  </div>
+
+  <!-- INDIVIDUALS SECTION -->
+  <div>
+    <div style="font-weight:700;color:var(--text);margin-bottom:14px;font-size:15px;">👤 Individuals</div>
+    <div style="position:relative;margin-bottom:12px;">
+      <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--text-dim);">🔍</span>
+      <input type="text" id="indSearch" placeholder="Search individuals..." oninput="filterInds()"
+        style="width:100%;padding:10px 16px 10px 44px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box;">
+    </div>
+    <div id="indList" style="max-height:500px;overflow-y:auto;display:grid;gap:8px;">
+      {% for i in individuals %}
+      <a href="{{ url_for('risk_assessment_individual', id=i.id) }}" class="ind-card"
+         data-name="{{ i.name|lower }}"
+         style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--surface);
+           border:1px solid var(--border);border-radius:8px;text-decoration:none;transition:all 0.15s;cursor:pointer;">
+        <div style="width:40px;height:40px;border-radius:8px;background:rgba(59,130,246,0.12);
+          display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👤</div>
+        <div style="min-width:0;flex:1;">
+          <div style="font-weight:600;color:var(--text);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ i.name }}</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Client</div>
+        </div>
+        <div style="color:var(--text-dim);font-size:18px;flex-shrink:0;">→</div>
+      </a>
+      {% else %}
+      <div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px;">No individuals found</div>
+      {% endfor %}
+    </div>
+    <div id="noIndResults" style="display:none;text-align:center;padding:40px;color:var(--text-dim);font-size:13px;">No individuals match</div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+function filterCos() {
+  const q = document.getElementById('coSearch').value.toLowerCase();
+  let visible = 0;
+  document.querySelectorAll('.co-card').forEach(c => {
+    const show = !q || c.dataset.name.includes(q) || c.dataset.code.includes(q);
+    c.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('noCoResults').style.display = visible === 0 && q ? '' : 'none';
+}
+function filterInds() {
+  const q = document.getElementById('indSearch').value.toLowerCase();
+  let visible = 0;
+  document.querySelectorAll('.ind-card').forEach(c => {
+    const show = !q || c.dataset.name.includes(q);
+    c.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('noIndResults').style.display = visible === 0 && q ? '' : 'none';
+}
+document.querySelectorAll('.co-card, .ind-card').forEach(c => {
+  c.addEventListener('mouseenter', () => { c.style.borderColor='var(--primary)'; c.style.background='var(--surface2)'; c.style.transform='translateY(-1px)'; });
+  c.addEventListener('mouseleave', () => { c.style.borderColor='var(--border)'; c.style.background='var(--surface)'; c.style.transform=''; });
+});
+</script>
+{% endblock %}
