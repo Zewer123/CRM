@@ -15,9 +15,9 @@
   <table style="width:100%;margin-bottom:10px;font-size:10px;border-collapse:collapse;">
     <tr>
       <td style="width:20%;padding:3px;"><strong>Entity:</strong></td>
-      <td style="width:30%;padding:3px;">{% if assessment_type == 'company' %}{{ company.client_name }}{% else %}{{ individual.name }}{% endif %}</td>
+      <td style="width:30%;padding:3px;">{% if assessment_type == 'walkin' %}{{ assessment.entity_name }}{% elif assessment_type == 'company' %}{{ company.client_name }}{% else %}{{ individual.name }}{% endif %}</td>
       <td style="width:20%;padding:3px;"><strong>Code:</strong></td>
-      <td style="width:30%;padding:3px;">{% if assessment_type == 'company' %}{{ company.ac_code }}{% else %}—{% endif %}</td>
+      <td style="width:30%;padding:3px;">{% if assessment_type == 'walkin' %}Walk-in{% elif assessment_type == 'company' %}{{ company.ac_code }}{% else %}—{% endif %}</td>
     </tr>
     <tr>
       <td style="padding:3px;"><strong>Date:</strong></td>
@@ -90,9 +90,19 @@
   <button onclick="window.print()" style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;color:var(--text);">
     📥 Download PDF
   </button>
-  <a href="{% if assessment_type == 'company' %}/risk-assessment/company/{{ company.id }}{% else %}/risk-assessment/individual/{{ individual.id }}{% endif %}" style="padding:12px;background:#f59e0b;color:white;border:none;border-radius:6px;font-weight:600;font-size:13px;text-decoration:none;text-align:center;">
+  {% if assessment_type == 'walkin' %}
+  <a href="{{ url_for('risk_assessment_walkin') }}" style="padding:12px;background:#f59e0b;color:white;border:none;border-radius:6px;font-weight:600;font-size:13px;text-decoration:none;text-align:center;">
+    🔄 New Walk-in
+  </a>
+  {% elif assessment_type == 'company' %}
+  <a href="/risk-assessment/company/{{ company.id }}" style="padding:12px;background:#f59e0b;color:white;border:none;border-radius:6px;font-weight:600;font-size:13px;text-decoration:none;text-align:center;">
     🔄 Retest
   </a>
+  {% else %}
+  <a href="/risk-assessment/individual/{{ individual.id }}" style="padding:12px;background:#f59e0b;color:white;border:none;border-radius:6px;font-weight:600;font-size:13px;text-decoration:none;text-align:center;">
+    🔄 Retest
+  </a>
+  {% endif %}
   <a href="{{ url_for('risk_assessment_list') }}" style="padding:12px;background:var(--primary);color:white;border:none;border-radius:6px;font-weight:600;font-size:13px;text-decoration:none;text-align:center;">
     ← Back
   </a>

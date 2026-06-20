@@ -1257,7 +1257,8 @@ def risk_assessment_walkin_result(id):
     return render_template('risk_assessment_result.html',
         assessment=assessment,
         assessment_type='walkin',
-        company=type('obj', (object,), {'client_name': assessment.get('entity_name',''), 'ac_code': '—', 'email': '—', 'country': '—', 'kyc_status': '—'})(),
+        company=None,
+        individual=None,
         risk_color=risk_colors.get(assessment.get('risk_rating','Low'), '#22c55e'))
 
 @app.route('/risk-assessment')
