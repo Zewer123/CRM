@@ -89,86 +89,89 @@
   </div>
 </div>
 
-<!-- TOP STAT CARDS (Tahfeel style) -->
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:14px;">
+<!-- TOP STAT CARDS - all in one row -->
+<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:14px;">
 
   <!-- HEALTH SCORE -->
-  <div class="scard" style="text-align:center;">
-    <div style="font-size:12px;color:var(--text-dim);font-weight:600;margin-bottom:10px;">Overall Health Score</div>
-    <div style="position:relative;width:120px;height:120px;margin:0 auto 8px;">
-      <svg viewBox="0 0 120 120" width="120" height="120" style="transform:rotate(-90deg);">
-        <circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface3)" stroke-width="11"/>
-        <circle cx="60" cy="60" r="50" fill="none" stroke="{{ grade_color }}" stroke-width="11"
-          stroke-dasharray="{{ (score/100*314.2)|round(1) }} 314.2" stroke-linecap="round"
+  <div class="scard" style="text-align:center;padding:16px 12px;">
+    <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:8px;">Overall Health</div>
+    <div style="position:relative;width:80px;height:80px;margin:0 auto 6px;">
+      <svg viewBox="0 0 80 80" width="80" height="80" style="transform:rotate(-90deg);">
+        <circle cx="40" cy="40" r="33" fill="none" stroke="var(--surface3)" stroke-width="8"/>
+        <circle cx="40" cy="40" r="33" fill="none" stroke="{{ grade_color }}" stroke-width="8"
+          stroke-dasharray="{{ (score/100*207.3)|round(1) }} 207.3" stroke-linecap="round"
           style="transition:stroke-dasharray 1s ease;"/>
       </svg>
       <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);">
-        <div style="font-size:30px;font-weight:800;color:{{ grade_color }};">{{ score }}%</div>
+        <div style="font-size:18px;font-weight:800;color:{{ grade_color }};">{{ score }}%</div>
       </div>
     </div>
-    <div style="font-size:15px;font-weight:700;color:{{ grade_color }};">
+    <div style="font-size:12px;font-weight:700;color:{{ grade_color }};">
       {% if grade=='Excellent' %}🌟{% elif grade=='Good' %}✅{% elif grade=='Average' %}⚠️{% else %}🔴{% endif %} {{ grade }}
     </div>
   </div>
 
   <!-- RISK ASSESSMENT -->
   {% if risk_assessment %}
-  <div class="scard" style="text-align:center;">
-    <div style="font-size:12px;color:var(--text-dim);font-weight:600;margin-bottom:10px;">Risk Assessment</div>
-    <div style="position:relative;width:120px;height:120px;margin:0 auto 8px;">
-      <svg viewBox="0 0 120 120" width="120" height="120" style="transform:rotate(-90deg);">
-        <circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface3)" stroke-width="11"/>
+  <div class="scard" style="text-align:center;padding:16px 12px;">
+    <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:8px;">Risk Assessment</div>
+    <div style="position:relative;width:80px;height:80px;margin:0 auto 6px;">
+      <svg viewBox="0 0 80 80" width="80" height="80" style="transform:rotate(-90deg);">
+        <circle cx="40" cy="40" r="33" fill="none" stroke="var(--surface3)" stroke-width="8"/>
         {% if risk_assessment.risk_rating == 'Low' %}
-          <circle cx="60" cy="60" r="50" fill="none" stroke="#22c55e" stroke-width="11"
-            stroke-dasharray="314.2 314.2" stroke-linecap="round"/>
+          <circle cx="40" cy="40" r="33" fill="none" stroke="#22c55e" stroke-width="8" stroke-dasharray="207.3 207.3" stroke-linecap="round"/>
         {% elif risk_assessment.risk_rating == 'Medium' %}
-          <circle cx="60" cy="60" r="50" fill="none" stroke="#f59e0b" stroke-width="11"
-            stroke-dasharray="157.1 314.2" stroke-linecap="round"/>
+          <circle cx="40" cy="40" r="33" fill="none" stroke="#f59e0b" stroke-width="8" stroke-dasharray="103.6 207.3" stroke-linecap="round"/>
         {% else %}
-          <circle cx="60" cy="60" r="50" fill="none" stroke="#ef4444" stroke-width="11"
-            stroke-dasharray="0 314.2" stroke-linecap="round"/>
+          <circle cx="40" cy="40" r="33" fill="none" stroke="#ef4444" stroke-width="8" stroke-dasharray="0 207.3" stroke-linecap="round"/>
         {% endif %}
       </svg>
       <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);">
-        <div style="font-size:24px;font-weight:800;{% if risk_assessment.risk_rating == 'Low' %}color:#22c55e;{% elif risk_assessment.risk_rating == 'Medium' %}color:#f59e0b;{% else %}color:#ef4444;{% endif %}">{{ risk_assessment.final_score }}</div>
+        <div style="font-size:18px;font-weight:800;{% if risk_assessment.risk_rating == 'Low' %}color:#22c55e;{% elif risk_assessment.risk_rating == 'Medium' %}color:#f59e0b;{% else %}color:#ef4444;{% endif %}">{{ risk_assessment.final_score }}</div>
       </div>
     </div>
-    <div style="font-size:15px;font-weight:700;{% if risk_assessment.risk_rating == 'Low' %}color:#22c55e;{% elif risk_assessment.risk_rating == 'Medium' %}color:#f59e0b;{% else %}color:#ef4444;{% endif %}">
+    <div style="font-size:12px;font-weight:700;{% if risk_assessment.risk_rating == 'Low' %}color:#22c55e;{% elif risk_assessment.risk_rating == 'Medium' %}color:#f59e0b;{% else %}color:#ef4444;{% endif %}">
       {% if risk_assessment.risk_rating == 'Low' %}✓{% elif risk_assessment.risk_rating == 'Medium' %}⚠{% else %}✗{% endif %} {{ risk_assessment.risk_rating }}
     </div>
-    <div style="font-size:10px;color:var(--text-dim);margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">Tested: {{ risk_assessment.assessment_date | string }}</div>
+    <div style="font-size:10px;color:var(--text-dim);margin-top:6px;padding-top:6px;border-top:1px solid var(--border);">Tested: {{ risk_assessment.assessment_date | string }}</div>
+  </div>
+  {% else %}
+  <div class="scard" style="text-align:center;padding:16px 12px;border:2px dashed var(--border);">
+    <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:8px;">Risk Assessment</div>
+    <div style="font-size:28px;margin:12px 0;">⏳</div>
+    <div style="font-size:11px;color:var(--text-dim);">Not done</div>
   </div>
   {% endif %}
 
   <!-- TOTAL DOCS -->
-  <div class="scard">
-    <div class="scard-icon" style="background:rgba(59,130,246,0.12);">📁</div>
-    <div style="font-size:12px;color:var(--text-dim);font-weight:600;">Total Documents</div>
-    <div style="font-size:32px;font-weight:800;color:var(--text);margin:4px 0;">{{ summary.total }}</div>
+  <div class="scard" style="padding:16px 12px;">
+    <div class="scard-icon" style="background:rgba(59,130,246,0.12);width:32px;height:32px;font-size:16px;margin-bottom:8px;">📁</div>
+    <div style="font-size:11px;color:var(--text-dim);font-weight:600;">Total Documents</div>
+    <div style="font-size:28px;font-weight:800;color:var(--text);margin:4px 0;">{{ summary.total }}</div>
     <div style="font-size:11px;color:var(--text-dim);">Tracked items</div>
   </div>
 
   <!-- VALID -->
-  <div class="scard">
-    <div class="scard-icon" style="background:rgba(34,197,94,0.12);">✅</div>
-    <div style="font-size:12px;color:var(--text-dim);font-weight:600;">Valid</div>
-    <div style="font-size:32px;font-weight:800;color:#22c55e;margin:4px 0;">{{ summary.valid }}</div>
+  <div class="scard" style="padding:16px 12px;">
+    <div class="scard-icon" style="background:rgba(34,197,94,0.12);width:32px;height:32px;font-size:16px;margin-bottom:8px;">✅</div>
+    <div style="font-size:11px;color:var(--text-dim);font-weight:600;">Valid</div>
+    <div style="font-size:28px;font-weight:800;color:#22c55e;margin:4px 0;">{{ summary.valid }}</div>
     <div style="font-size:11px;color:var(--text-dim);">All up to date</div>
   </div>
 
-  <!-- EXPIRING -->
-  <div class="scard">
-    <div class="scard-icon" style="background:rgba(245,158,11,0.12);">⏳</div>
-    <div style="font-size:12px;color:var(--text-dim);font-weight:600;">Expiring Soon</div>
-    <div style="font-size:32px;font-weight:800;color:#f59e0b;margin:4px 0;">{{ summary.expiring }}</div>
+  <!-- EXPIRING SOON -->
+  <div class="scard" style="padding:16px 12px;">
+    <div class="scard-icon" style="background:rgba(245,158,11,0.12);width:32px;height:32px;font-size:16px;margin-bottom:8px;">⏳</div>
+    <div style="font-size:11px;color:var(--text-dim);font-weight:600;">Expiring Soon</div>
+    <div style="font-size:28px;font-weight:800;color:#f59e0b;margin:4px 0;">{{ summary.expiring }}</div>
     <div style="font-size:11px;color:var(--text-dim);">Within 90 days</div>
   </div>
 
   <!-- EXPIRED -->
-  <div class="scard">
-    <div class="scard-icon" style="background:rgba(239,68,68,0.12);">❌</div>
-    <div style="font-size:12px;color:var(--text-dim);font-weight:600;">Expired</div>
-    <div style="font-size:32px;font-weight:800;color:#ef4444;margin:4px 0;">{{ summary.expired }}</div>
+  <div class="scard" style="padding:16px 12px;">
+    <div class="scard-icon" style="background:rgba(239,68,68,0.12);width:32px;height:32px;font-size:16px;margin-bottom:8px;">❌</div>
+    <div style="font-size:11px;color:var(--text-dim);font-weight:600;">Expired</div>
+    <div style="font-size:28px;font-weight:800;color:#ef4444;margin:4px 0;">{{ summary.expired }}</div>
     <div style="font-size:11px;color:var(--text-dim);">Needs action</div>
   </div>
 
