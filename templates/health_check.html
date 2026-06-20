@@ -7,52 +7,119 @@
   <div style="font-size:13px;color:var(--text-dim);">Full compliance health report per company</div>
 </div>
 
+<!-- FILTERS -->
 <div class="card" style="margin-bottom:20px;">
-  <div style="position:relative;">
-    <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--text-dim);">🔍</span>
-    <input type="text" id="coSearch" placeholder="Search by company name or AC code..." oninput="filterCos()" autofocus
-      style="width:100%;padding:12px 16px 12px 44px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;box-sizing:border-box;">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+    <div>
+      <label style="display:block;font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;">TYPE</label>
+      <select id="typeFilter" onchange="applyFilters()" style="width:100%;padding:9px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;">
+        <option value="">All Types</option>
+        <option value="company">Company</option>
+        <option value="individual">Individual</option>
+      </select>
+    </div>
+    <div>
+      <label style="display:block;font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;">RISK ASSESSMENT</label>
+      <select id="raFilter" onchange="applyFilters()" style="width:100%;padding:9px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;">
+        <option value="">All</option>
+        <option value="done">Done</option>
+        <option value="pending">Not Done</option>
+      </select>
+    </div>
+    <div>
+      <label style="display:block;font-size:11px;font-weight:700;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;">SEARCH</label>
+      <input type="text" id="searchFilter" placeholder="Company name or AC code..." oninput="applyFilters()"
+        style="width:100%;padding:9px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;">
+    </div>
   </div>
-  <div style="margin-top:10px;font-size:12px;color:var(--text-dim);" id="coCount">{{ companies|length }} companies</div>
 </div>
 
-<div id="coList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;">
+<!-- LIST -->
+<div style="display:grid;gap:8px;">
+
+  <!-- HEADER -->
+  <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 120px;gap:12px;padding:10px 16px;background:var(--surface2);border-radius:6px;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-dim);">
+    <div>NAME</div>
+    <div>RISK ASSESSMENT</div>
+    <div>SCORE</div>
+    <div>TEST DATE</div>
+    <div></div>
+  </div>
+
   {% for c in companies %}
-  <a href="{{ url_for('health_check_detail', id=c.id) }}" class="co-card"
-     data-name="{{ c.client_name|lower }}" data-code="{{ c.ac_code|lower }}"
-     style="display:flex;align-items:center;gap:14px;padding:16px;background:var(--surface);
-       border:1px solid var(--border);border-radius:10px;text-decoration:none;transition:all 0.15s;">
-    <div style="width:44px;height:44px;border-radius:10px;background:rgba(217,119,6,0.12);
-      display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">🏢</div>
-    <div style="min-width:0;flex:1;">
-      <div style="font-weight:700;color:var(--text);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.client_name }}</div>
-      <div style="font-size:11px;color:var(--primary);margin-top:3px;font-weight:600;">{{ c.ac_code }}</div>
+  <div class="hc-row"
+       data-type="company"
+       data-ra="{{ 'done' if c.final_score else 'pending' }}"
+       data-name="{{ c.client_name|lower }} {{ c.ac_code|lower }}"
+       style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 120px;gap:12px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;align-items:center;transition:all 0.15s;">
+
+    <!-- Name -->
+    <div>
+      <div style="font-size:10px;color:var(--text-dim);font-weight:600;margin-bottom:3px;">🏢 COMPANY</div>
+      <div style="font-weight:700;color:var(--text);font-size:13px;">{{ c.client_name }}</div>
+      <div style="font-size:11px;color:var(--primary);margin-top:2px;">{{ c.ac_code }}</div>
     </div>
-    <div style="color:var(--text-dim);font-size:20px;flex-shrink:0;">›</div>
-  </a>
+
+    <!-- Risk Assessment Status -->
+    <div>
+      {% if c.final_score %}
+        <span style="padding:4px 10px;border-radius:4px;font-weight:700;font-size:12px;
+          {% if c.risk_rating == 'Low' %}background:#dcfce7;color:#15803d;
+          {% elif c.risk_rating == 'Medium' %}background:#fef3c7;color:#92400e;
+          {% else %}background:#fee2e2;color:#991b1b;{% endif %}">
+          {{ c.risk_rating }}
+        </span>
+      {% else %}
+        <span style="padding:4px 10px;border-radius:4px;font-weight:700;font-size:12px;background:var(--surface2);color:var(--text-dim);">⏳ Pending</span>
+      {% endif %}
+    </div>
+
+    <!-- Score -->
+    <div style="font-weight:700;color:var(--primary);font-size:16px;">
+      {% if c.final_score %}{{ c.final_score }}{% else %}<span style="color:var(--text-dim);">—</span>{% endif %}
+    </div>
+
+    <!-- Test Date -->
+    <div style="font-size:13px;color:var(--text);">
+      {% if c.assessment_date %}{{ c.assessment_date }}{% else %}<span style="color:var(--text-dim);">—</span>{% endif %}
+    </div>
+
+    <!-- Action -->
+    <div>
+      <a href="{{ url_for('health_check_detail', id=c.id) }}"
+         style="padding:7px 14px;background:var(--primary);color:white;border-radius:6px;font-weight:600;font-size:12px;text-decoration:none;display:inline-block;">
+        👁 View
+      </a>
+    </div>
+  </div>
   {% else %}
-  <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-dim);">No companies found.</div>
+  <div class="card" style="text-align:center;padding:40px;color:var(--text-dim);">No companies found.</div>
   {% endfor %}
 </div>
-<div id="noResults" style="display:none;text-align:center;padding:60px;color:var(--text-dim);">No companies match your search.</div>
+
+<div id="noResults" style="display:none;text-align:center;padding:40px;color:var(--text-dim);">No results match your filters.</div>
 
 {% endblock %}
 {% block scripts %}
 <script>
-function filterCos() {
-  const q = document.getElementById('coSearch').value.toLowerCase();
+function applyFilters() {
+  const type = document.getElementById('typeFilter').value;
+  const ra   = document.getElementById('raFilter').value;
+  const q    = document.getElementById('searchFilter').value.toLowerCase();
   let visible = 0;
-  document.querySelectorAll('.co-card').forEach(c => {
-    const show = !q || c.dataset.name.includes(q) || c.dataset.code.includes(q);
-    c.style.display = show ? '' : 'none';
+  document.querySelectorAll('.hc-row').forEach(row => {
+    const typeMatch = !type || row.dataset.type === type;
+    const raMatch   = !ra   || row.dataset.ra === ra;
+    const nameMatch = !q    || row.dataset.name.includes(q);
+    const show = typeMatch && raMatch && nameMatch;
+    row.style.display = show ? '' : 'none';
     if (show) visible++;
   });
-  document.getElementById('noResults').style.display = visible === 0 && q ? '' : 'none';
-  document.getElementById('coCount').textContent = (q ? visible + ' matching' : visible + ' companies');
+  document.getElementById('noResults').style.display = visible === 0 ? '' : 'none';
 }
-document.querySelectorAll('.co-card').forEach(c => {
-  c.addEventListener('mouseenter', () => { c.style.borderColor='var(--primary)'; c.style.background='var(--surface2)'; c.style.transform='translateY(-1px)'; });
-  c.addEventListener('mouseleave', () => { c.style.borderColor='var(--border)'; c.style.background='var(--surface)'; c.style.transform=''; });
+document.querySelectorAll('.hc-row').forEach(row => {
+  row.addEventListener('mouseenter', () => { row.style.borderColor='var(--primary)'; row.style.background='var(--surface2)'; });
+  row.addEventListener('mouseleave', () => { row.style.borderColor='var(--border)'; row.style.background='var(--surface)'; });
 });
 </script>
 {% endblock %}

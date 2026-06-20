@@ -914,9 +914,30 @@ def alerts():
 @compliance_required
 def health_check():
     conn = get_db()
-    companies = all_(conn, 'SELECT id, ac_code, client_name FROM companies ORDER BY client_name')
+    companies = all_(conn, """
+        SELECT c.id, c.ac_code, c.client_name,
+               cra.final_score, cra.risk_rating,
+               cra.assessment_date
+        FROM companies c
+        LEFT JOIN LATERAL (
+            SELECT final_score, risk_rating, assessment_date
+            FROM company_risk_assessments
+            WHERE company_id = c.id
+            ORDER BY assessment_date DESC LIMIT 1
+        ) cra ON true
+        ORDER BY c.client_name
+    """) or []
+
+    # Convert date objects to strings
+    result = []
+    for c in companies:
+        row = dict(c)
+        if row.get('assessment_date'):
+            row['assessment_date'] = str(row['assessment_date'])
+        result.append(row)
+
     conn.close()
-    return render_template('health_check.html', companies=companies)
+    return render_template('health_check.html', companies=result)
 
 @app.route('/health-check/<int:id>')
 @compliance_required
