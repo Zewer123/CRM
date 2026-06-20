@@ -3,8 +3,18 @@
 {% block content %}
 
 <div class="page-header">
-  <div class="page-title">📋 Risk Assessment History</div>
-  <div style="font-size:13px;color:var(--text-dim);">View & manage all completed risk assessments</div>
+  <div>
+    <div class="page-title">📋 Risk Assessment History</div>
+    <div style="font-size:13px;color:var(--text-dim);">View & manage all completed risk assessments</div>
+  </div>
+  <div style="display:flex;gap:10px;">
+    <a href="{{ url_for('risk_assessment') }}" style="padding:10px 18px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-weight:600;font-size:13px;text-decoration:none;">
+      📋 New Test (Existing Client)
+    </a>
+    <a href="{{ url_for('risk_assessment_walkin') }}" style="padding:10px 18px;background:#d97706;color:white;border-radius:6px;font-weight:600;font-size:13px;text-decoration:none;">
+      🚶 Walk-in Assessment
+    </a>
+  </div>
 </div>
 
 <!-- FILTERS -->

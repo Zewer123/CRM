@@ -1191,6 +1191,75 @@ def risk_assessment_list():
         except: pass
         return f'<h1>Error</h1><p>{str(e)}</p>', 500
 
+
+@app.route('/risk-assessment/walkin', methods=['GET','POST'])
+@compliance_required
+def risk_assessment_walkin():
+    """Walk-in assessment - for new clients before they are in the system"""
+    if request.method == 'POST':
+        data = request.form
+        try:
+            conn = get_db()
+            if is_pg(conn):
+                x(conn, '''CREATE TABLE IF NOT EXISTS walkin_risk_assessments (
+                    id SERIAL PRIMARY KEY,
+                    entity_name TEXT NOT NULL, entity_type TEXT DEFAULT 'company',
+                    jurisdiction_score FLOAT, ownership_score FLOAT, delivery_channel_score FLOAT,
+                    payment_method_score FLOAT, transaction_volume_score FLOAT, product_score FLOAT,
+                    pep_status_score FLOAT, nationality_score FLOAT, years_relationship_score FLOAT,
+                    years_operation_score FLOAT, third_party_score FLOAT, sanctions_score FLOAT,
+                    final_score FLOAT, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                commit(conn)
+            
+            scores = [float(data.get(f) or 0) for f in [
+                'jurisdiction_score','ownership_score','delivery_channel_score','payment_method_score',
+                'transaction_volume_score','product_score','pep_status_score','nationality_score',
+                'years_relationship_score','years_operation_score','third_party_score','sanctions_score'
+            ]]
+            final_score, risk_rating = calculate_risk_score(scores)
+            
+            x(conn, '''INSERT INTO walkin_risk_assessments 
+               (entity_name, entity_type, jurisdiction_score, ownership_score, delivery_channel_score,
+                payment_method_score, transaction_volume_score, product_score, pep_status_score,
+                nationality_score, years_relationship_score, years_operation_score, third_party_score,
+                sanctions_score, final_score, risk_rating, assessment_date, notes, assessed_by)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+               (data.get('entity_name',''), data.get('entity_type','company'),
+                scores[0],scores[1],scores[2],scores[3],scores[4],scores[5],scores[6],
+                scores[7],scores[8],scores[9],scores[10],scores[11],
+                final_score, risk_rating, dubai_today(), data.get('notes',''), session.get('user_id')))
+            commit(conn)
+            walkin_id = one(conn, 'SELECT id FROM walkin_risk_assessments ORDER BY created_at DESC LIMIT 1', ())
+            conn.close()
+            return redirect(url_for('risk_assessment_walkin_result', id=walkin_id['id']))
+        except Exception as e:
+            logger.error(f'Walk-in assessment error: {e}', exc_info=True)
+            try: conn.close()
+            except: pass
+            return f'<h1>Error</h1><p>{str(e)}</p>', 500
+
+    return render_template('risk_assessment_walkin.html', lookups=RISK_LOOKUPS)
+
+
+@app.route('/risk-assessment/walkin/<int:id>/result')
+@compliance_required
+def risk_assessment_walkin_result(id):
+    conn = get_db()
+    assessment = one(conn, 'SELECT * FROM walkin_risk_assessments WHERE id=?', (id,))
+    conn.close()
+    if not assessment:
+        return redirect(url_for('risk_assessment_list'))
+    assessment = dict(assessment)
+    if assessment.get('assessment_date'):
+        assessment['assessment_date'] = str(assessment['assessment_date'])
+    risk_colors = {'Low': '#22c55e', 'Medium': '#f59e0b', 'High': '#ef4444'}
+    return render_template('risk_assessment_result.html',
+        assessment=assessment,
+        assessment_type='walkin',
+        company=type('obj', (object,), {'client_name': assessment.get('entity_name',''), 'ac_code': '—', 'email': '—', 'country': '—', 'kyc_status': '—'})(),
+        risk_color=risk_colors.get(assessment.get('risk_rating','Low'), '#22c55e'))
+
 @app.route('/risk-assessment')
 @compliance_required
 def risk_assessment():
@@ -1276,14 +1345,15 @@ def risk_assessment_company(id):
             except: pass
             return redirect(url_for('risk_assessment'))
     
-    # Prepare pre-fill data
+    # Prepare pre-fill data from company
+    co_country = co.get('country_of_incorporation') or co.get('region') or 'UNITED ARAB EMIRATES'
+    co_pep = (co.get('pep') or '').strip()
+    
     prefill = {
-        'jurisdiction': co.get('country_of_incorporation', 'UNITED ARAB EMIRATES'),
-        'nature_of_business': co.get('nature', ''),
-        'product': co.get('type_of_client', ''),
-        'payment_method': '',
-        'pep_status': 'No' if (co.get('pep') or '').lower() != 'yes' else 'Yes',
-        'third_party': 'No',
+        'jurisdiction': co_country,
+        'nationality': co_country,   # same country as incorporation
+        'pep_status': '1' if co_pep.lower() == 'no' or co_pep == 'Not Applicable' or co_pep == '' else ('3' if co_pep.lower() == 'yes' else '1'),
+        'third_party': 'No',         # default safe
     }
     
     # Calculate years in operation
