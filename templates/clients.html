@@ -189,8 +189,7 @@
     <div class="modal-title">➕ Add Individual</div>
     <div class="tab-bar" style="margin-bottom:16px;">
       <button class="tab-btn active" onclick="switchClientTab('personal',this)">👤 Personal</button>
-      <button class="tab-btn" onclick="switchClientTab('compliance',this)">🛡️ Compliance</button>
-      <button class="tab-btn" onclick="switchClientTab('docs',this)">📄 Documents</button>
+      <button class="tab-btn" onclick="switchClientTab('compliance',this)">🛡️ Compliance & Documents</button>
     </div>
     <!-- PERSONAL TAB -->
     <div id="ctab-personal">
@@ -228,19 +227,34 @@
         </div>
         <div class="form-group"><label>Location</label><input type="text" id="a_location" placeholder="e.g. Deira, Al Barsha, JLT"></div>
         <div class="form-group form-full"><label>Address</label><textarea id="a_addr" rows="2" placeholder="Full address..."></textarea></div>
+        <div class="form-group">
+          <label>PEP Declaration <small style="color:var(--text-dim);">(Politically Exposed Person)</small></label>
+          <select id="a_pep_status">
+            <option value="">— Select —</option>
+            <option>Yes</option>
+            <option>No</option>
+            <option>Not Applicable</option>
+          </select>
+        </div>
         <div class="form-group form-full"><label>Notes</label><textarea id="a_notes" rows="2" placeholder="Any notes..."></textarea></div>
       </div>
     </div>
-    <!-- DOCS TAB -->
-    <div id="ctab-docs" style="display:none;">
+    <!-- COMPLIANCE & DOCUMENTS TAB (merged) -->
+    <div id="ctab-docs" style="display:none;"><!-- merged --></div>
+    <div id="ctab-compliance" style="display:none;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+
+        <!-- DOCUMENTS SECTION -->
+        <div style="grid-column:1/-1;font-weight:700;color:var(--text-dim);font-size:11px;text-transform:uppercase;margin-bottom:4px;">📄 Documents</div>
         <!-- RESIDENT DOCUMENTS -->
         <div id="residentDocs" style="grid-column:1/-1;">
           <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--primary);">
             📋 <strong>Resident - Documents Required</strong>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <div class="form-group"><label>Emirates ID</label><input type="text" id="a_eid" placeholder="784-XXXX-XXXXXXX-X"></div>
+            <div class="form-group"><label>Emirates ID</label><input type="text" id="a_eid" placeholder="784-YYYY-XXXXXXX-X" oninput="validateClientEID(this)">
+              <div id="a_eid_hint" style="font-size:11px;color:var(--text-dim);margin-top:4px;">Format: 784-[Year]-[7 digits]-[1 digit]</div>
+            </div>
             <div class="form-group"><label>Emirates ID Expiry</label><input type="date" id="a_eid_expiry"></div>
           </div>
         </div>
@@ -254,7 +268,7 @@
             <div class="form-group"><label>Passport Expiry</label><input type="date" id="a_passport_expiry"></div>
           </div>
         </div>
-        <!-- COMMON DOCUMENTS -->
+        <!-- ADDRESS PROOF -->
         <div style="grid-column:1/-1;">
           <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--text-dim);">
             📋 <strong>Address Proof</strong>
@@ -273,14 +287,12 @@
             </div>
           </div>
         </div>
-      </div>
-      <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-top:8px;font-size:12px;color:var(--text-dim);">
-        📎 To upload document files, save this individual first then open their profile (👁️ View) and use the Upload Document button.
-      </div>
-    </div>
-    <!-- COMPLIANCE TAB -->
-    <div id="ctab-compliance" style="display:none;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="grid-column:1/-1;background:var(--surface2);border-radius:8px;padding:12px;font-size:12px;color:var(--text-dim);">
+          📎 To upload document files, save first then open their profile and use the Upload Document button.
+        </div>
+
+        <!-- COMPLIANCE SECTION -->
+        <div style="grid-column:1/-1;font-weight:700;color:var(--text-dim);font-size:11px;text-transform:uppercase;margin-top:8px;margin-bottom:4px;">🛡️ Compliance</div>
         <div class="form-group">
           <label>Mode of Account *</label>
           <select id="a_mode_of_ac" required>
@@ -297,18 +309,15 @@
         </div>
         <div class="form-group">
           <label>ID Type</label>
-          <select id="a_id_type">
+          <select id="a_id_type" onchange="toggleClientIdType('a')">
             <option value="">— Select —</option>
             {% for t in id_types %}<option>{{ t }}</option>{% endfor %}
           </select>
         </div>
-        <div class="form-group">
-          <label>PEP Status</label>
-          <select id="a_pep_status">
-            <option value="">— Select —</option>
-            <option>Yes</option>
-            <option>No</option>
-          </select>
+        <div class="form-group" id="a_id_number_group" style="display:none;">
+          <label id="a_id_number_label">ID Number</label>
+          <input type="text" id="a_id_number" placeholder="">
+          <div id="a_id_number_hint" style="font-size:11px;color:var(--text-dim);margin-top:4px;"></div>
         </div>
         <div class="form-group">
           <label>Risk Status</label>
@@ -358,8 +367,7 @@
     <input type="hidden" id="e_id">
     <div class="tab-bar" style="margin-bottom:16px;">
       <button class="tab-btn active" onclick="switchClientTab('epersonal',this)">👤 Personal</button>
-      <button class="tab-btn" onclick="switchClientTab('ecompliance',this)">🛡️ Compliance</button>
-      <button class="tab-btn" onclick="switchClientTab('edocs',this)">📄 Documents</button>
+      <button class="tab-btn" onclick="switchClientTab('ecompliance',this)">🛡️ Compliance & Documents</button>
     </div>
     <div id="ctab-epersonal">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -393,22 +401,35 @@
         </div>
         <div class="form-group"><label>Location</label><input type="text" id="e_location" placeholder="e.g. Deira, Al Barsha, JLT"></div>
         <div class="form-group form-full"><label>Address</label><textarea id="e_addr" rows="2"></textarea></div>
+        <div class="form-group">
+          <label>PEP Declaration <small style="color:var(--text-dim);">(Politically Exposed Person)</small></label>
+          <select id="e_pep_status">
+            <option value="">— Select —</option>
+            <option>Yes</option>
+            <option>No</option>
+            <option>Not Applicable</option>
+          </select>
+        </div>
         <div class="form-group form-full"><label>Notes</label><textarea id="e_notes" rows="2"></textarea></div>
       </div>
     </div>
-    <div id="ctab-edocs" style="display:none;">
+    <div id="ctab-edocs" style="display:none;"><!-- merged --></div>
+    <!-- COMPLIANCE & DOCUMENTS TAB (merged) -->
+    <div id="ctab-ecompliance" style="display:none;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <!-- RESIDENT DOCUMENTS -->
+        <!-- DOCUMENTS SECTION -->
+        <div style="grid-column:1/-1;font-weight:700;color:var(--text-dim);font-size:11px;text-transform:uppercase;margin-bottom:4px;">📄 Documents</div>
         <div id="residentDocs_e" style="grid-column:1/-1;">
           <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--primary);">
             📋 <strong>Resident - Documents Required</strong>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <div class="form-group"><label>Emirates ID</label><input type="text" id="e_eid"></div>
+            <div class="form-group"><label>Emirates ID</label><input type="text" id="e_eid" placeholder="784-YYYY-XXXXXXX-X" oninput="validateClientEID(this)">
+              <div id="e_eid_hint" style="font-size:11px;color:var(--text-dim);margin-top:4px;">Format: 784-[Year]-[7 digits]-[1 digit]</div>
+            </div>
             <div class="form-group"><label>Emirates ID Expiry</label><input type="date" id="e_eid_expiry"></div>
           </div>
         </div>
-        <!-- NON-RESIDENT DOCUMENTS -->
         <div id="nonResidentDocs_e" style="grid-column:1/-1;display:none;">
           <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--primary);">
             📋 <strong>Non-Resident - Documents Required</strong>
@@ -418,7 +439,6 @@
             <div class="form-group"><label>Passport Expiry</label><input type="date" id="e_passport_expiry"></div>
           </div>
         </div>
-        <!-- COMMON DOCUMENTS -->
         <div style="grid-column:1/-1;">
           <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--text-dim);">
             📋 <strong>Address Proof</strong>
@@ -437,11 +457,8 @@
             </div>
           </div>
         </div>
-      </div>
-    </div>
-    <!-- COMPLIANCE TAB -->
-    <div id="ctab-ecompliance" style="display:none;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <!-- COMPLIANCE SECTION -->
+        <div style="grid-column:1/-1;font-weight:700;color:var(--text-dim);font-size:11px;text-transform:uppercase;margin-top:8px;margin-bottom:4px;">🛡️ Compliance</div>
         <div class="form-group">
           <label>Mode of Account</label>
           <select id="e_mode_of_ac">
@@ -458,18 +475,15 @@
         </div>
         <div class="form-group">
           <label>ID Type</label>
-          <select id="e_id_type">
+          <select id="e_id_type" onchange="toggleClientIdType('e')">
             <option value="">— Select —</option>
             {% for t in id_types %}<option>{{ t }}</option>{% endfor %}
           </select>
         </div>
-        <div class="form-group">
-          <label>PEP Status</label>
-          <select id="e_pep_status">
-            <option value="">— Select —</option>
-            <option>Yes</option>
-            <option>No</option>
-          </select>
+        <div class="form-group" id="e_id_number_group" style="display:none;">
+          <label id="e_id_number_label">ID Number</label>
+          <input type="text" id="e_id_number" placeholder="">
+          <div id="e_id_number_hint" style="font-size:11px;color:var(--text-dim);margin-top:4px;"></div>
         </div>
         <div class="form-group">
           <label>Risk Status</label>
@@ -567,6 +581,51 @@ function copyPhoneToWA(prefix) {
   document.getElementById(prefix + '_wa').value = phone;
 }
 
+
+function validateClientEID(input) {
+  const val = input.value.replace(/\s/g, "");
+  const hintId = input.id + "_hint";
+  const hint = document.getElementById(hintId);
+  const pattern = /^784-\d{4}-\d{7}-\d$/;
+  if (val && !pattern.test(val)) {
+    input.style.borderColor = "#ef4444";
+    if (hint) { hint.style.color = "#ef4444"; hint.textContent = "⚠ Must be: 784-YYYY-XXXXXXX-X (starts with 784)"; }
+  } else {
+    input.style.borderColor = "";
+    if (hint) { hint.style.color = "var(--text-dim)"; hint.textContent = "Format: 784-[Year]-[7 digits]-[1 digit]"; }
+  }
+}
+
+function toggleClientIdType(prefix) {
+  const sel   = document.getElementById(prefix + "_id_type");
+  const group = document.getElementById(prefix + "_id_number_group");
+  const label = document.getElementById(prefix + "_id_number_label");
+  const input = document.getElementById(prefix + "_id_number");
+  const hint  = document.getElementById(prefix + "_id_number_hint");
+  const val   = sel ? sel.value : "";
+  if (!group) return;
+  if (val === "Emirates ID") {
+    group.style.display = "";
+    if (label) label.textContent = "Emirates ID Number";
+    if (input) input.placeholder = "784-YYYY-XXXXXXX-X";
+    if (hint) hint.textContent = "Format: 784-[Year]-[7 digits]-[1 digit]";
+    if (input) input.oninput = function() { validateClientEID(this); };
+  } else if (val === "Passport") {
+    group.style.display = "";
+    if (label) label.textContent = "Passport Number";
+    if (input) input.placeholder = "e.g. A1234567";
+    if (hint) hint.textContent = "";
+    if (input) input.oninput = null;
+  } else if (val) {
+    group.style.display = "";
+    if (label) label.textContent = "ID Number";
+    if (input) input.placeholder = "ID number";
+    if (hint) hint.textContent = "";
+    if (input) input.oninput = null;
+  } else {
+    group.style.display = "none";
+  }
+}
 function switchClientTab(name, btn) {
   const modal = btn.closest('.modal-box');
   modal.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));

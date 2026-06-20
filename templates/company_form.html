@@ -12,8 +12,7 @@
 
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('basic',this)">📋 Basic Info</button>
-    <button class="tab-btn" onclick="switchTab('docs',this)">📄 Documents & License</button>
-    <button class="tab-btn" onclick="switchTab('compliance',this)">🛡️ Compliance</button>
+    <button class="tab-btn" onclick="switchTab('compliance',this)">🛡️ Compliance & Documents</button>
     <button class="tab-btn" onclick="switchTab('ubo',this)">👤 UBO / Auth Persons</button>
   </div>
 
@@ -182,15 +181,32 @@
           <input type="text" name="active_till_year" value="{{ company.active_till_year if company else '' }}" placeholder="e.g. 2026">
         </div>
 
+        <div class="form-group">
+          <label>PEP Declaration <small style="color:var(--text-dim);">(Politically Exposed Person)</small></label>
+          <select name="pep">
+            <option value="">-- Select --</option>
+            <option value="Yes" {% if company and company.pep == 'Yes' %}selected{% endif %}>Yes</option>
+            <option value="No" {% if company and company.pep == 'No' %}selected{% endif %}>No</option>
+            <option value="Not Applicable" {% if company and company.pep == 'Not Applicable' %}selected{% endif %}>Not Applicable</option>
+          </select>
+        </div>
+
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:20px;">
-        <button type="button" class="btn btn-primary" onclick="switchTab('docs', document.querySelectorAll('.tab-btn')[1])">Next: Documents →</button>
+        <button type="button" class="btn btn-primary" onclick="switchTab('compliance', document.querySelectorAll('.tab-btn')[1])">Next: Compliance & Documents →</button>
       </div>
     </div>
 
     <!-- TAB 2: DOCUMENTS -->
-    <div id="tab-docs" class="tab-panel" style="display:none;">
-      <div class="section-title">📍 Address Proof</div>
+    <div id="tab-docs" class="tab-panel" style="display:none;"><!-- merged into compliance --></div>
+
+    <!-- TAB 2: COMPLIANCE & DOCUMENTS (merged) -->
+    <div id="tab-compliance" class="tab-panel" style="display:none;">
+
+      <!-- DOCUMENTS SECTION -->
+      <div class="section-title">📄 Documents & License</div>
+
+      <div class="section-title" style="margin-top:4px;">📍 Address Proof</div>
       <div class="form-grid">
         <div class="form-group">
           <label>Address Proof Type</label>
@@ -207,7 +223,7 @@
         </div>
       </div>
 
-      <div class="section-title" style="margin-top:20px;">🏢 Trade License</div>
+      <div class="section-title" style="margin-top:16px;">🏢 Trade License</div>
       <div class="form-grid">
         <div class="form-group">
           <label>Trade License No</label>
@@ -240,14 +256,8 @@
           <input type="date" name="trade_license_expiry" value="{{ company.trade_license_expiry if company else '' }}" onclick="this.showPicker()">
         </div>
       </div>
-      <div style="display:flex;justify-content:space-between;margin-top:20px;">
-        <button type="button" class="btn btn-ghost" onclick="switchTab('basic', document.querySelectorAll('.tab-btn')[0])">← Back</button>
-        <button type="button" class="btn btn-primary" onclick="switchTab('compliance', document.querySelectorAll('.tab-btn')[2])">Next: Compliance →</button>
-      </div>
-    </div>
 
-    <!-- TAB 3: COMPLIANCE -->
-    <div id="tab-compliance" class="tab-panel" style="display:none;">
+      <div class="section-title" style="margin-top:20px;">🛡️ Compliance</div>
       <div class="form-grid">
         <div class="form-group">
           <label>KYC Status</label>
@@ -263,15 +273,6 @@
           <input type="date" name="kyc_expiry_date" id="f_kyc_expiry_date"
             value="{{ company.kyc_expiry_date if company and company.kyc_expiry_date else '' }}"
             max="{{ max_kyc_date }}">
-        </div>
-        <div class="form-group">
-          <label>ID Type</label>
-          <select name="id_type">
-            <option value="">-- Select --</option>
-            {% for v in dropdown_data.get('ID TYPE', ['Passport','Emirates ID','National ID','Other']) %}
-            <option value="{{ v }}" {% if company and company.id_type == v %}selected{% endif %}>{{ v }}</option>
-            {% endfor %}
-          </select>
         </div>
         <div class="form-group">
           <label>Risk Status</label>
@@ -320,15 +321,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="form-group">
-          <label>PEP</label>
-          <select name="pep">
-            <option value="">-- Select --</option>
-            {% for v in dropdown_data.get('PEP', ['Yes','No']) %}
-            <option value="{{ v }}" {% if company and company.pep == v %}selected{% endif %}>{{ v }}</option>
-            {% endfor %}
-          </select>
-        </div>
+        <!-- PEP moved to Basic Info tab -->
         <div class="form-group">
           <label>Undertaking</label>
           <select name="undertaking">
@@ -389,8 +382,8 @@
         </div>
       </div>
       <div style="display:flex;justify-content:space-between;margin-top:20px;">
-        <button type="button" class="btn btn-ghost" onclick="switchTab('docs', document.querySelectorAll('.tab-btn')[1])">← Back</button>
-        <button type="button" class="btn btn-primary" onclick="switchTab('ubo', document.querySelectorAll('.tab-btn')[3])">Next: UBO →</button>
+        <button type="button" class="btn btn-ghost" onclick="switchTab('basic', document.querySelectorAll('.tab-btn')[0])">← Back</button>
+        <button type="button" class="btn btn-primary" onclick="switchTab('ubo', document.querySelectorAll('.tab-btn')[2])">Next: UBO →</button>
       </div>
     </div>
 
@@ -481,7 +474,7 @@
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:24px;">
-        <button type="button" class="btn btn-ghost" onclick="switchTab('compliance', document.querySelectorAll('.tab-btn')[2])">← Back</button>
+        <button type="button" class="btn btn-ghost" onclick="switchTab('compliance', document.querySelectorAll('.tab-btn')[1])">← Back</button>
         <button type="button" class="btn btn-primary" style="padding:12px 36px;font-size:15px;" onclick="submitForm()">
           {% if edit %}💾 Save Changes{% else %}✅ Add Company{% endif %}
         </button>
@@ -532,6 +525,21 @@
           <option value="{{ v }}">{{ v }}</option>
           {% endfor %}
         </select>
+      </div>
+      <div class="form-group">
+        <label>ID Type</label>
+        <select name="ubo_id_type[]" onchange="toggleIdField(this)">
+          <option value="">-- Select --</option>
+          <option value="Emirates ID">Emirates ID</option>
+          <option value="Passport">Passport</option>
+          <option value="National ID">National ID</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group ubo-id-number-field" style="display:none;">
+        <label class="ubo-id-label">ID Number</label>
+        <input type="text" name="ubo_id_number[]" placeholder="">
+        <div class="ubo-id-hint" style="font-size:11px;color:var(--text-dim);margin-top:4px;"></div>
       </div>
       <div class="form-group">
         <label>Passport No</label>
@@ -634,6 +642,52 @@ function switchTab(name, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + name).style.display = 'block';
   btn.classList.add('active');
+}
+
+function toggleIdField(select) {
+  const card = select.closest('.form-grid');
+  const field = card.querySelector('.ubo-id-number-field');
+  const label = card.querySelector('.ubo-id-label');
+  const input = card.querySelector('[name="ubo_id_number[]"]');
+  const hint  = card.querySelector('.ubo-id-hint');
+  const val   = select.value;
+  if (val === 'Emirates ID') {
+    field.style.display = '';
+    label.textContent = 'Emirates ID Number';
+    input.placeholder = '784-YYYY-XXXXXXX-X';
+    hint.textContent = 'Format: 784-[Year]-[7 digits]-[1 digit]';
+    input.oninput = function() { validateEID(this); };
+  } else if (val === 'Passport') {
+    field.style.display = '';
+    label.textContent = 'Passport Number';
+    input.placeholder = 'e.g. A1234567';
+    hint.textContent = '';
+    input.oninput = null;
+  } else if (val) {
+    field.style.display = '';
+    label.textContent = 'ID Number';
+    input.placeholder = 'ID number';
+    hint.textContent = '';
+    input.oninput = null;
+  } else {
+    field.style.display = 'none';
+  }
+}
+
+function validateEID(input) {
+  const val = input.value.replace(/\s/g, '');
+  const hint = input.closest('.form-group').querySelector('.ubo-id-hint');
+  // Format: 784-YYYY-XXXXXXX-X  (15 digits total, starts with 784)
+  const pattern = /^784-\d{4}-\d{7}-\d$/;
+  if (val && !pattern.test(val)) {
+    input.style.borderColor = '#ef4444';
+    hint.style.color = '#ef4444';
+    hint.textContent = '⚠ Must be: 784-YYYY-XXXXXXX-X (starts with 784)';
+  } else {
+    input.style.borderColor = '';
+    hint.style.color = 'var(--text-dim)';
+    hint.textContent = 'Format: 784-[Year]-[7 digits]-[1 digit]';
+  }
 }
 
 function formatPhone(input) {
