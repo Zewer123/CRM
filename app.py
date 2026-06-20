@@ -929,9 +929,14 @@ def health_check_detail(id):
     
     # Get latest risk assessment
     risk_assessment = one(conn, """
-        SELECT final_score, risk_rating FROM company_risk_assessments 
+        SELECT final_score, risk_rating, assessment_date FROM company_risk_assessments 
         WHERE company_id = ? ORDER BY assessment_date DESC LIMIT 1
     """, (id,))
+    
+    # Convert date object to string for Jinja
+    if risk_assessment and risk_assessment.get('assessment_date'):
+        risk_assessment = dict(risk_assessment)
+        risk_assessment['assessment_date'] = str(risk_assessment['assessment_date'])
     
     conn.close()
     today = dubai_today()
