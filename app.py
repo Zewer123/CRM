@@ -130,7 +130,12 @@ def cnt(conn, sql, p=None):
         if isinstance(r, dict): return list(r.values())[0]
         try: return r[0]
         except: return 0
-    except: return 0
+    except:
+        # On PostgreSQL a failed query aborts the transaction; roll back so the
+        # connection isn't poisoned for every following query in the request.
+        try: conn.rollback()
+        except: pass
+        return 0
 
 def lastid(conn):
     if is_pg(conn):
@@ -140,7 +145,47 @@ def lastid(conn):
 def commit(conn):
     conn.commit()
 
+def _pg_ensure_columns():
+    """Add new columns/tables on PostgreSQL using a FRESH autocommit connection.
+
+    A brand-new connection cannot be in an aborted-transaction state, so every
+    DDL statement here runs and commits independently — immune to the
+    'current transaction is aborted' cascade that can otherwise skip ALTERs
+    during the main migration. This is what guarantees the new schema exists.
+    Runs at import time, independent of setup_db(), so a failure elsewhere in
+    startup cannot prevent it.
+    """
+    if not use_pg():
+        return
+    ddl = [
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS disabled BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS disabled BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS pep TEXT",
+        "ALTER TABLE ubos ADD COLUMN IF NOT EXISTS pep_status TEXT",
+        "ALTER TABLE aml_tracker ADD COLUMN IF NOT EXISTS exchange_rate NUMERIC",
+        "CREATE TABLE IF NOT EXISTS risk_country_scores (country TEXT PRIMARY KEY, score INTEGER NOT NULL DEFAULT 2, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS login_history (id SERIAL PRIMARY KEY, user_id INTEGER, username TEXT, success BOOLEAN DEFAULT FALSE, ip_address TEXT, user_agent TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+    ]
+    try:
+        import psycopg2
+        url = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+        c = psycopg2.connect(url, connect_timeout=10)
+        c.autocommit = True
+        cur = c.cursor()
+        for stmt in ddl:
+            try:
+                cur.execute(stmt)
+            except Exception as e:
+                logger.warning(f'ensure_columns ({stmt[:45]}...): {e}')
+        cur.close(); c.close()
+        logger.info('ensure_columns: new columns/tables verified on PostgreSQL')
+    except Exception as e:
+        logger.error(f'_pg_ensure_columns failed: {e}')
+
 def setup_db():
+    # Guarantee new columns exist FIRST, on a fresh autocommit connection,
+    # so the rest of startup (and every request) can rely on them.
+    _pg_ensure_columns()
     conn = get_db()
     if is_pg(conn):
         _pg_schema(conn)
@@ -150,6 +195,9 @@ def setup_db():
     _run_migrations(conn)
     commit(conn)
     conn.close()
+    # Belt-and-suspenders: ensure again after base tables are guaranteed to exist
+    # (covers a brand-new database where the tables were just created above).
+    _pg_ensure_columns()
 
 def _run_migrations(conn):
     """Universal migrations that run for BOTH PostgreSQL and SQLite on every startup."""
@@ -479,6 +527,11 @@ try:
     print("DB ready")
 except Exception as e:
     print(f"DB setup warning: {e}")
+# Final guarantee: even if setup_db() raised, make sure the new columns exist.
+try:
+    _pg_ensure_columns()
+except Exception as e:
+    print(f"ensure_columns warning: {e}")
 
 # ── HELPERS ─────────────────────────────────────────────────
 
@@ -532,6 +585,36 @@ def compliance_required(f):
 
 @app.route('/')
 def index(): return redirect(url_for('dashboard') if 'user_id' in session else url_for('login'))
+
+@app.route('/healthz')
+def healthz():
+    """No-auth health + schema check, used to verify a deploy from outside.
+    Returns 200 only if every new column/table exists; 503 if any is missing."""
+    checks = {}
+    try:
+        conn = get_db()
+        for tbl, col in [('companies', 'disabled'), ('clients', 'disabled'), ('clients', 'pep'),
+                         ('ubos', 'pep_status'), ('aml_tracker', 'exchange_rate')]:
+            try:
+                x(conn, f'SELECT {col} FROM {tbl} LIMIT 1').fetchone()
+                checks[f'{tbl}.{col}'] = 'ok'
+            except Exception:
+                try: conn.rollback()
+                except: pass
+                checks[f'{tbl}.{col}'] = 'MISSING'
+        for t in ['risk_country_scores', 'login_history']:
+            try:
+                x(conn, f'SELECT 1 FROM {t} LIMIT 1').fetchone()
+                checks[t] = 'ok'
+            except Exception:
+                try: conn.rollback()
+                except: pass
+                checks[t] = 'MISSING'
+        conn.close()
+        ok = all(v == 'ok' for v in checks.values())
+        return jsonify({'status': 'ok' if ok else 'degraded', 'schema': checks}), (200 if ok else 503)
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
 
 def _log_login(conn, user_id, username, success):
     """Record a login attempt for the suspicious-login audit trail."""
