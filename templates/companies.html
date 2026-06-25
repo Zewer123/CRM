@@ -30,11 +30,9 @@
   <div class="form-group" style="min-width:110px;">
     <label>Status</label>
     <select id="statusFilter" onchange="applyFilters()">
-      <option value="">Active &amp; Inactive</option>
+      <option value="">All</option>
       <option value="Active" {% if status_filter=='Active' %}selected{% endif %}>Active</option>
       <option value="Inactive" {% if status_filter=='Inactive' %}selected{% endif %}>Inactive</option>
-      <option value="Disabled" {% if status_filter=='Disabled' %}selected{% endif %}>🚫 Disabled</option>
-      <option value="all" {% if status_filter=='all' %}selected{% endif %}>All (incl. Disabled)</option>
     </select>
   </div>
   <div class="form-group" style="min-width:120px;">
@@ -95,7 +93,7 @@
 
     <!-- COMPANY -->
     <div style="padding-right:12px;">
-      <div style="font-weight:600;color:var(--text);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.client_name }}{% if c.disabled %} <span style="font-size:10px;background:rgba(239,68,68,0.15);color:#fca5a5;padding:1px 6px;border-radius:10px;border:1px solid rgba(239,68,68,0.3);">🚫 Disabled</span>{% endif %}</div>
+      <div style="font-weight:600;color:var(--text);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.client_name }}</div>
       {% if c.account_manager %}
       <div style="font-size:11px;color:var(--primary);margin-top:3px;">👤 {{ c.account_manager }}</div>
       {% endif %}

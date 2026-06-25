@@ -53,16 +53,6 @@
       <option value="non-resident" {% if resident_filter=='non-resident' %}selected{% endif %}>Non-Resident</option>
     </select>
   </div>
-  <div class="form-group" style="min-width:150px;">
-    <label>Status</label>
-    <select name="status" id="statusFilter" onchange="this.form.submit()">
-      <option value="">Active &amp; Inactive</option>
-      <option value="Active" {% if status_filter=='Active' %}selected{% endif %}>Active</option>
-      <option value="Inactive" {% if status_filter=='Inactive' %}selected{% endif %}>Inactive</option>
-      <option value="Disabled" {% if status_filter=='Disabled' %}selected{% endif %}>🚫 Disabled</option>
-      <option value="all" {% if status_filter=='all' %}selected{% endif %}>All (incl. Disabled)</option>
-    </select>
-  </div>
   <div style="display:flex;align-items:flex-end;gap:8px;">
     <button type="submit" class="btn btn-primary btn-sm">🔍 Search</button>
     <a href="{{ url_for('clients') }}" class="btn btn-ghost btn-sm">Clear</a>
@@ -116,7 +106,7 @@
 
   <!-- CUSTOMER NAME -->
   <div style="padding-right:12px;">
-    <div style="font-weight:600;color:var(--text);font-size:14px;">{% if c.birthday_today %}🎂 {% endif %}{{ c.name }}{% if c.disabled %} <span style="font-size:10px;background:rgba(239,68,68,0.15);color:#fca5a5;padding:1px 6px;border-radius:10px;border:1px solid rgba(239,68,68,0.3);">🚫 Disabled</span>{% endif %}</div>
+    <div style="font-weight:600;color:var(--text);font-size:14px;">{% if c.birthday_today %}🎂 {% endif %}{{ c.name }}</div>
     {% if c.profession %}<div style="font-size:11px;color:var(--primary);margin-top:2px;">💼 {{ c.profession }}</div>{% endif %}
     {% if c.date_of_birth %}
     <div style="font-size:11px;margin-top:2px;
@@ -246,14 +236,6 @@
             <option>Not Applicable</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>PEP <small style="color:var(--text-dim);">(after screening)</small></label>
-          <select id="a_pep">
-            <option value="">— Select —</option>
-            <option>Yes</option>
-            <option>No</option>
-          </select>
-        </div>
         <div class="form-group form-full"><label>Notes</label><textarea id="a_notes" rows="2" placeholder="Any notes..."></textarea></div>
       </div>
     </div>
@@ -264,26 +246,26 @@
 
         <!-- DOCUMENTS SECTION -->
         <div style="grid-column:1/-1;font-weight:700;color:var(--text-dim);font-size:11px;text-transform:uppercase;margin-bottom:4px;">📄 Documents</div>
-        <!-- PASSPORT (PRIMARY ID — always required) -->
-        <div style="grid-column:1/-1;">
+        <!-- RESIDENT DOCUMENTS -->
+        <div id="residentDocs" style="grid-column:1/-1;">
           <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--primary);">
-            📋 <strong>Passport (Primary ID)</strong>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <div class="form-group"><label>Passport No</label><input type="text" id="a_passport_no" placeholder="A1234567"></div>
-            <div class="form-group"><label>Passport Expiry</label><input type="date" id="a_passport_expiry"></div>
-          </div>
-        </div>
-        <!-- EMIRATES ID (residents only — secondary) -->
-        <div id="residentDocs" style="grid-column:1/-1;display:none;">
-          <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--primary);">
-            📋 <strong>Emirates ID (Residents)</strong>
+            📋 <strong>Resident - Documents Required</strong>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
             <div class="form-group"><label>Emirates ID</label><input type="text" id="a_eid" placeholder="784-YYYY-XXXXXXX-X" oninput="validateClientEID(this)">
               <div id="a_eid_hint" style="font-size:11px;color:var(--text-dim);margin-top:4px;">Format: 784-[Year]-[7 digits]-[1 digit]</div>
             </div>
             <div class="form-group"><label>Emirates ID Expiry</label><input type="date" id="a_eid_expiry"></div>
+          </div>
+        </div>
+        <!-- NON-RESIDENT DOCUMENTS -->
+        <div id="nonResidentDocs" style="grid-column:1/-1;display:none;">
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--primary);">
+            📋 <strong>Non-Resident - Documents Required</strong>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group"><label>Passport Number</label><input type="text" id="a_passport_no" placeholder="A1234567"></div>
+            <div class="form-group"><label>Passport Expiry</label><input type="date" id="a_passport_expiry"></div>
           </div>
         </div>
         <!-- ADDRESS PROOF -->
@@ -428,14 +410,6 @@
             <option>Not Applicable</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>PEP <small style="color:var(--text-dim);">(after screening)</small></label>
-          <select id="e_pep">
-            <option value="">— Select —</option>
-            <option>Yes</option>
-            <option>No</option>
-          </select>
-        </div>
         <div class="form-group form-full"><label>Notes</label><textarea id="e_notes" rows="2"></textarea></div>
       </div>
     </div>
@@ -445,26 +419,24 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <!-- DOCUMENTS SECTION -->
         <div style="grid-column:1/-1;font-weight:700;color:var(--text-dim);font-size:11px;text-transform:uppercase;margin-bottom:4px;">📄 Documents</div>
-        <!-- PASSPORT (PRIMARY ID) -->
-        <div style="grid-column:1/-1;">
+        <div id="residentDocs_e" style="grid-column:1/-1;">
           <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--primary);">
-            📋 <strong>Passport (Primary ID)</strong>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <div class="form-group"><label>Passport No</label><input type="text" id="e_passport_no"></div>
-            <div class="form-group"><label>Passport Expiry</label><input type="date" id="e_passport_expiry"></div>
-          </div>
-        </div>
-        <!-- EMIRATES ID (residents only) -->
-        <div id="residentDocs_e" style="grid-column:1/-1;display:none;">
-          <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--primary);">
-            📋 <strong>Emirates ID (Residents)</strong>
+            📋 <strong>Resident - Documents Required</strong>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
             <div class="form-group"><label>Emirates ID</label><input type="text" id="e_eid" placeholder="784-YYYY-XXXXXXX-X" oninput="validateClientEID(this)">
               <div id="e_eid_hint" style="font-size:11px;color:var(--text-dim);margin-top:4px;">Format: 784-[Year]-[7 digits]-[1 digit]</div>
             </div>
             <div class="form-group"><label>Emirates ID Expiry</label><input type="date" id="e_eid_expiry"></div>
+          </div>
+        </div>
+        <div id="nonResidentDocs_e" style="grid-column:1/-1;display:none;">
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--primary);">
+            📋 <strong>Non-Resident - Documents Required</strong>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group"><label>Passport Number</label><input type="text" id="e_passport_no"></div>
+            <div class="form-group"><label>Passport Expiry</label><input type="date" id="e_passport_expiry"></div>
           </div>
         </div>
         <div style="grid-column:1/-1;">
@@ -575,7 +547,6 @@ const CLIENTS_DATA = {
     ac_status: {{ (c.ac_status or '')|tojson }},
     id_type: {{ (c.id_type or '')|tojson }},
     pep_status: {{ (c.pep_status or '')|tojson }},
-    pep: {{ (c.pep or '')|tojson }},
     kyc_status: {{ (c.kyc_status or '')|tojson }},
     kyc_expiry_date: {{ (c.kyc_expiry_date or '')|tojson }},
     risk_status: {{ (c.risk_status or '')|tojson }},
@@ -664,14 +635,31 @@ function switchClientTab(name, btn) {
 }
 
 function handleResidentChange() {
-  // Passport is always the primary ID; Emirates ID only shows for residents.
   const isResident = document.getElementById('a_is_resident').checked;
-  document.getElementById('residentDocs').style.display = isResident ? '' : 'none';
+  const residentDocs = document.getElementById('residentDocs');
+  const nonResidentDocs = document.getElementById('nonResidentDocs');
+  
+  if (isResident) {
+    residentDocs.style.display = '';
+    nonResidentDocs.style.display = 'none';
+  } else {
+    residentDocs.style.display = 'none';
+    nonResidentDocs.style.display = '';
+  }
 }
 
 function handleResidentChange_e() {
   const isResident = document.getElementById('e_is_resident').checked;
-  document.getElementById('residentDocs_e').style.display = isResident ? '' : 'none';
+  const residentDocs = document.getElementById('residentDocs_e');
+  const nonResidentDocs = document.getElementById('nonResidentDocs_e');
+  
+  if (isResident) {
+    residentDocs.style.display = '';
+    nonResidentDocs.style.display = 'none';
+  } else {
+    residentDocs.style.display = 'none';
+    nonResidentDocs.style.display = '';
+  }
 }
 
 function filterClients() {
@@ -729,7 +717,6 @@ function submitAddClient() {
       ac_status: document.getElementById('a_ac_status').value,
       id_type: document.getElementById('a_id_type').value,
       pep_status: document.getElementById('a_pep_status').value,
-      pep: document.getElementById('a_pep').value,
       kyc_status: document.getElementById('a_kyc_status').value,
       kyc_expiry_date: document.getElementById('a_kyc_expiry_date').value || null,
       risk_status: document.getElementById('a_risk_status').value,
@@ -767,7 +754,6 @@ function editClient(id) {
   document.getElementById('e_ac_status').value = c.ac_status || '';
   document.getElementById('e_id_type').value = c.id_type || '';
   document.getElementById('e_pep_status').value = c.pep_status || '';
-  document.getElementById('e_pep').value = c.pep || '';
   document.getElementById('e_kyc_status').value = c.kyc_status || '';
   document.getElementById('e_kyc_expiry_date').value = c.kyc_expiry_date || '';
   document.getElementById('e_risk_status').value = c.risk_status || '';
@@ -813,7 +799,6 @@ function submitEditClient() {
       ac_status: document.getElementById('e_ac_status').value,
       id_type: document.getElementById('e_id_type').value,
       pep_status: document.getElementById('e_pep_status').value,
-      pep: document.getElementById('e_pep').value,
       kyc_status: document.getElementById('e_kyc_status').value,
       kyc_expiry_date: document.getElementById('e_kyc_expiry_date').value || null,
       risk_status: document.getElementById('e_risk_status').value,

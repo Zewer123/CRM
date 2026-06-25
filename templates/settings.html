@@ -338,8 +338,7 @@ const CURRENT_USER_ID = {{ current_user_id }};
 const PERM_ROWS = [
   ['dashboard',           'Dashboard'],
   ['companies_view',      'Companies — View'],
-  ['companies_add',       'Companies — Add'],
-  ['companies_edit',      'Companies — Edit'],
+  ['companies_edit',      'Companies — Add / Edit'],
   ['companies_delete',    'Companies — Delete'],
   ['companies_docs',      'Company Documents — Upload / Export'],
   ['alerts',              'Alerts'],
@@ -361,7 +360,7 @@ const PERM_ROWS = [
 // Default role permissions (used if nothing saved yet)
 const ROLE_PERM_DEFAULTS = {
   admin:      PERM_ROWS.map(r => r[0]),
-  compliance: ['dashboard','companies_view','companies_add','companies_edit','companies_docs','alerts','clients','reports',
+  compliance: ['dashboard','companies_view','companies_edit','companies_docs','alerts','clients','reports',
                'tasks_view','tasks_create','tasks_edit','tasks_delete','regular_tasks_view','regular_tasks_log',
                'regular_tasks_manage','zewer_docs_view','zewer_docs_edit'],
   staff:      ['dashboard','tasks_view','tasks_create','tasks_edit','regular_tasks_view','regular_tasks_log'],

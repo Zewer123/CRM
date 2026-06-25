@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}{% if record %}Edit{% else %}New{% endif %} DPMSR Report - Zewer CRM{% endblock %}
+{% block title %}{% if record %}Edit{% else %}New{% endif %} AML Record - Zewer CRM{% endblock %}
 
 {% block content %}
 <div style="max-width: 1000px; margin: 0 auto; padding: 20px;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #d97706;">
         <h1 style="margin: 0; font-size: 28px; color: #1c1917;">
-            {% if record %}Edit DPMSR Report #{{ record.id }}{% else %}New DPMSR Report{% endif %}
+            {% if record %}Edit AML Record #{{ record.id }}{% else %}New AML Record{% endif %}
         </h1>
-        <a href="{{ url_for('aml_tracker') }}" style="padding: 10px 16px; background: #6b7280; color: white; border-radius: 6px; text-decoration: none; font-weight: 600;">← Back to DPMSR Report</a>
+        <a href="{{ url_for('aml_tracker') }}" style="padding: 10px 16px; background: #6b7280; color: white; border-radius: 6px; text-decoration: none; font-weight: 600;">← Back to AML Tracker</a>
     </div>
 
     {% if error %}
@@ -28,7 +28,7 @@
                     <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px; text-transform: uppercase;">
                         Transaction Date *
                     </label>
-                    <input type="date" name="transaction_date" id="transactionDate" required onchange="calcDates()"
+                    <input type="date" name="transaction_date" required
                            value="{{ record.transaction_date if record else '' }}"
                            style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: white;">
                 </div>
@@ -37,7 +37,7 @@
                     <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px; text-transform: uppercase;">
                         Period (Auto)
                     </label>
-                    <input type="text" name="period" id="periodField" readonly
+                    <input type="text" name="period" readonly
                            value="{{ record.period if record else '' }}"
                            placeholder="Auto-calculated"
                            style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #6b7280; background: #f3f4f6; cursor: not-allowed;">
@@ -45,9 +45,9 @@
                 
                 <div>
                     <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px; text-transform: uppercase;">
-                        Due Date (Auto: +15)
+                        Due Date (Auto: +14)
                     </label>
-                    <input type="date" name="due_date" id="dueDate" readonly
+                    <input type="date" name="due_date" readonly
                            value="{{ record.due_date if record else '' }}"
                            style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #6b7280; background: #f3f4f6; cursor: not-allowed;">
                 </div>
@@ -74,7 +74,7 @@
                     <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px; text-transform: uppercase;">
                         Company
                     </label>
-                    <select name="company_id" id="companySelect" onchange="onEntityChange('company')"
+                    <select name="company_id"
                             style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: white;">
                         <option value="">Select Company...</option>
                         {% for c in companies %}
@@ -89,7 +89,7 @@
                     <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px; text-transform: uppercase;">
                         Individual
                     </label>
-                    <select name="individual_id" id="individualSelect" onchange="onEntityChange('individual')"
+                    <select name="individual_id"
                             style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: white;">
                         <option value="">Select Individual...</option>
                         {% for i in individuals %}
@@ -102,12 +102,24 @@
 
                 <div>
                     <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px; text-transform: uppercase;">
-                        Account Type (Auto)
+                        Client Name
                     </label>
-                    <input type="text" name="ac_type" readonly
-                           value="{{ record.ac_type if record else '' }}"
-                           placeholder="Set from selection above"
-                           style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #6b7280; background: #f3f4f6;">
+                    <input type="text" name="client_name"
+                           value="{{ record.client_name if record else '' }}"
+                           placeholder="Client Name"
+                           style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: white;">
+                </div>
+
+                <div>
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px; text-transform: uppercase;">
+                        Account Type
+                    </label>
+                    <select name="ac_type"
+                            style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: white;">
+                        <option value="">Select Type...</option>
+                        <option value="Company" {% if record and record.ac_type == 'Company' %}selected{% endif %}>Company</option>
+                        <option value="Individual" {% if record and record.ac_type == 'Individual' %}selected{% endif %}>Individual</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -136,7 +148,7 @@
                     <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px; text-transform: uppercase;">
                         Transaction Currency
                     </label>
-                    <select name="transaction_currency" id="txnCurrency" onchange="calcAed()"
+                    <select name="transaction_currency"
                             style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: white;">
                         <option value="">Select...</option>
                         <option value="AED" {% if record and record.transaction_currency == 'AED' %}selected{% endif %}>AED</option>
@@ -148,9 +160,9 @@
 
                 <div>
                     <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px; text-transform: uppercase;">
-                        Amount (Transaction Currency)
+                        Amount USD
                     </label>
-                    <input type="number" name="usd_amount" id="txnAmount" step="0.01" oninput="calcAed()"
+                    <input type="number" name="usd_amount" step="0.01"
                            value="{{ record.usd_amount if record else '' }}"
                            placeholder="0.00"
                            style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: white;">
@@ -158,23 +170,12 @@
 
                 <div>
                     <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px; text-transform: uppercase;">
-                        Exchange Rate (→ AED)
+                        Amount AED
                     </label>
-                    <input type="number" name="exchange_rate" id="exchangeRate" step="0.0001" oninput="calcAed()"
-                           value="{{ record.exchange_rate if record else '' }}"
-                           placeholder="e.g. 3.6725"
-                           style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: white;">
-                    <div style="font-size:11px;color:#9ca3af;margin-top:4px;">AED auto-calculated. AED currency uses rate 1.</div>
-                </div>
-
-                <div>
-                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 13px; text-transform: uppercase;">
-                        Amount AED (Auto)
-                    </label>
-                    <input type="number" name="aed_amount" id="aedAmount" step="0.01"
+                    <input type="number" name="aed_amount" step="0.01"
                            value="{{ record.aed_amount if record else '' }}"
                            placeholder="0.00"
-                           style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: #f9fafb;">
+                           style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: white;">
                 </div>
 
                 <div>
@@ -302,45 +303,4 @@
         </div>
     </form>
 </div>
-
-<script>
-// Auto-calculate Period (reporting quarter) and Due Date (transaction + 15 days)
-function calcDates() {
-    const td = document.getElementById('transactionDate').value;
-    if (!td) return;
-    const d = new Date(td + 'T00:00:00');
-    if (isNaN(d)) return;
-    const q = Math.floor(d.getMonth() / 3) + 1;
-    document.getElementById('periodField').value = 'Q' + q + ' ' + d.getFullYear();
-    const due = new Date(d);
-    due.setDate(due.getDate() + 15);
-    document.getElementById('dueDate').value = due.toISOString().slice(0, 10);
-}
-
-// Company / Individual are mutually exclusive; Account Type follows the selection
-function onEntityChange(which) {
-    const co = document.getElementById('companySelect');
-    const ind = document.getElementById('individualSelect');
-    const acType = document.querySelector('[name="ac_type"]');
-    if (which === 'company' && co.value) { ind.value = ''; acType.value = 'Company'; }
-    else if (which === 'individual' && ind.value) { co.value = ''; acType.value = 'Individual'; }
-    else if (!co.value && !ind.value) { acType.value = ''; }
-}
-
-// Amount in AED = transaction amount × exchange rate (rate = 1 for AED)
-function calcAed() {
-    const cur = document.getElementById('txnCurrency').value;
-    const amt = parseFloat(document.getElementById('txnAmount').value);
-    const rateField = document.getElementById('exchangeRate');
-    let rate = parseFloat(rateField.value);
-    if (cur === 'AED') { rate = 1; rateField.value = 1; }
-    if (!isNaN(amt) && !isNaN(rate)) {
-        document.getElementById('aedAmount').value = (amt * rate).toFixed(2);
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    if (!document.getElementById('periodField').value) calcDates();
-});
-</script>
 {% endblock %}
