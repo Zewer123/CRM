@@ -155,18 +155,6 @@ def _run_migrations(conn):
     """Universal migrations that run for BOTH PostgreSQL and SQLite on every startup."""
     pg = is_pg(conn)
 
-    # Run all schema DDL in autocommit mode on PostgreSQL so that one failing
-    # statement can't abort the surrounding transaction and silently skip every
-    # following migration ("current transaction is aborted ..."). Each ALTER/
-    # CREATE then succeeds or fails independently.
-    prev_autocommit = None
-    if pg:
-        try:
-            prev_autocommit = conn.autocommit
-            conn.autocommit = True
-        except Exception:
-            prev_autocommit = None
-
     # New tables (use x() which handles both DB types correctly)
     new_tables = [
         "company_groups (id {pk}, group_name TEXT UNIQUE NOT NULL, description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
@@ -260,13 +248,6 @@ def _run_migrations(conn):
             if pg: conn.rollback()
     # Load any admin-edited scores over the in-memory defaults
     refresh_country_scores(conn)
-
-    # Restore the connection's previous transaction mode for normal request use.
-    if pg and prev_autocommit is not None:
-        try:
-            conn.autocommit = prev_autocommit
-        except Exception:
-            pass
 
 def _pg_schema(conn):
     stmts = [
