@@ -1,13 +1,55 @@
 {% extends "base.html" %}
 
-{% block title %}AML Tracker - Zewer CRM{% endblock %}
+{% block title %}DPMSR Report - Zewer CRM{% endblock %}
 
 {% block content %}
 <div style="max-width: 1400px; margin: 0 auto; padding: 20px;">
     <!-- Header -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #d97706;">
-        <h1 style="margin: 0; font-size: 28px; color: #1c1917;">📋 AML Tracker</h1>
-        <a href="{{ url_for('aml_tracker_add') }}" style="padding: 12px 24px; background: linear-gradient(135deg, #d97706 0%, #b45309 100%); color: white; border-radius: 6px; text-decoration: none; font-weight: 600;">+ New Record</a>
+        <h1 style="margin: 0; font-size: 28px; color: #1c1917;">📋 DPMSR Report</h1>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <a href="{{ url_for('aml_tracker_export') }}" style="padding: 10px 16px; background: #047857; color: white; border-radius: 6px; text-decoration: none; font-weight: 600;">⬇️ Export</a>
+            <button type="button" onclick="document.getElementById('amlImportModal').style.display='flex'" style="padding: 10px 16px; background: #1d4ed8; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">⬆️ Import</button>
+            <a href="{{ url_for('aml_tracker_add') }}" style="padding: 12px 24px; background: linear-gradient(135deg, #d97706 0%, #b45309 100%); color: white; border-radius: 6px; text-decoration: none; font-weight: 600;">+ New Record</a>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div id="amlImportModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:white; border-radius:10px; padding:28px; width:460px; max-width:92vw;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h2 style="margin:0; font-size:20px; color:#1c1917;">⬆️ Import DPMSR Records</h2>
+                <button type="button" onclick="document.getElementById('amlImportModal').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280;">×</button>
+            </div>
+            <p style="font-size:13px; color:#6b7280; margin:0 0 14px;">Upload a filled Excel file. Download the template first to see the required columns.</p>
+            <a href="{{ url_for('aml_tracker_import_template') }}" style="display:inline-block; margin-bottom:16px; padding:9px 14px; background:#f3f4f6; color:#1f2937; border:1px solid #d1d5db; border-radius:6px; text-decoration:none; font-weight:600; font-size:13px;">📄 Download Template</a>
+            <form method="POST" action="{{ url_for('aml_tracker_import') }}" enctype="multipart/form-data">
+                <input type="file" name="file" accept=".xlsx,.csv" required style="width:100%; padding:10px; border:1px dashed #9ca3af; border-radius:6px; margin-bottom:16px;">
+                <div style="display:flex; gap:10px; justify-content:flex-end;">
+                    <button type="button" onclick="document.getElementById('amlImportModal').style.display='none'" style="padding:10px 18px; background:#6b7280; color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer;">Cancel</button>
+                    <button type="submit" style="padding:10px 18px; background:#1d4ed8; color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer;">Import</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dashboard summary -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:20px;">
+        <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:16px;">
+            <div style="font-size:12px; font-weight:600; color:#9a3412; text-transform:uppercase;">Total Pending</div>
+            <div style="font-size:30px; font-weight:800; color:#c2410c; line-height:1.1; margin-top:4px;">{{ total_pending or 0 }}</div>
+            <div style="font-size:11px; color:#9a3412;">awaiting goAML submission</div>
+        </div>
+        <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:16px;">
+            <div style="font-size:12px; font-weight:600; color:#991b1b; text-transform:uppercase;">⚠️ Overdue</div>
+            <div style="font-size:30px; font-weight:800; color:#dc2626; line-height:1.1; margin-top:4px;">{{ overdue_count or 0 }}</div>
+            <div style="font-size:11px; color:#991b1b;">past due date, not submitted</div>
+        </div>
+        <div style="background:#fefce8; border:1px solid #fde68a; border-radius:10px; padding:16px;">
+            <div style="font-size:12px; font-weight:600; color:#854d0e; text-transform:uppercase;">Due in 7 Days</div>
+            <div style="font-size:30px; font-weight:800; color:#a16207; line-height:1.1; margin-top:4px;">{{ due_soon_count or 0 }}</div>
+            <div style="font-size:11px; color:#854d0e;">submit soon</div>
+        </div>
     </div>
 
     <!-- Filters -->
@@ -76,6 +118,7 @@
                         <th style="padding: 14px 12px; text-align: left; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Company</th>
                         <th style="padding: 14px 12px; text-align: left; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Transaction Date</th>
                         <th style="padding: 14px 12px; text-align: left; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Due Date</th>
+                        <th style="padding: 14px 12px; text-align: center; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Days Left</th>
                         <th style="padding: 14px 12px; text-align: right; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Amount (AED)</th>
                         <th style="padding: 14px 12px; text-align: left; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Status</th>
                         <th style="padding: 14px 12px; text-align: center; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Actions</th>
@@ -97,6 +140,21 @@
                             </td>
                             <td style="padding: 12px; color: #374151; font-size: 14px;">{{ record.transaction_date or '---' }}</td>
                             <td style="padding: 12px; color: #374151; font-size: 14px;">{{ record.due_date or '---' }}</td>
+                            <td style="padding: 12px; text-align: center; font-size: 13px; font-weight: 700;">
+                                {% if record.days_to_submit is not none %}
+                                    {% if record.days_to_submit < 0 %}
+                                        <span style="color:#dc2626;">Overdue {{ record.days_to_submit|abs }}d</span>
+                                    {% elif record.days_to_submit == 0 %}
+                                        <span style="color:#dc2626;">Due today</span>
+                                    {% elif record.days_to_submit <= 7 %}
+                                        <span style="color:#a16207;">{{ record.days_to_submit }}d left</span>
+                                    {% else %}
+                                        <span style="color:#16a34a;">{{ record.days_to_submit }}d left</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span style="color:#9ca3af;">—</span>
+                                {% endif %}
+                            </td>
                             <td style="padding: 12px; color: #d97706; font-weight: 700; text-align: right;">{{ "%.2f"|format(record.aed_amount or 0) }}</td>
                             <td style="padding: 12px;">
                                 <span style="display: inline-block; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: 700;
@@ -114,9 +172,15 @@
                                 ">{{ (record.goaml_status or 'pending').upper() }}</span>
                             </td>
                             <td style="padding: 12px; text-align: center;">
+                                {# Once submitted, only admin may edit or delete #}
+                                {% set locked = record.goaml_status and record.goaml_status != 'pending' and user_role != 'admin' %}
                                 <a href="{{ url_for('aml_tracker_edit', id=record.id) }}" style="display: inline-block; padding: 6px 12px; background: #3b82f6; color: white; border-radius: 4px; text-decoration: none; font-weight: 600; font-size: 12px; margin: 0 2px; cursor: pointer;">👁️ View</a>
+                                {% if locked %}
+                                <span title="Submitted — only an admin can edit or delete" style="display:inline-block; padding:6px 12px; background:#e5e7eb; color:#9ca3af; border-radius:4px; font-weight:600; font-size:12px; margin:0 2px;">🔒 Locked</span>
+                                {% else %}
                                 <a href="{{ url_for('aml_tracker_edit', id=record.id) }}" style="display: inline-block; padding: 6px 12px; background: #d97706; color: white; border-radius: 4px; text-decoration: none; font-weight: 600; font-size: 12px; margin: 0 2px; cursor: pointer;">✏️ Edit</a>
                                 <button onclick="deleteRecord({{ record.id }})" style="display: inline-block; padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 4px; text-decoration: none; font-weight: 600; font-size: 12px; margin: 0 2px; cursor: pointer;">🗑️ Delete</button>
+                                {% endif %}
                             </td>
                         </tr>
                     {% endfor %}

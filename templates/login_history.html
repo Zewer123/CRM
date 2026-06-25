@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Login History - Zewer CRM{% endblock %}
+
+{% block content %}
+<div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #d97706;">
+        <div>
+            <h1 style="margin: 0; font-size: 26px; color: var(--text);">🔐 Login History</h1>
+            <div style="font-size: 13px; color: var(--text-dim); margin-top: 4px;">Monitor sign-in attempts to spot suspicious activity</div>
+        </div>
+        <a href="{{ url_for('settings') }}" class="btn btn-ghost">← Settings</a>
+    </div>
+
+    {% if failed_24h and failed_24h > 0 %}
+    <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.4); color: #b91c1c; padding: 12px 16px; border-radius: 8px; margin-bottom: 18px; font-size: 14px;">
+        ⚠️ <strong>{{ failed_24h }}</strong> failed login attempt{{ 's' if failed_24h != 1 else '' }} in the last 24 hours.
+    </div>
+    {% endif %}
+
+    <div style="display:flex; gap:8px; margin-bottom: 16px;">
+        <a href="{{ url_for('login_history') }}" class="btn {% if not show %}btn-primary{% else %}btn-ghost{% endif %} btn-sm">All</a>
+        <a href="{{ url_for('login_history', show='failed') }}" class="btn {% if show=='failed' %}btn-primary{% else %}btn-ghost{% endif %} btn-sm">Failed only</a>
+        <a href="{{ url_for('login_history', show='success') }}" class="btn {% if show=='success' %}btn-primary{% else %}btn-ghost{% endif %} btn-sm">Successful only</a>
+    </div>
+
+    <div class="card" style="padding:0; overflow:hidden;">
+        <div class="table-wrap">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="background: var(--surface2);">
+                        <th style="padding:12px; text-align:left; font-size:12px; text-transform:uppercase; color:var(--text-dim);">Time</th>
+                        <th style="padding:12px; text-align:left; font-size:12px; text-transform:uppercase; color:var(--text-dim);">User / Login</th>
+                        <th style="padding:12px; text-align:left; font-size:12px; text-transform:uppercase; color:var(--text-dim);">Result</th>
+                        <th style="padding:12px; text-align:left; font-size:12px; text-transform:uppercase; color:var(--text-dim);">IP Address</th>
+                        <th style="padding:12px; text-align:left; font-size:12px; text-transform:uppercase; color:var(--text-dim);">Device / Browser</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rows %}
+                    <tr style="border-top:1px solid var(--border);">
+                        <td style="padding:11px 12px; font-size:13px; color:var(--text); white-space:nowrap;">{{ r.created_at }}</td>
+                        <td style="padding:11px 12px; font-size:13px; color:var(--text);">
+                            {{ r.user_name or r.username or '—' }}
+                            {% if r.user_name and r.username %}<div style="font-size:11px; color:var(--text-dim);">{{ r.username }}</div>{% endif %}
+                        </td>
+                        <td style="padding:11px 12px;">
+                            {% if r.success %}
+                            <span style="font-size:12px; padding:2px 10px; border-radius:20px; background:rgba(34,197,94,0.12); color:#16a34a; font-weight:600;">✓ Success</span>
+                            {% else %}
+                            <span style="font-size:12px; padding:2px 10px; border-radius:20px; background:rgba(239,68,68,0.12); color:#dc2626; font-weight:600;">✗ Failed</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding:11px 12px; font-size:13px; color:var(--text-muted); font-family:monospace;">{{ r.ip_address or '—' }}</td>
+                        <td style="padding:11px 12px; font-size:11px; color:var(--text-dim); max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ r.user_agent or '—' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" style="padding:24px; text-align:center; color:var(--text-dim);">No login history yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -437,6 +437,14 @@
               </select>
             </div>
             <div class="form-group">
+              <label>PEP Status</label>
+              <select name="ubo_pep_status[]">
+                <option value="" {% if not u.pep_status %}selected{% endif %}>-- Select --</option>
+                <option value="Yes" {% if u.pep_status == 'Yes' %}selected{% endif %}>Yes</option>
+                <option value="No" {% if u.pep_status == 'No' %}selected{% endif %}>No</option>
+              </select>
+            </div>
+            <div class="form-group">
               <label>Passport No</label>
               <input type="text" name="ubo_passport[]" value="{{ u.passport_no or '' }}">
             </div>
@@ -445,11 +453,11 @@
               <input type="date" name="ubo_passport_expiry[]" value="{{ u.passport_expiry or '' }}" onclick="this.showPicker()">
             </div>
             <div class="form-group">
-              <label>Emirates ID</label>
+              <label>Emirates ID <small style="color:#9ca3af;">(residents only)</small></label>
               <input type="text" name="ubo_eid[]" value="{{ u.emirates_id or '' }}" placeholder="784-XXXX-XXXXXXX-X">
             </div>
             <div class="form-group">
-              <label>ID Expiry</label>
+              <label>Emirates ID Expiry</label>
               <input type="date" name="ubo_eid_expiry[]" value="{{ u.emirates_id_expiry or '' }}" onclick="this.showPicker()">
             </div>
             <div class="form-group">
@@ -527,6 +535,14 @@
         </select>
       </div>
       <div class="form-group">
+        <label>PEP Status</label>
+        <select name="ubo_pep_status[]">
+          <option value="">-- Select --</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label>ID Type</label>
         <select name="ubo_id_type[]" onchange="toggleIdField(this)">
           <option value="">-- Select --</option>
@@ -550,11 +566,11 @@
         <input type="date" name="ubo_passport_expiry[]" onclick="this.showPicker()">
       </div>
       <div class="form-group">
-        <label>Emirates ID</label>
+        <label>Emirates ID <small style="color:#9ca3af;">(residents only)</small></label>
         <input type="text" name="ubo_eid[]" placeholder="784-XXXX-XXXXXXX-X">
       </div>
       <div class="form-group">
-        <label>ID Expiry</label>
+        <label>Emirates ID Expiry</label>
         <input type="date" name="ubo_eid_expiry[]" onclick="this.showPicker()">
       </div>
       <div class="form-group">
@@ -757,6 +773,7 @@ function submitForm() {
     share_percentage: form.querySelectorAll('[name="ubo_share[]"]')[i]?.value || null,
     nationality: form.querySelectorAll('[name="ubo_nationality[]"]')[i]?.value || '',
     residential_status: form.querySelectorAll('[name="ubo_residential[]"]')[i]?.value || '',
+    pep_status: form.querySelectorAll('[name="ubo_pep_status[]"]')[i]?.value || '',
     passport_no: form.querySelectorAll('[name="ubo_passport[]"]')[i]?.value || '',
     passport_expiry: form.querySelectorAll('[name="ubo_passport_expiry[]"]')[i]?.value || '',
     emirates_id: form.querySelectorAll('[name="ubo_eid[]"]')[i]?.value || '',

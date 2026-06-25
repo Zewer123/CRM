@@ -34,6 +34,23 @@ RISK_LOOKUPS = {
     'yes_no': {'Yes':3,'No':1},
 }
 
+def refresh_country_scores(conn=None):
+    """Merge admin-edited country scores (DB) over the built-in defaults."""
+    close = False
+    try:
+        if conn is None:
+            conn = get_db(); close = True
+        rows = all_(conn, "SELECT country, score FROM risk_country_scores")
+        if rows:
+            for r in rows:
+                RISK_LOOKUPS['countries'][r['country']] = int(r['score'])
+    except Exception as e:
+        logger.warning(f'Could not load country scores: {e}')
+    finally:
+        if close and conn:
+            try: conn.close()
+            except: pass
+
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'zewer-aml-secret-2026')
 
@@ -47,6 +64,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger('zewer_crm')
 
 DATABASE_URL = os.getenv('DATABASE_URL', '')
+
+# Local SQLite location (used only when DATABASE_URL is not set, i.e. local installs).
+# Defaults to a 'data' folder beside this file so the DB ships and backs up with the app.
+# Override with the SQLITE_PATH environment variable if you want it on another drive.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SQLITE_PATH = os.getenv('SQLITE_PATH', os.path.join(BASE_DIR, 'data', 'aml_crm.db'))
 
 @app.context_processor
 def inject_user():
@@ -71,7 +94,8 @@ def get_db():
             print("psycopg2 not installed, using SQLite")
         except Exception as e:
             print(f"PG failed: {e}, using SQLite")
-    c = sqlite3.connect('/tmp/aml_crm.db')
+    os.makedirs(os.path.dirname(SQLITE_PATH) or '.', exist_ok=True)
+    c = sqlite3.connect(SQLITE_PATH)
     c.row_factory = sqlite3.Row
     c.execute('PRAGMA foreign_keys = ON')
     return c
@@ -144,6 +168,8 @@ def _run_migrations(conn):
         "aml_tracker (id {pk}, company_id INTEGER, individual_id INTEGER, transaction_date DATE NOT NULL, period TEXT, due_date DATE, vc_no TEXT, payment_mode TEXT, ac_type TEXT, client_name TEXT, transaction_currency TEXT, usd_amount NUMERIC, aed_amount NUMERIC, payment_remarks TEXT, invoice_no TEXT, invoice_amount NUMERIC, invoice_currency TEXT, goaml_submission_date DATE, goaml_status TEXT DEFAULT 'pending', goaml_ref_no TEXT, submitted_by INTEGER NOT NULL, checked_by INTEGER, comment TEXT, verified_ledger BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "company_risk_assessments (id {pk}, company_id INTEGER NOT NULL, jurisdiction_score NUMERIC, ownership_score NUMERIC, delivery_channel_score NUMERIC, payment_method_score NUMERIC, transaction_volume_score NUMERIC, product_score NUMERIC, pep_status_score NUMERIC, nationality_score NUMERIC, years_relationship_score NUMERIC, years_operation_score NUMERIC, third_party_score NUMERIC, sanctions_score NUMERIC, final_score NUMERIC, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "individual_risk_assessments (id {pk}, individual_id INTEGER NOT NULL, nationality_score NUMERIC, residence_status_score NUMERIC, pep_status_score NUMERIC, profession_score NUMERIC, product_score NUMERIC, delivery_channel_score NUMERIC, payment_method_score NUMERIC, transaction_amount_score NUMERIC, years_relationship_score NUMERIC, place_of_birth_score NUMERIC, third_party_score NUMERIC, sanctions_score NUMERIC, final_score NUMERIC, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "risk_country_scores (country TEXT PRIMARY KEY, score INTEGER NOT NULL DEFAULT 2, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "login_history (id {pk}, user_id INTEGER, username TEXT, success BOOLEAN DEFAULT FALSE, ip_address TEXT, user_agent TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
     ]
     pk = "SERIAL PRIMARY KEY" if pg else "INTEGER PRIMARY KEY AUTOINCREMENT"
     for t in new_tables:
@@ -186,6 +212,15 @@ def _run_migrations(conn):
     for col in ['nationality','passport_no','passport_expiry','emirates_id','emirates_id_expiry','address_proof','emirate','location','account_number','mode_of_ac','ac_status','id_type','pep_status','kyc_status','kyc_expiry_date','risk_status','screening_status','screening_date','is_resident']:
         coltype = 'DATE' if ('expiry' in col or col == 'screening_date') else ('BOOLEAN DEFAULT FALSE' if col == 'is_resident' else 'TEXT')
         safe_alter('clients', col, coltype)
+    # Disable (out-of-scope) flag for companies & individuals
+    safe_alter('companies', 'disabled', 'BOOLEAN DEFAULT FALSE')
+    safe_alter('clients', 'disabled', 'BOOLEAN DEFAULT FALSE')
+    # New PEP determination field (Yes/No) on individuals — separate from pep_status declaration
+    safe_alter('clients', 'pep', 'TEXT')
+    # PEP status on UBOs / authorized persons
+    safe_alter('ubos', 'pep_status', 'TEXT')
+    # Exchange rate (to AED) for AML tracker transactions
+    safe_alter('aml_tracker', 'exchange_rate', 'NUMERIC')
     # Force-insert new dropdown values on existing DBs
     new_dd = [
         ('ID TYPE','National ID'),('ID TYPE','Passport'),('ID TYPE','Emirates ID'),('ID TYPE','Visa No'),('ID TYPE','Other'),
@@ -200,6 +235,19 @@ def _run_migrations(conn):
             else:
                 conn.execute("INSERT OR IGNORE INTO dropdowns (field_name,value,is_active) VALUES (?,?,1)", (field, val))
         except: pass
+
+    # Seed editable country risk scores from the built-in defaults (first run only)
+    for country, score in RISK_LOOKUPS.get('countries', {}).items():
+        try:
+            if use_pg():
+                x(conn, "INSERT INTO risk_country_scores (country,score) VALUES (%s,%s) ON CONFLICT (country) DO NOTHING", (country, score))
+                commit(conn)
+            else:
+                conn.execute("INSERT OR IGNORE INTO risk_country_scores (country,score) VALUES (?,?)", (country, score))
+        except Exception:
+            if pg: conn.rollback()
+    # Load any admin-edited scores over the in-memory defaults
+    refresh_country_scores(conn)
 
 def _pg_schema(conn):
     stmts = [
@@ -485,6 +533,19 @@ def compliance_required(f):
 @app.route('/')
 def index(): return redirect(url_for('dashboard') if 'user_id' in session else url_for('login'))
 
+def _log_login(conn, user_id, username, success):
+    """Record a login attempt for the suspicious-login audit trail."""
+    try:
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr or '')
+        if ip and ',' in ip:
+            ip = ip.split(',')[0].strip()
+        ua = (request.headers.get('User-Agent', '') or '')[:300]
+        x(conn, '''INSERT INTO login_history (user_id, username, success, ip_address, user_agent)
+                   VALUES (?,?,?,?,?)''', (user_id, username, success, ip, ua))
+        commit(conn)
+    except Exception as e:
+        logger.warning(f'Could not record login attempt: {e}')
+
 @app.route('/login', methods=['GET','POST'])
 def login():
     if request.method=='POST':
@@ -492,13 +553,16 @@ def login():
         conn=get_db()
         login_id = d.get('username') or d.get('email','')
         u=one(conn,'SELECT * FROM users WHERE username=? OR email=?',(login_id,login_id))
-        conn.close()
         if u and check_password_hash(u['password_hash'],d.get('password','')) and u['is_active']:
             session.permanent = True  # enables PERMANENT_SESSION_LIFETIME timeout
             session.update(user_id=u['id'],user_email=u['email'],user_name=u['name'],user_role=u['role'],user_permissions=(u.get('permissions') or ''))
             logger.info(f"Login: {u['email']} (role={u['role']})")
+            _log_login(conn, u['id'], u.get('username') or u['email'], True)
+            conn.close()
             return jsonify({'success':True})
         logger.warning(f"Failed login attempt for: {login_id}")
+        _log_login(conn, u['id'] if u else None, login_id, False)
+        conn.close()
         return jsonify({'success':False,'error':'Invalid credentials'}),401
     return render_template('login.html')
 
@@ -534,28 +598,31 @@ def dashboard():
 
     conn=get_db(); today=dubai_today()
     def c(sql,p=None): return cnt(conn,sql,p or [])
-    total=c('SELECT COUNT(*) FROM companies')
-    active=c('SELECT COUNT(*) FROM companies WHERE ac_status=?',('Active',))
-    total_clients=c('SELECT COUNT(*) FROM clients')
-    pep_count=(c("SELECT COUNT(*) FROM companies WHERE pep='Yes'") +
-               c("SELECT COUNT(*) FROM clients WHERE pep_status='Yes'"))
-    etl=c('SELECT COUNT(*) FROM companies WHERE trade_license_expiry<?',(today,))
-    e30tl=c('SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ?',(today,today+timedelta(days=30)))
-    eap=c('SELECT COUNT(*) FROM companies WHERE address_proof_expiry<?',(today,))
-    e30ap=c('SELECT COUNT(*) FROM companies WHERE address_proof_expiry BETWEEN ? AND ?',(today,today+timedelta(days=30)))
-    epass=c('SELECT COUNT(*) FROM ubos WHERE passport_expiry<?',(today,))
-    e30p=c('SELECT COUNT(*) FROM ubos WHERE passport_expiry BETWEEN ? AND ?',(today,today+timedelta(days=30)))
-    eid_exp=c('SELECT COUNT(*) FROM ubos WHERE emirates_id_expiry<?',(today,))
-    risk_rows=all_(conn,'SELECT risk_status,COUNT(*) as c FROM companies GROUP BY risk_status')
+    # Disabled (out-of-scope) records are excluded from all dashboard figures.
+    ND = ' AND disabled IS NOT TRUE'           # for companies / clients
+    NDU = ' AND company_id NOT IN (SELECT id FROM companies WHERE disabled IS TRUE)'  # for ubos
+    total=c('SELECT COUNT(*) FROM companies WHERE 1=1'+ND)
+    active=c('SELECT COUNT(*) FROM companies WHERE ac_status=?'+ND,('Active',))
+    total_clients=c('SELECT COUNT(*) FROM clients WHERE 1=1'+ND)
+    pep_count=(c("SELECT COUNT(*) FROM companies WHERE pep='Yes'"+ND) +
+               c("SELECT COUNT(*) FROM clients WHERE pep_status='Yes'"+ND))
+    etl=c('SELECT COUNT(*) FROM companies WHERE trade_license_expiry<?'+ND,(today,))
+    e30tl=c('SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ?'+ND,(today,today+timedelta(days=30)))
+    eap=c('SELECT COUNT(*) FROM companies WHERE address_proof_expiry<?'+ND,(today,))
+    e30ap=c('SELECT COUNT(*) FROM companies WHERE address_proof_expiry BETWEEN ? AND ?'+ND,(today,today+timedelta(days=30)))
+    epass=c('SELECT COUNT(*) FROM ubos WHERE passport_expiry<?'+NDU,(today,))
+    e30p=c('SELECT COUNT(*) FROM ubos WHERE passport_expiry BETWEEN ? AND ?'+NDU,(today,today+timedelta(days=30)))
+    eid_exp=c('SELECT COUNT(*) FROM ubos WHERE emirates_id_expiry<?'+NDU,(today,))
+    risk_rows=all_(conn,'SELECT risk_status,COUNT(*) as c FROM companies WHERE 1=1'+ND+' GROUP BY risk_status')
     risk_bd={r['risk_status']:r['c'] for r in risk_rows}
-    doc_rows=all_(conn,'SELECT doc_status,COUNT(*) as c FROM companies GROUP BY doc_status')
+    doc_rows=all_(conn,'SELECT doc_status,COUNT(*) as c FROM companies WHERE 1=1'+ND+' GROUP BY doc_status')
     doc_bd={r['doc_status']:r['c'] for r in doc_rows}
     # Count ALL expiring documents (TL + AP + Passport + EID) by window
     def doc_count(days):
-        t1 = cnt(conn,'SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ?',(today,today+timedelta(days=days)))
-        t2 = cnt(conn,'SELECT COUNT(*) FROM companies WHERE address_proof_expiry BETWEEN ? AND ?',(today,today+timedelta(days=days)))
-        t3 = cnt(conn,'SELECT COUNT(*) FROM ubos WHERE passport_expiry BETWEEN ? AND ?',(today,today+timedelta(days=days)))
-        t4 = cnt(conn,'SELECT COUNT(*) FROM ubos WHERE emirates_id_expiry BETWEEN ? AND ?',(today,today+timedelta(days=days)))
+        t1 = cnt(conn,'SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ?'+ND,(today,today+timedelta(days=days)))
+        t2 = cnt(conn,'SELECT COUNT(*) FROM companies WHERE address_proof_expiry BETWEEN ? AND ?'+ND,(today,today+timedelta(days=days)))
+        t3 = cnt(conn,'SELECT COUNT(*) FROM ubos WHERE passport_expiry BETWEEN ? AND ?'+NDU,(today,today+timedelta(days=days)))
+        t4 = cnt(conn,'SELECT COUNT(*) FROM ubos WHERE emirates_id_expiry BETWEEN ? AND ?'+NDU,(today,today+timedelta(days=days)))
         return t1 + t2 + t3 + t4
     exp_30 = doc_count(30)
     exp_60 = doc_count(60)
@@ -583,7 +650,7 @@ def dashboard():
     # Upcoming client birthdays (next 30 days)
     upcoming_birthdays = []
     try:
-        all_clients = all_(conn, "SELECT id,name,whatsapp_number,phone,date_of_birth FROM clients WHERE date_of_birth IS NOT NULL")
+        all_clients = all_(conn, "SELECT id,name,whatsapp_number,phone,date_of_birth FROM clients WHERE date_of_birth IS NOT NULL AND disabled IS NOT TRUE")
         for cl in all_clients:
             dob = cl.get('date_of_birth')
             if not dob: continue
@@ -608,9 +675,9 @@ def dashboard():
     # Client KYC expiry alerts (expired or expiring within 90 days)
     kyc_alerts = []
     try:
-        kyc_clients = all_(conn, "SELECT id,name,kyc_expiry_date,kyc_status FROM clients WHERE kyc_expiry_date IS NOT NULL")
+        kyc_clients = all_(conn, "SELECT id,name,kyc_expiry_date,kyc_status FROM clients WHERE kyc_expiry_date IS NOT NULL AND disabled IS NOT TRUE")
         # Also add companies with expiring KYC
-        kyc_cos = all_(conn, "SELECT id,client_name as name,kyc_expiry_date,kyc_status FROM companies WHERE kyc_expiry_date IS NOT NULL")
+        kyc_cos = all_(conn, "SELECT id,client_name as name,kyc_expiry_date,kyc_status FROM companies WHERE kyc_expiry_date IS NOT NULL AND disabled IS NOT TRUE")
         for cl in kyc_clients:
             ke = cl.get('kyc_expiry_date')
             if not ke: continue
@@ -653,7 +720,16 @@ def companies():
     if s:
         q+=' AND (client_name LIKE ? OR ac_code LIKE ? OR mobile LIKE ? OR trade_license_no LIKE ?)'
         p+=[f'%{s}%']*4
-    if sf: q+=' AND ac_status=?'; p.append(sf)
+    # Status filter: Active/Inactive use ac_status; Disabled uses the out-of-scope flag.
+    # Disabled records are hidden by default unless explicitly requested (or status='all').
+    if sf == 'Disabled':
+        q+=' AND disabled IS TRUE'
+    elif sf == 'all':
+        pass  # show everything incl. disabled
+    elif sf in ('Active','Inactive'):
+        q+=' AND ac_status=? AND disabled IS NOT TRUE'; p.append(sf)
+    else:
+        q+=' AND disabled IS NOT TRUE'
     if rgf: q+=' AND region=?'; p.append(rgf)
     if modf: q+=' AND mode_of_ac=?'; p.append(modf)
     if grpf: q+=' AND group_name=?'; p.append(grpf)
@@ -740,10 +816,10 @@ def _save_ubos(conn,cid,ubos):
     for u in ubos:
         if not u.get('person_name'): continue
         x(conn,'''INSERT INTO ubos (company_id,position,share_percentage,person_name,nationality,
-            residential_status,passport_no,passport_expiry,emirates_id,emirates_id_expiry,
-            doc_status,verified_by,verified_date,followup_details) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            residential_status,pep_status,passport_no,passport_expiry,emirates_id,emirates_id_expiry,
+            doc_status,verified_by,verified_date,followup_details) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
             (cid,u.get('position'),u.get('share_percentage') or None,u.get('person_name'),
-             u.get('nationality'),u.get('residential_status'),u.get('passport_no'),
+             u.get('nationality'),u.get('residential_status'),u.get('pep_status'),u.get('passport_no'),
              u.get('passport_expiry') or None,u.get('emirates_id'),u.get('emirates_id_expiry') or None,
              u.get('doc_status','Incompleted'),u.get('verified_by'),u.get('verified_date') or None,u.get('followup_details')))
 
@@ -809,6 +885,36 @@ def api_delete_company(id):
         logger.error(f'Error in %s: {e}', request.path)
         return jsonify({'success':False,'error':str(e)}),500
 
+@app.route('/api/company/<int:id>/toggle-disable', methods=['POST'])
+@compliance_required
+def api_toggle_disable_company(id):
+    """Mark a company as disabled (out of scope) or re-enable it."""
+    try:
+        conn=get_db()
+        co=one(conn,'SELECT disabled FROM companies WHERE id=?',(id,))
+        new_val = not bool(co and co.get('disabled'))
+        x(conn,'UPDATE companies SET disabled=? WHERE id=?',(new_val,id))
+        commit(conn); conn.close()
+        return jsonify({'success':True,'disabled':new_val})
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
+
+@app.route('/api/client/<int:id>/toggle-disable', methods=['POST'])
+@compliance_required
+def api_toggle_disable_client(id):
+    """Mark an individual as disabled (out of scope) or re-enable it."""
+    try:
+        conn=get_db()
+        cl=one(conn,'SELECT disabled FROM clients WHERE id=?',(id,))
+        new_val = not bool(cl and cl.get('disabled'))
+        x(conn,'UPDATE clients SET disabled=? WHERE id=?',(new_val,id))
+        commit(conn); conn.close()
+        return jsonify({'success':True,'disabled':new_val})
+    except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
+        return jsonify({'success':False,'error':str(e)}),500
+
 @app.route('/alerts')
 @compliance_required
 def alerts():
@@ -816,9 +922,12 @@ def alerts():
     # Build unified alert list from all document types
     all_alerts = []
 
+    def _co_status(r):
+        return 'Disabled' if r.get('disabled') else (r.get('ac_status') or 'Active')
+
     # Trade licenses
     tl_rows = all_(conn,'''SELECT id,ac_code,client_name,mobile,whatsapp_number,
-        trade_license_expiry,risk_status,region,account_manager,
+        trade_license_expiry,risk_status,region,account_manager,ac_status,disabled,
         contact_person_name,contact_person_number
         FROM companies WHERE trade_license_expiry IS NOT NULL ORDER BY trade_license_expiry''')
     for r in tl_rows:
@@ -827,6 +936,7 @@ def alerts():
         all_alerts.append({'company_id':r['id'],'ac_code':r['ac_code'],
             'client_name':r['client_name'],'mobile':r['mobile'],
             'whatsapp_number':r['whatsapp_number'],'account_manager':r.get('account_manager'),
+            'status':_co_status(r),'region':r.get('region'),'risk_status':r.get('risk_status'),
             'contact_person_name':r.get('contact_person_name'),
             'contact_person_number':r.get('contact_person_number'),
             'doc_type':'Trade License','doc_subtype':None,
@@ -834,7 +944,7 @@ def alerts():
 
     # Address proofs
     ap_rows = all_(conn,'''SELECT id,ac_code,client_name,mobile,whatsapp_number,
-        address_proof_expiry,address_proof_type,account_manager,
+        address_proof_expiry,address_proof_type,account_manager,ac_status,disabled,region,risk_status,
         contact_person_name,contact_person_number
         FROM companies WHERE address_proof_expiry IS NOT NULL ORDER BY address_proof_expiry''')
     for r in ap_rows:
@@ -843,6 +953,7 @@ def alerts():
         all_alerts.append({'company_id':r['id'],'ac_code':r['ac_code'],
             'client_name':r['client_name'],'mobile':r['mobile'],
             'whatsapp_number':r['whatsapp_number'],'account_manager':r.get('account_manager'),
+            'status':_co_status(r),'region':r.get('region'),'risk_status':r.get('risk_status'),
             'contact_person_name':r.get('contact_person_name'),
             'contact_person_number':r.get('contact_person_number'),
             'doc_type':'Address Proof','doc_subtype':r.get('address_proof_type'),
@@ -852,7 +963,8 @@ def alerts():
     ubo_rows = all_(conn,'''SELECT u.person_name,u.passport_no,u.passport_expiry,
         u.emirates_id,u.emirates_id_expiry,
         c.id as company_id,c.client_name,c.ac_code,c.mobile,c.whatsapp_number,
-        c.account_manager,c.contact_person_name,c.contact_person_number
+        c.account_manager,c.ac_status,c.disabled,c.region,c.risk_status,
+        c.contact_person_name,c.contact_person_number
         FROM ubos u JOIN companies c ON u.company_id=c.id
         WHERE u.passport_expiry IS NOT NULL OR u.emirates_id_expiry IS NOT NULL''')
     for r in ubo_rows:
@@ -862,6 +974,7 @@ def alerts():
                 all_alerts.append({'company_id':r['company_id'],'ac_code':r['ac_code'],
                     'client_name':r['client_name'],'mobile':r['mobile'],
                     'whatsapp_number':r['whatsapp_number'],'account_manager':r.get('account_manager'),
+                    'status':_co_status(r),'region':r.get('region'),'risk_status':r.get('risk_status'),
                     'contact_person_name':r['person_name'],'contact_person_number':None,
                     'doc_type':'Passport','doc_subtype':r.get('passport_no'),
                     'expiry_date':str(r['passport_expiry'])[:10],'days':d})
@@ -871,50 +984,56 @@ def alerts():
                 all_alerts.append({'company_id':r['company_id'],'ac_code':r['ac_code'],
                     'client_name':r['client_name'],'mobile':r['mobile'],
                     'whatsapp_number':r['whatsapp_number'],'account_manager':r.get('account_manager'),
+                    'status':_co_status(r),'region':r.get('region'),'risk_status':r.get('risk_status'),
                     'contact_person_name':r['person_name'],'contact_person_number':None,
                     'doc_type':'Emirates ID','doc_subtype':r.get('emirates_id'),
                     'expiry_date':str(r['emirates_id_expiry'])[:10],'days':d})
 
     # Clients (Individuals) documents
     client_rows = all_(conn,'''SELECT id,name,phone,whatsapp_number,
-        passport_expiry,emirates_id_expiry,account_number
+        passport_expiry,emirates_id_expiry,account_number,ac_status,disabled,risk_status
         FROM clients WHERE passport_expiry IS NOT NULL OR emirates_id_expiry IS NOT NULL''')
     for r in client_rows:
+        st = 'Disabled' if r.get('disabled') else (r.get('ac_status') or 'Active')
         if r.get('passport_expiry'):
             d = days_left(r['passport_expiry'])
             if d is not None:
-                all_alerts.append({'company_id':None,'ac_code':r.get('account_number','N/A'),
+                all_alerts.append({'company_id':None,'client_id':r['id'],'ac_code':r.get('account_number','N/A'),
                     'client_name':r['name'],'mobile':r.get('phone'),'whatsapp_number':r.get('whatsapp_number'),
-                    'account_manager':None,'contact_person_name':r['name'],'contact_person_number':r.get('phone'),
+                    'account_manager':None,'status':st,'region':None,'risk_status':r.get('risk_status'),
+                    'contact_person_name':r['name'],'contact_person_number':r.get('phone'),
                     'doc_type':'Passport (Individual)','doc_subtype':None,
                     'expiry_date':str(r['passport_expiry'])[:10],'days':d})
         if r.get('emirates_id_expiry'):
             d = days_left(r['emirates_id_expiry'])
             if d is not None:
-                all_alerts.append({'company_id':None,'ac_code':r.get('account_number','N/A'),
+                all_alerts.append({'company_id':None,'client_id':r['id'],'ac_code':r.get('account_number','N/A'),
                     'client_name':r['name'],'mobile':r.get('phone'),'whatsapp_number':r.get('whatsapp_number'),
-                    'account_manager':None,'contact_person_name':r['name'],'contact_person_number':r.get('phone'),
+                    'account_manager':None,'status':st,'region':None,'risk_status':r.get('risk_status'),
+                    'contact_person_name':r['name'],'contact_person_number':r.get('phone'),
                     'doc_type':'Emirates ID (Individual)','doc_subtype':None,
                     'expiry_date':str(r['emirates_id_expiry'])[:10],'days':d})
 
     # Sort by days (most urgent first)
     all_alerts.sort(key=lambda x: x['days'])
 
-    # Get unique managers for filter
-    managers = sorted(set(a['account_manager'] for a in all_alerts if a.get('account_manager')))
-    
+    # Distinct values for the advanced filter
+    doc_types = sorted(set(a['doc_type'] for a in all_alerts))
+    regions = sorted(set(a['region'] for a in all_alerts if a.get('region')))
+
     # Get users for task assignment
     all_users = all_(conn,'SELECT id,name,role FROM users WHERE is_active=1 ORDER BY name')
-    
+
     conn.close()
-    return render_template('alerts.html', all_alerts=all_alerts, managers=managers,
+    return render_template('alerts.html', all_alerts=all_alerts,
+        doc_types=doc_types, regions=regions,
         all_users=all_users, today=str(today))
 
 @app.route('/health-check')
 @compliance_required
 def health_check():
     conn = get_db()
-    companies = all_(conn, 'SELECT id, ac_code, client_name FROM companies ORDER BY client_name')
+    companies = all_(conn, 'SELECT id, ac_code, client_name FROM companies WHERE disabled IS NOT TRUE ORDER BY client_name')
     conn.close()
     return render_template('health_check.html', companies=companies)
 
@@ -1070,6 +1189,46 @@ def calculate_risk_score(scores):
     else:
         return round(avg, 2), 'High'
 
+def _risk_factors(assessment, atype):
+    """Return [{label, score, level}] for the factors relevant to the assessment type,
+    plus a calculation summary so the print can show how the score was derived."""
+    company_factors = [
+        ('Jurisdiction', 'jurisdiction_score'), ('Ownership', 'ownership_score'),
+        ('Delivery Channel', 'delivery_channel_score'), ('Payment Method', 'payment_method_score'),
+        ('Transaction Volume', 'transaction_volume_score'), ('Product', 'product_score'),
+        ('PEP Status', 'pep_status_score'), ('Nationality', 'nationality_score'),
+        ('Years of Relationship', 'years_relationship_score'), ('Years of Operation', 'years_operation_score'),
+        ('Third-Party Involvement', 'third_party_score'), ('Sanctions', 'sanctions_score'),
+    ]
+    individual_factors = [
+        ('Nationality', 'nationality_score'), ('Residence Status', 'residence_status_score'),
+        ('PEP Status', 'pep_status_score'), ('Profession', 'profession_score'),
+        ('Product', 'product_score'), ('Delivery Channel', 'delivery_channel_score'),
+        ('Payment Method', 'payment_method_score'), ('Transaction Amount', 'transaction_amount_score'),
+        ('Years of Relationship', 'years_relationship_score'), ('Place of Birth', 'place_of_birth_score'),
+        ('Third-Party Involvement', 'third_party_score'), ('Sanctions', 'sanctions_score'),
+    ]
+    src = individual_factors if atype == 'individual' else company_factors
+    factors, considered = [], []
+    for label, key in src:
+        sc = assessment.get(key)
+        if sc is None:
+            continue
+        try:
+            scf = float(sc)
+        except (TypeError, ValueError):
+            continue
+        level = 'Low' if scf <= 1 else ('Medium' if scf <= 2 else 'High')
+        factors.append({'label': label, 'score': scf, 'level': level})
+        if scf > 0:
+            considered.append(scf)
+    calc = {
+        'count': len(considered),
+        'total': round(sum(considered), 2),
+        'average': round(sum(considered) / len(considered), 2) if considered else 0,
+    }
+    return factors, calc
+
 @app.route('/api/risk-lookup', methods=['POST'])
 @compliance_required
 def api_risk_lookup():
@@ -1141,12 +1300,12 @@ def risk_assessment_list():
                    ca.assessment_date,
                    CASE WHEN ca.id IS NOT NULL THEN 'done' ELSE 'pending' END as status
             FROM companies c
-            LEFT JOIN LATERAL (
-                SELECT id, final_score, risk_rating, assessment_date
-                FROM company_risk_assessments 
+            LEFT JOIN company_risk_assessments ca ON ca.id = (
+                SELECT id FROM company_risk_assessments
                 WHERE company_id = c.id
-                ORDER BY assessment_date DESC LIMIT 1
-            ) ca ON true
+                ORDER BY assessment_date DESC, id DESC LIMIT 1
+            )
+            WHERE c.disabled IS NOT TRUE
             ORDER BY c.client_name
         """) or []
         
@@ -1158,12 +1317,12 @@ def risk_assessment_list():
                    ia.assessment_date,
                    CASE WHEN ia.id IS NOT NULL THEN 'done' ELSE 'pending' END as status
             FROM clients cl
-            LEFT JOIN LATERAL (
-                SELECT id, final_score, risk_rating, assessment_date
-                FROM individual_risk_assessments 
+            LEFT JOIN individual_risk_assessments ia ON ia.id = (
+                SELECT id FROM individual_risk_assessments
                 WHERE individual_id = cl.id
-                ORDER BY assessment_date DESC LIMIT 1
-            ) ia ON true
+                ORDER BY assessment_date DESC, id DESC LIMIT 1
+            )
+            WHERE cl.disabled IS NOT TRUE
             ORDER BY cl.name
         """) or []
         
@@ -1239,6 +1398,7 @@ def risk_assessment_walkin():
             except: pass
             return f'<h1>Error</h1><p>{str(e)}</p>', 500
 
+    refresh_country_scores()
     return render_template('risk_assessment_walkin.html', lookups=RISK_LOOKUPS)
 
 
@@ -1254,11 +1414,13 @@ def risk_assessment_walkin_result(id):
     if assessment.get('assessment_date'):
         assessment['assessment_date'] = str(assessment['assessment_date'])
     risk_colors = {'Low': '#22c55e', 'Medium': '#f59e0b', 'High': '#ef4444'}
+    factors, calc = _risk_factors(assessment, 'walkin')
     return render_template('risk_assessment_result.html',
         assessment=assessment,
         assessment_type='walkin',
         company=None,
         individual=None,
+        factors=factors, calc=calc,
         risk_color=risk_colors.get(assessment.get('risk_rating','Low'), '#22c55e'))
 
 @app.route('/risk-assessment')
@@ -1267,9 +1429,9 @@ def risk_assessment():
     """Select company or individual for risk assessment"""
     try:
         conn = get_db()
-        companies = all_(conn, 'SELECT id, ac_code, client_name FROM companies ORDER BY client_name')
+        companies = all_(conn, 'SELECT id, ac_code, client_name FROM companies WHERE disabled IS NOT TRUE ORDER BY client_name')
         # Individuals are stored in clients table
-        individuals = all_(conn, 'SELECT id, name FROM clients ORDER BY name')
+        individuals = all_(conn, 'SELECT id, name FROM clients WHERE disabled IS NOT TRUE ORDER BY name')
         conn.close()
         logger.info(f'Risk assessment: {len(companies or [])} companies, {len(individuals or [])} individuals')
         return render_template('risk_assessment.html', 
@@ -1390,6 +1552,7 @@ def risk_assessment_company(id):
     prefill['years_relationship'] = years_relationship
     
     conn.close()
+    refresh_country_scores()
     return render_template('risk_assessment_company.html', company=co, prefill=prefill, lookups=RISK_LOOKUPS)
 
 @app.route('/risk-assessment/company/<int:id>/result')
@@ -1409,8 +1572,10 @@ def risk_assessment_company_result(id):
     color_map = {'Low': '#22c55e', 'Medium': '#f59e0b', 'High': '#ef4444'}
     risk_color = color_map.get(assessment.get('risk_rating', 'Unspecified'), '#6b7280')
     
+    factors, calc = _risk_factors(assessment, 'company')
     return render_template('risk_assessment_result.html',
-        company=co, assessment=assessment, risk_color=risk_color, assessment_type='company')
+        company=co, assessment=assessment, risk_color=risk_color, assessment_type='company',
+        factors=factors, calc=calc)
 
 @app.route('/risk-assessment/individual/<int:id>', methods=['GET','POST'])
 @compliance_required
@@ -1499,6 +1664,7 @@ def risk_assessment_individual(id):
     prefill['years_relationship'] = years_relationship
     
     conn.close()
+    refresh_country_scores()
     return render_template('risk_assessment_individual.html', individual=ind, prefill=prefill, lookups=RISK_LOOKUPS)
 
 @app.route('/risk-assessment/individual/<int:id>/result')
@@ -1517,15 +1683,17 @@ def risk_assessment_individual_result(id):
     color_map = {'Low': '#22c55e', 'Medium': '#f59e0b', 'High': '#ef4444'}
     risk_color = color_map.get(assessment.get('risk_rating', 'Unspecified'), '#6b7280')
     
+    factors, calc = _risk_factors(assessment, 'individual')
     return render_template('risk_assessment_result.html',
-        individual=ind, assessment=assessment, risk_color=risk_color, assessment_type='individual')
+        individual=ind, assessment=assessment, risk_color=risk_color, assessment_type='individual',
+        factors=factors, calc=calc)
 
 @app.route('/reports')
 @compliance_required
 def reports():
     conn=get_db(); today=dubai_today()
     df=request.args.get('from',''); dt=request.args.get('to','')
-    w='1=1'; p=[]
+    w='disabled IS NOT TRUE'; p=[]
     if df: w+=' AND created_at >= ?'; p.append(df)
     if dt: w+=' AND created_at <= ?'; p.append(dt+' 23:59:59')
     total=cnt(conn,f'SELECT COUNT(*) FROM companies WHERE {w}',p or None)
@@ -1538,9 +1706,9 @@ def reports():
         kyc_data=q(f'SELECT kyc_status,COUNT(*) as c FROM companies WHERE {w} GROUP BY kyc_status ORDER BY c DESC'),
         mode_data=q(f'SELECT mode_of_ac,COUNT(*) as c FROM companies WHERE {w} GROUP BY mode_of_ac ORDER BY c DESC'),
         total=total,date_from=df,date_to=dt,
-        expired_tl=cnt(conn,'SELECT COUNT(*) FROM companies WHERE trade_license_expiry<?',(today,)),
-        expiring_30=cnt(conn,'SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ?',(today,today+timedelta(days=30))),
-        expiring_90=cnt(conn,'SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ?',(today,today+timedelta(days=90))))
+        expired_tl=cnt(conn,'SELECT COUNT(*) FROM companies WHERE trade_license_expiry<? AND disabled IS NOT TRUE',(today,)),
+        expiring_30=cnt(conn,'SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ? AND disabled IS NOT TRUE',(today,today+timedelta(days=30))),
+        expiring_90=cnt(conn,'SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ? AND disabled IS NOT TRUE',(today,today+timedelta(days=90))))
     conn.close(); return res
 
 # ──────────── AML TRACKER ────────────
@@ -1611,19 +1779,39 @@ def aml_tracker():
                   ORDER BY a.transaction_date DESC'''
         
         records = all_(conn, sql, params or None)
-        
+
+        # Dashboard figures + per-record days-left-to-submit (pending records only)
+        today = dubai_today()
+        total_pending = 0
+        overdue = 0
+        due_soon = 0  # pending & due within 7 days (not yet overdue)
+        for r in records:
+            is_pending = (r.get('goaml_status') == 'pending')
+            dl = days_left(r.get('due_date')) if r.get('due_date') else None
+            r['days_to_submit'] = dl if is_pending else None
+            if is_pending:
+                total_pending += 1
+                if dl is not None:
+                    if dl < 0:
+                        overdue += 1
+                    elif dl <= 7:
+                        due_soon += 1
+
         # Get dropdown options for filters
-        companies = all_(conn, 'SELECT id, client_name as company_name FROM companies ORDER BY client_name')
-        individuals = all_(conn, 'SELECT id, name FROM clients ORDER BY name')
+        companies = all_(conn, 'SELECT id, client_name as company_name FROM companies WHERE disabled IS NOT TRUE ORDER BY client_name')
+        individuals = all_(conn, 'SELECT id, name FROM clients WHERE disabled IS NOT TRUE ORDER BY name')
         users = all_(conn, 'SELECT id, email FROM users WHERE is_active=1 ORDER BY email')
         statuses = ['pending', 'submitted', 'approved', 'rejected']
-        
+
         conn.close()
-        return render_template('aml_tracker.html', 
+        return render_template('aml_tracker.html',
                              records=records,
                              companies=companies,
                              users=users,
                              statuses=statuses,
+                             total_pending=total_pending,
+                             overdue_count=overdue,
+                             due_soon_count=due_soon,
                              status_filter=status_filter,
                              company_filter=company_filter,
                              vc_no_filter=vc_no_filter,
@@ -1633,14 +1821,40 @@ def aml_tracker():
         return render_template('aml_tracker.html', records=[], companies=[], 
                              users=[], statuses=[], error=str(e))
 
+def _aml_resolve_client(conn, data):
+    """Derive client_name + ac_type from the selected company/individual."""
+    cid = data.get('company_id')
+    iid = data.get('individual_id')
+    if cid:
+        co = one(conn, 'SELECT client_name FROM companies WHERE id=?', (cid,))
+        return (co['client_name'] if co else data.get('client_name')), 'Company'
+    if iid:
+        ind = one(conn, 'SELECT name FROM clients WHERE id=?', (iid,))
+        return (ind['name'] if ind else data.get('client_name')), 'Individual'
+    return data.get('client_name'), data.get('ac_type')
+
+def _aml_aed(data, exchange_rate):
+    """Compute AED amount from foreign amount × rate; fall back to supplied aed_amount."""
+    try:
+        amt = float(data.get('usd_amount')) if data.get('usd_amount') not in (None, '') else None
+        rate = float(exchange_rate) if exchange_rate not in (None, '') else None
+        cur = (data.get('transaction_currency') or '').upper()
+        if cur == 'AED' and amt is not None:
+            return amt
+        if amt is not None and rate is not None:
+            return round(amt * rate, 2)
+    except (TypeError, ValueError):
+        pass
+    return data.get('aed_amount') or None
+
 @app.route('/aml-tracker/add', methods=['GET', 'POST'])
 @login_required
 def aml_tracker_add():
     """Add new AML Tracker record"""
     try:
         conn = get_db()
-        companies = all_(conn, 'SELECT id, client_name as company_name FROM companies ORDER BY client_name')
-        individuals = all_(conn, 'SELECT id, name FROM clients ORDER BY name')
+        companies = all_(conn, 'SELECT id, client_name as company_name FROM companies WHERE disabled IS NOT TRUE ORDER BY client_name')
+        individuals = all_(conn, 'SELECT id, name FROM clients WHERE disabled IS NOT TRUE ORDER BY name')
         users = all_(conn, 'SELECT id, email FROM users WHERE is_active=1 ORDER BY email')
         
         if request.method == 'POST':
@@ -1651,21 +1865,25 @@ def aml_tracker_add():
                 conn.close()
                 return jsonify({'success': False, 'error': 'Transaction date is required'}), 400
             
-            # Auto-calculate PERIOD and DUE DATE
+            # Auto-calculate PERIOD (reporting quarter) and DUE DATE (transaction + 15 days)
             tdate = datetime.strptime(transaction_date, '%Y-%m-%d').date()
-            month_num = tdate.month
-            quarter_num = (month_num - 1) // 3 + 1
-            week_num = tdate.isocalendar()[1]
-            period = data.get('period', f'Month {month_num}, Q{quarter_num}, W{week_num}')
-            due_date = tdate + timedelta(days=14)
-            
+            quarter_num = (tdate.month - 1) // 3 + 1
+            period = data.get('period') or f'Q{quarter_num} {tdate.year}'
+            due_date = tdate + timedelta(days=15)
+
+            # Resolve client name + account type from the selected company / individual
+            client_name, ac_type = _aml_resolve_client(conn, data)
+            # Exchange rate → auto AED amount when not explicitly supplied
+            exchange_rate = data.get('exchange_rate') or None
+            aed_amount = _aml_aed(data, exchange_rate)
+
             # Insert AML record
-            x(conn, '''INSERT INTO aml_tracker 
+            x(conn, '''INSERT INTO aml_tracker
                (company_id, individual_id, transaction_date, period, due_date, vc_no, payment_mode,
-                ac_type, client_name, transaction_currency, usd_amount, aed_amount, payment_remarks,
+                ac_type, client_name, transaction_currency, usd_amount, aed_amount, exchange_rate, payment_remarks,
                 invoice_no, invoice_amount, invoice_currency, goaml_submission_date, goaml_status,
                 goaml_ref_no, submitted_by, checked_by, comment, verified_ledger, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)''',
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)''',
               (data.get('company_id') or None,
                data.get('individual_id') or None,
                transaction_date,
@@ -1673,11 +1891,12 @@ def aml_tracker_add():
                str(due_date),
                data.get('vc_no'),
                data.get('payment_mode'),
-               data.get('ac_type'),
-               data.get('client_name'),
+               ac_type,
+               client_name,
                data.get('transaction_currency'),
                data.get('usd_amount') or None,
-               data.get('aed_amount') or None,
+               aed_amount,
+               exchange_rate,
                data.get('payment_remarks'),
                data.get('invoice_no'),
                data.get('invoice_amount') or None,
@@ -1689,7 +1908,7 @@ def aml_tracker_add():
                data.get('checked_by') or None,
                data.get('comment'),
                'true' if data.get('verified_ledger') else 'false'))
-            
+
             aml_id = lastid(conn)
             
             # Create task for checked_by user if specified
@@ -1698,16 +1917,18 @@ def aml_tracker_add():
                 x(conn, '''INSERT INTO tasks 
                    (title, description, assigned_to, created_by, status, due_date)
                    VALUES (?, ?, ?, ?, ?, ?)''',
-                  (f'AML Verification - {data.get("client_name")}',
+                  (f'AML Verification - {client_name}',
                    f'Review and verify AML Tracker record #{aml_id}. VC No: {data.get("vc_no")}',
                    int(checked_by_id),
                    session.get('user_id'),
                    'todo',
                    str(due_date)))
-            
+
             commit(conn)
             conn.close()
-            return jsonify({'success': True, 'message': 'AML record created', 'id': aml_id})
+            if request.is_json:
+                return jsonify({'success': True, 'message': 'AML record created', 'id': aml_id})
+            return redirect(url_for('aml_tracker'))
         
         conn.close()
         return render_template('aml_tracker_form.html', 
@@ -1731,27 +1952,42 @@ def aml_tracker_edit(id):
             conn.close()
             return redirect(url_for('aml_tracker'))
         
-        companies = all_(conn, 'SELECT id, client_name as company_name FROM companies ORDER BY client_name')
-        individuals = all_(conn, 'SELECT id, name FROM clients ORDER BY name')
+        companies = all_(conn, 'SELECT id, client_name as company_name FROM companies WHERE disabled IS NOT TRUE ORDER BY client_name')
+        individuals = all_(conn, 'SELECT id, name FROM clients WHERE disabled IS NOT TRUE ORDER BY name')
         users = all_(conn, 'SELECT id, email FROM users WHERE is_active=1 ORDER BY email')
         
+        # Once submitted, only an admin may save edits (View/GET stays allowed)
+        locked = record.get('goaml_status') and record.get('goaml_status') != 'pending' and session.get('user_role') != 'admin'
+
         if request.method == 'POST':
+            if locked:
+                conn.close()
+                if request.is_json:
+                    return jsonify({'success': False, 'error': 'This report is submitted — only an admin can edit it.'}), 403
+                return ("This report is submitted — only an admin can edit it.", 403)
             data = request.get_json() if request.is_json else request.form
-            
+
+            client_name, ac_type = _aml_resolve_client(conn, data)
+            exchange_rate = data.get('exchange_rate') or None
+            aed_amount = _aml_aed(data, exchange_rate)
+
             # Update record
-            x(conn, '''UPDATE aml_tracker 
-               SET vc_no=?, payment_mode=?, ac_type=?, client_name=?, transaction_currency=?,
-                   usd_amount=?, aed_amount=?, payment_remarks=?, invoice_no=?, invoice_amount=?,
+            x(conn, '''UPDATE aml_tracker
+               SET company_id=?, individual_id=?, vc_no=?, payment_mode=?, ac_type=?, client_name=?, transaction_currency=?,
+                   usd_amount=?, aed_amount=?, exchange_rate=?, payment_remarks=?, invoice_no=?, invoice_amount=?,
                    invoice_currency=?, goaml_submission_date=?, goaml_status=?, goaml_ref_no=?,
                    checked_by=?, comment=?, verified_ledger=?, updated_at=CURRENT_TIMESTAMP
                WHERE id=?''',
-              (data.get('vc_no'),
+              (data.get('company_id') or None,
+               data.get('individual_id') or None,
+               data.get('vc_no'),
                data.get('payment_mode'),
-               data.get('ac_type'),
-               data.get('client_name'),
+               ac_type,
+               client_name,
                data.get('transaction_currency'),
                data.get('usd_amount') or None,
-               data.get('aed_amount') or None,
+               aed_amount,
+               exchange_rate,
                data.get('payment_remarks'),
                data.get('invoice_no'),
                data.get('invoice_amount') or None,
@@ -1763,10 +1999,12 @@ def aml_tracker_edit(id):
                data.get('comment'),
                'true' if data.get('verified_ledger') else 'false',
                id))
-            
+
             commit(conn)
             conn.close()
-            return jsonify({'success': True, 'message': 'AML record updated'})
+            if request.is_json:
+                return jsonify({'success': True, 'message': 'AML record updated'})
+            return redirect(url_for('aml_tracker'))
         
         # Format dates for template
         for field in ['transaction_date', 'due_date', 'goaml_submission_date']:
@@ -1789,12 +2027,214 @@ def api_aml_tracker_delete(id):
     """Delete AML Tracker record"""
     try:
         conn = get_db()
+        rec = one(conn, 'SELECT goaml_status FROM aml_tracker WHERE id=?', (id,))
+        # Once submitted, only an admin may delete
+        if rec and rec.get('goaml_status') and rec.get('goaml_status') != 'pending' and session.get('user_role') != 'admin':
+            conn.close()
+            return jsonify({'success': False, 'error': 'This report is submitted — only an admin can delete it.'}), 403
         x(conn, 'DELETE FROM aml_tracker WHERE id=?', (id,))
         commit(conn)
         conn.close()
         return jsonify({'success': True, 'message': 'AML record deleted'})
     except Exception as e:
         logger.error(f'Error deleting AML record: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# AML Tracker import column order (used by export, template, and import)
+AML_IMPORT_COLS = ['transaction_date','company_name','individual_name','vc_no','payment_mode',
+                   'transaction_currency','amount','exchange_rate','aed_amount','payment_remarks',
+                   'invoice_no','invoice_amount','invoice_currency','goaml_status','goaml_ref_no','comment']
+
+@app.route('/aml-tracker/export')
+@login_required
+def aml_tracker_export():
+    """Export all AML Tracker records to Excel."""
+    if not HAS_XL:
+        return "openpyxl not installed", 500
+    conn = get_db()
+    rows = all_(conn, '''SELECT a.transaction_date, c.client_name as company_name, cli.name as individual_name,
+                  a.vc_no, a.payment_mode, a.transaction_currency, a.usd_amount as amount, a.exchange_rate,
+                  a.aed_amount, a.payment_remarks, a.invoice_no, a.invoice_amount, a.invoice_currency,
+                  a.goaml_status, a.goaml_ref_no, a.due_date, a.period, a.comment
+                  FROM aml_tracker a
+                  LEFT JOIN companies c ON a.company_id = c.id
+                  LEFT JOIN clients cli ON a.individual_id = cli.id
+                  ORDER BY a.transaction_date DESC''')
+    conn.close()
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = 'AML Tracker'
+    headers = ['Transaction Date','Company','Individual','VC No','Payment Mode','Currency','Amount',
+               'Exchange Rate','Amount AED','Payment Remarks','Invoice No','Invoice Amount','Invoice Currency',
+               'GoAML Status','GoAML Ref No','Due Date','Period','Comment']
+    ws.append(headers)
+    for r in rows:
+        ws.append([str(r.get(k) if r.get(k) is not None else '') for k in
+                   ['transaction_date','company_name','individual_name','vc_no','payment_mode','transaction_currency',
+                    'amount','exchange_rate','aed_amount','payment_remarks','invoice_no','invoice_amount',
+                    'invoice_currency','goaml_status','goaml_ref_no','due_date','period','comment']])
+    out = io.BytesIO(); wb.save(out); out.seek(0)
+    fname = f'aml_tracker_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name=fname)
+
+@app.route('/aml-tracker/import-template')
+@login_required
+def aml_tracker_import_template():
+    """Download a blank Excel template for importing AML records."""
+    if not HAS_XL:
+        return "openpyxl not installed", 500
+    from openpyxl.styles import Font, PatternFill
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = 'AML Import'
+    headers = ['transaction_date (YYYY-MM-DD)','company_name','individual_name','vc_no','payment_mode',
+               'transaction_currency','amount','exchange_rate','aed_amount (optional)','payment_remarks',
+               'invoice_no','invoice_amount','invoice_currency','goaml_status','goaml_ref_no','comment']
+    ws.append(headers)
+    bold = Font(bold=True, color='FFFFFF'); fill = PatternFill('solid', fgColor='D97706')
+    for cell in ws[1]:
+        cell.font = bold; cell.fill = fill
+    ws.append(['2026-06-25','ABC Trading LLC','','VC-1001','Cash','USD','10000','3.6725','','Sample row',
+               'INV-001','10000','USD','pending','',''])
+    out = io.BytesIO(); wb.save(out); out.seek(0)
+    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name='aml_import_template.xlsx')
+
+@app.route('/aml-tracker/import', methods=['POST'])
+@login_required
+def aml_tracker_import():
+    """Import AML records from an uploaded Excel/CSV file."""
+    f = request.files.get('file')
+    if not f or not f.filename:
+        return redirect(url_for('aml_tracker'))
+    try:
+        conn = get_db()
+        # Build name → id lookups for matching company / individual
+        co_map = {(r['client_name'] or '').strip().lower(): r['id']
+                  for r in all_(conn, 'SELECT id, client_name FROM companies')}
+        ind_map = {(r['name'] or '').strip().lower(): r['id']
+                   for r in all_(conn, 'SELECT id, name FROM clients')}
+
+        # Read rows as list of dicts keyed by AML_IMPORT_COLS
+        records = []
+        if f.filename.lower().endswith('.csv'):
+            import csv as _csv
+            text = f.read().decode('utf-8-sig').splitlines()
+            reader = _csv.reader(text)
+            next(reader, None)  # skip header
+            for row in reader:
+                if any(c.strip() for c in row):
+                    records.append(dict(zip(AML_IMPORT_COLS, row + [''] * (len(AML_IMPORT_COLS) - len(row)))))
+        else:
+            if not HAS_XL:
+                return "openpyxl not installed", 500
+            wb = openpyxl.load_workbook(f, data_only=True)
+            ws = wb.active
+            for i, row in enumerate(ws.iter_rows(values_only=True)):
+                if i == 0:  # header
+                    continue
+                if row and any(v not in (None, '') for v in row):
+                    vals = [('' if v is None else str(v)) for v in row]
+                    records.append(dict(zip(AML_IMPORT_COLS, vals + [''] * (len(AML_IMPORT_COLS) - len(vals)))))
+
+        imported = 0
+        for rec in records:
+            tdate = (rec.get('transaction_date') or '').strip()[:10]
+            if not tdate:
+                continue
+            try:
+                td = datetime.strptime(tdate, '%Y-%m-%d').date()
+            except ValueError:
+                continue
+            period = f'Q{(td.month - 1)//3 + 1} {td.year}'
+            due = td + timedelta(days=15)
+            co_id = co_map.get((rec.get('company_name') or '').strip().lower())
+            ind_id = ind_map.get((rec.get('individual_name') or '').strip().lower())
+            ac_type = 'Company' if co_id else ('Individual' if ind_id else None)
+            client_name = (rec.get('company_name') or rec.get('individual_name') or '').strip() or None
+            exch = rec.get('exchange_rate') or None
+            aed = _aml_aed({'usd_amount': rec.get('amount'), 'transaction_currency': rec.get('transaction_currency'),
+                            'aed_amount': rec.get('aed_amount')}, exch)
+            x(conn, '''INSERT INTO aml_tracker
+               (company_id, individual_id, transaction_date, period, due_date, vc_no, payment_mode,
+                ac_type, client_name, transaction_currency, usd_amount, aed_amount, exchange_rate, payment_remarks,
+                invoice_no, invoice_amount, invoice_currency, goaml_status, goaml_ref_no, submitted_by, comment,
+                created_at, updated_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)''',
+              (co_id, ind_id, tdate, period, str(due), rec.get('vc_no') or None, rec.get('payment_mode') or None,
+               ac_type, client_name, rec.get('transaction_currency') or None, rec.get('amount') or None, aed, exch,
+               rec.get('payment_remarks') or None, rec.get('invoice_no') or None, rec.get('invoice_amount') or None,
+               rec.get('invoice_currency') or None, (rec.get('goaml_status') or 'pending').lower(),
+               rec.get('goaml_ref_no') or None, session.get('user_id'), rec.get('comment') or None))
+            imported += 1
+        commit(conn); conn.close()
+        logger.info(f'AML import: {imported} records imported by user {session.get("user_id")}')
+        return redirect(url_for('aml_tracker'))
+    except Exception as e:
+        logger.error(f'Error importing AML records: {e}')
+        return render_template('aml_tracker.html', records=[], companies=[], users=[], statuses=[],
+                               error=f'Import failed: {e}')
+
+@app.route('/login-history')
+@admin_required
+def login_history():
+    """Admin view of recent login attempts for suspicious-login monitoring."""
+    conn = get_db()
+    show = request.args.get('show', '')  # '', 'failed', 'success'
+    where = ''
+    if show == 'failed': where = 'WHERE success IS NOT TRUE'
+    elif show == 'success': where = 'WHERE success IS TRUE'
+    rows = all_(conn, f'''SELECT lh.*, u.name as user_name, u.role
+                  FROM login_history lh LEFT JOIN users u ON lh.user_id = u.id
+                  {where}
+                  ORDER BY lh.created_at DESC LIMIT 300''')
+    failed_24h = cnt(conn, "SELECT COUNT(*) FROM login_history WHERE success IS NOT TRUE AND created_at >= ?",
+                     (dubai_today() - timedelta(days=1),))
+    conn.close()
+    return render_template('login_history.html', rows=rows, show=show, failed_24h=failed_24h)
+
+@app.route('/settings/country-scores')
+@admin_required
+def country_scores():
+    """Admin editor for risk-assessment country scores (change periodically)."""
+    conn = get_db()
+    rows = all_(conn, 'SELECT country, score FROM risk_country_scores ORDER BY country')
+    if not rows:
+        # Fallback to in-memory defaults if table somehow empty
+        rows = [{'country': k, 'score': v} for k, v in sorted(RISK_LOOKUPS['countries'].items())]
+    conn.close()
+    return render_template('country_scores.html', countries=rows)
+
+@app.route('/api/risk-country-scores', methods=['POST'])
+@admin_required
+def api_save_country_scores():
+    """Save edited country scores and refresh the in-memory lookup."""
+    d = request.get_json() or {}
+    scores = d.get('scores', {})  # { 'COUNTRY NAME': 1|2|3 }
+    if not scores:
+        return jsonify({'success': False, 'error': 'No scores provided'}), 400
+    try:
+        conn = get_db()
+        for country, score in scores.items():
+            try:
+                sc = int(score)
+            except (TypeError, ValueError):
+                continue
+            if sc not in (1, 2, 3):
+                continue
+            if use_pg():
+                x(conn, '''INSERT INTO risk_country_scores (country, score, updated_at)
+                           VALUES (%s,%s,CURRENT_TIMESTAMP)
+                           ON CONFLICT (country) DO UPDATE SET score=EXCLUDED.score, updated_at=CURRENT_TIMESTAMP''',
+                  (country, sc))
+            else:
+                conn.execute('''INSERT INTO risk_country_scores (country, score, updated_at)
+                                VALUES (?,?,CURRENT_TIMESTAMP)
+                                ON CONFLICT(country) DO UPDATE SET score=excluded.score, updated_at=CURRENT_TIMESTAMP''',
+                             (country, sc))
+        commit(conn)
+        refresh_country_scores(conn)
+        conn.close()
+        return jsonify({'success': True, 'updated': len(scores)})
+    except Exception as e:
+        logger.error(f'Error saving country scores: {e}')
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/settings')
@@ -2798,6 +3238,7 @@ def clients():
     s = request.args.get('search', '').strip()
     resident_f = request.args.get('resident', '')
     mode_f = request.args.get('mode', '')
+    status_f = request.args.get('status', '')
     page = max(1, int(request.args.get('page', 1)))
     per_page = 100
 
@@ -2805,6 +3246,16 @@ def clients():
     if s:
         q += ' AND (name LIKE ? OR phone LIKE ? OR account_number LIKE ? OR email LIKE ?)'
         p += [f'%{s}%'] * 4
+    # Status filter: Active/Inactive use ac_status; Disabled uses the out-of-scope flag.
+    # Disabled records hidden by default unless explicitly requested (or status='all').
+    if status_f == 'Disabled':
+        q += ' AND disabled IS TRUE'
+    elif status_f == 'all':
+        pass
+    elif status_f in ('Active','Inactive'):
+        q += ' AND ac_status=? AND disabled IS NOT TRUE'; p.append(status_f)
+    else:
+        q += ' AND disabled IS NOT TRUE'
     if resident_f == 'resident':
         q += ' AND is_resident=?'; p.append(True)
     elif resident_f == 'non-resident':
@@ -2855,7 +3306,7 @@ def clients():
         modes=dd.get('MODE OF AC',[]), ac_statuses=dd.get('AC STATUS',[]), id_types=dd.get('ID TYPE',[]),
         kyc_statuses=dd.get('KYC STATUS',[]), risk_statuses=dd.get('RISK STATUS',[]),
         screening_statuses=dd.get('SCREENING REGISTRATION STATUS',[]),
-        search=s, resident_filter=resident_f, mode_filter=mode_f,
+        search=s, resident_filter=resident_f, mode_filter=mode_f, status_filter=status_f,
         page=page, total_pages=total_pages, total_count=total_count, per_page=per_page)
 
 def _validate_kyc_expiry(kyc_expiry):
@@ -2881,9 +3332,9 @@ def api_add_client():
         x(conn, '''INSERT INTO clients (name,phone,whatsapp_number,email,date_of_birth,
             profession,address,notes,nationality,passport_no,passport_expiry,
             emirates_id,emirates_id_expiry,address_proof,emirate,location,
-            account_number,mode_of_ac,ac_status,id_type,pep_status,kyc_status,kyc_expiry_date,
+            account_number,mode_of_ac,ac_status,id_type,pep_status,pep,kyc_status,kyc_expiry_date,
             risk_status,screening_status,screening_date,is_resident,created_by)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
           (d.get('name'), d.get('phone'), d.get('whatsapp_number'), d.get('email'),
            d.get('date_of_birth') or None, d.get('profession'), d.get('address'),
            d.get('notes'), d.get('nationality'), d.get('passport_no'),
@@ -2891,7 +3342,7 @@ def api_add_client():
            d.get('emirates_id_expiry') or None, d.get('address_proof'),
            d.get('emirate'), d.get('location'),
            d.get('account_number'), d.get('mode_of_ac'), d.get('ac_status'),
-           d.get('id_type'), d.get('pep_status'), d.get('kyc_status'),
+           d.get('id_type'), d.get('pep_status'), d.get('pep'), d.get('kyc_status'),
            d.get('kyc_expiry_date') or None, d.get('risk_status'),
            d.get('screening_status'), d.get('screening_date') or None,
            d.get('is_resident', False),
@@ -2916,7 +3367,7 @@ def api_edit_client(id):
         x(conn, '''UPDATE clients SET name=?,phone=?,whatsapp_number=?,email=?,date_of_birth=?,
             profession=?,address=?,notes=?,nationality=?,passport_no=?,passport_expiry=?,
             emirates_id=?,emirates_id_expiry=?,address_proof=?,emirate=?,location=?,
-            account_number=?,mode_of_ac=?,ac_status=?,id_type=?,pep_status=?,kyc_status=?,
+            account_number=?,mode_of_ac=?,ac_status=?,id_type=?,pep_status=?,pep=?,kyc_status=?,
             kyc_expiry_date=?,risk_status=?,screening_status=?,screening_date=?,is_resident=?,
             updated_at=CURRENT_TIMESTAMP WHERE id=?''',
           (d.get('name'), d.get('phone'), d.get('whatsapp_number'), d.get('email'),
@@ -2926,7 +3377,7 @@ def api_edit_client(id):
            d.get('emirates_id_expiry') or None, d.get('address_proof'),
            d.get('emirate'), d.get('location'),
            d.get('account_number'), d.get('mode_of_ac'), d.get('ac_status'),
-           d.get('id_type'), d.get('pep_status'), d.get('kyc_status'),
+           d.get('id_type'), d.get('pep_status'), d.get('pep'), d.get('kyc_status'),
            d.get('kyc_expiry_date') or None, d.get('risk_status'),
            d.get('screening_status'), d.get('screening_date') or None,
            d.get('is_resident', False), id))

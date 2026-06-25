@@ -13,6 +13,7 @@
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <span style="font-size:13px;font-weight:600;color:var(--text-muted);background:var(--surface2);padding:2px 10px;border-radius:20px;border:1px solid var(--border);">{{ company.ac_code }}</span>
           <span class="badge {% if company.ac_status=='Active' %}badge-active{% else %}badge-inactive{% endif %}">{{ company.ac_status }}</span>
+          {% if company.disabled %}<span class="badge" style="background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.4);">🚫 Disabled (Out of Scope)</span>{% endif %}
           {% set risk = company.risk_status or 'Unspecified' %}
           <span class="badge badge-{{ risk.lower() }}">{{ risk }} Risk</span>
           <span class="badge {% if company.doc_status=='Completed' %}badge-completed{% else %}badge-incomplete{% endif %}">Docs: {{ company.doc_status }}</span>
@@ -31,6 +32,11 @@
         {% endif %}
         <a href="#" onclick="secureAction('edit',{{ company.id }});return false;" class="btn btn-ghost">✏️ Edit</a>
         <a href="{{ url_for('api_export_company_docs', cid=company.id) }}" class="btn btn-ghost">📥 Export Docs</a>
+        {% if company.disabled %}
+        <button onclick="toggleDisable()" class="btn btn-primary">✅ Enable</button>
+        {% else %}
+        <button onclick="toggleDisable()" class="btn btn-ghost" style="color:#f59e0b;">🚫 Disable</button>
+        {% endif %}
         <button onclick="secureAction('delete',{{ company.id }})" class="btn btn-danger">🗑️ Delete</button>
       </div>
     </div>
@@ -168,7 +174,7 @@
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>Name</th><th>Position / Share</th><th>Nationality</th>
+          <th>Name</th><th>Position / Share</th><th>Nationality</th><th>PEP</th>
           <th>Passport No / Expiry</th><th>Emirates ID / Expiry</th><th>Doc Status</th>
         </tr></thead>
         <tbody>
@@ -177,6 +183,7 @@
             <td style="font-weight:600;">{{ u.person_name }}</td>
             <td>{{ u.position or '—' }}{% if u.share_percentage %}<div style="font-size:11px;color:var(--text-dim);">{{ u.share_percentage }}%</div>{% endif %}</td>
             <td style="color:var(--text-muted);">{{ u.nationality or '—' }}<div style="font-size:11px;color:var(--text-dim);">{{ u.residential_status or '' }}</div></td>
+            <td>{% if u.pep_status=='Yes' %}<span class="badge" style="background:rgba(239,68,68,0.12);color:#fca5a5;">Yes</span>{% else %}<span style="color:var(--text-dim);">{{ u.pep_status or '—' }}</span>{% endif %}</td>
             <td>
               <div style="color:var(--text-muted);">{{ u.passport_no or '—' }}</div>
               {% if u.passport_expiry %}<div class="{% if u.p_status=='expired' %}exp-expired{% elif u.p_status=='critical' %}exp-critical{% elif u.p_status=='warning' %}exp-warning{% else %}exp-valid{% endif %}" style="font-size:11px;">{{ u.passport_expiry }}{% if u.p_days is not none %} ({% if u.p_days < 0 %}EXP{% else %}{{ u.p_days }}d{% endif %}){% endif %}</div>{% endif %}
@@ -338,6 +345,16 @@ function submitAP() {
   });
 }
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('apModal')?.classList.contains('open'))submitAP();});
+
+function toggleDisable() {
+  const isDisabled = {{ 'true' if company.disabled else 'false' }};
+  const msg = isDisabled
+    ? 'Re-enable this company? It will reappear across all modules.'
+    : 'Disable this company? It will be marked out-of-scope and hidden from all modules (still visible in the Companies list).';
+  if (!confirm(msg)) return;
+  fetch(`/api/company/${CO.id}/toggle-disable`,{method:'POST'})
+    .then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else alert('Error: '+(d.error||'failed')); });
+}
 
 function loadDocs() {
   fetch(`/api/company/${CO.id}/documents`).then(r=>r.json()).then(docs=>{
