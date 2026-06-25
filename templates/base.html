@@ -26,7 +26,7 @@
       <a href="{{ url_for('health_check') }}" class="navbar-link {% if request.endpoint in ['health_check','health_check_detail'] %}active{% endif %}">🏥 Health Check</a>
       <a href="{{ url_for('risk_assessment_list') }}" class="navbar-link {% if request.endpoint in ['risk_assessment_list','risk_assessment','risk_assessment_company','risk_assessment_individual','risk_assessment_company_result','risk_assessment_individual_result'] %}active{% endif %}">⚠️ Risk Assessment</a>
       <a href="{{ url_for('reports') }}" class="navbar-link {% if request.endpoint == 'reports' %}active{% endif %}">📈 Reports</a>
-      <a href="{{ url_for('aml_tracker') }}" class="navbar-link {% if request.endpoint in ['aml_tracker', 'aml_tracker_add', 'aml_tracker_edit'] %}active{% endif %}">📋 AML Tracker</a>
+      <a href="{{ url_for('aml_tracker') }}" class="navbar-link {% if request.endpoint in ['aml_tracker', 'aml_tracker_add', 'aml_tracker_edit'] %}active{% endif %}">📋 DPMSR Report</a>
       {% endif %}
       <a href="{{ url_for('tasks') }}" class="navbar-link {% if request.endpoint in ['tasks','regular_tasks'] %}active{% endif %}">✅ Tasks</a>
       {% if user_role in ['admin', 'compliance'] %}
@@ -63,6 +63,8 @@
           </div>
           {% if user_role == 'admin' %}
           <a href="{{ url_for('settings') }}" class="dropdown-item">⚙️ Admin Panel</a>
+          <a href="{{ url_for('country_scores') }}" class="dropdown-item">🌍 Country Risk Scores</a>
+          <a href="{{ url_for('login_history') }}" class="dropdown-item">🔐 Login History</a>
           <div class="dropdown-divider"></div>
           {% endif %}
           <a href="{{ url_for('logout') }}" class="dropdown-item logout">🚪 Sign Out</a>

@@ -36,13 +36,47 @@
     </select>
   </div>
   <div class="form-group" style="min-width:150px;">
-    <label>Account Manager</label>
-    <select id="managerFilter" onchange="filterRows()">
-      <option value="">All Managers</option>
-      {% for m in managers %}
-      <option value="{{ m }}">{{ m }}</option>
-      {% endfor %}
+    <label>Status</label>
+    <select id="statusFilter" onchange="filterRows()">
+      <option value="">Active &amp; Inactive</option>
+      <option value="Active">Active</option>
+      <option value="Inactive">Inactive</option>
+      <option value="Disabled">🚫 Disabled</option>
+      <option value="all">All (incl. Disabled)</option>
     </select>
+  </div>
+  <div class="form-group" style="display:flex;align-items:flex-end;">
+    <button type="button" class="btn btn-ghost" onclick="toggleAdvanced()">🔧 Advanced Filter</button>
+  </div>
+</div>
+
+<!-- ADVANCED FILTER PANEL -->
+<div id="advancedPanel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+  <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
+    <div class="form-group" style="min-width:170px;">
+      <label>Region</label>
+      <select id="regionFilter" onchange="filterRows()">
+        <option value="">All Regions</option>
+        {% for r in regions %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="min-width:150px;">
+      <label>Risk Status</label>
+      <select id="riskFilter" onchange="filterRows()">
+        <option value="">All Risk</option>
+        <option value="High">High</option>
+        <option value="Medium">Medium</option>
+        <option value="Low">Low</option>
+        <option value="Unspecified">Unspecified</option>
+      </select>
+    </div>
+    <div class="form-group" style="min-width:160px;">
+      <label>Contact / Phone</label>
+      <input type="text" id="contactFilter" placeholder="Name or number..." oninput="filterRows()">
+    </div>
+    <div class="form-group" style="display:flex;align-items:flex-end;">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="clearAdvanced()">Clear advanced</button>
+    </div>
   </div>
 </div>
 
@@ -71,7 +105,7 @@
           <th>AC Code</th>
           <th>Company</th>
           <th>Contact Person</th>
-          <th>Account Manager</th>
+          <th>Account Status</th>
           <th>Document</th>
           <th>Expiry Date</th>
           <th>Status</th>
@@ -85,7 +119,11 @@
           data-type="{{ row.doc_type }}"
           data-company="{{ row.client_name|lower }}"
           data-code="{{ row.ac_code|lower }}"
-          data-manager="{{ row.account_manager or '' }}">
+          data-manager="{{ row.account_manager or '' }}"
+          data-status="{{ row.status or 'Active' }}"
+          data-region="{{ row.region or '' }}"
+          data-risk="{{ row.risk_status or '' }}"
+          data-contact="{{ ((row.contact_person_name or '') ~ ' ' ~ (row.contact_person_number or '') ~ ' ' ~ (row.mobile or '') ~ ' ' ~ (row.whatsapp_number or ''))|lower }}">
           <td>
             {% if row.company_id %}
             <a href="{{ url_for('company_detail', id=row.company_id) }}"
@@ -101,7 +139,11 @@
             <div style="font-size:11px;color:var(--text-dim);">{{ row.contact_person_number }}</div>
             {% endif %}
           </td>
-          <td style="color:var(--text-muted);font-size:12px;">{{ row.account_manager or '—' }}</td>
+          <td style="font-size:12px;">
+            {% if row.status == 'Disabled' %}<span style="padding:2px 8px;border-radius:12px;background:rgba(239,68,68,0.12);color:#fca5a5;">🚫 Disabled</span>
+            {% elif row.status == 'Inactive' %}<span style="padding:2px 8px;border-radius:12px;background:rgba(245,158,11,0.12);color:#fcd34d;">Inactive</span>
+            {% else %}<span style="padding:2px 8px;border-radius:12px;background:rgba(34,197,94,0.12);color:#86efac;">Active</span>{% endif %}
+          </td>
           <td>
             <span style="font-size:12px;font-weight:600;padding:2px 8px;border-radius:5px;
               {% if row.doc_type == 'Trade License' %}background:rgba(59,130,246,0.12);color:#93c5fd;
@@ -202,11 +244,26 @@
 <script>
 const ALL_ROWS = document.querySelectorAll('#alertsTable tbody tr');
 
+function toggleAdvanced() {
+  const p = document.getElementById('advancedPanel');
+  p.style.display = (p.style.display === 'none' || !p.style.display) ? 'block' : 'none';
+}
+
+function clearAdvanced() {
+  document.getElementById('regionFilter').value = '';
+  document.getElementById('riskFilter').value = '';
+  document.getElementById('contactFilter').value = '';
+  filterRows();
+}
+
 function filterRows() {
   const search = document.getElementById('searchInput').value.toLowerCase();
   const expiry = document.getElementById('expiryFilter').value;
   const docType = document.getElementById('docFilter').value;
-  const manager = document.getElementById('managerFilter').value.toLowerCase();
+  const statusF = document.getElementById('statusFilter').value;
+  const regionF = (document.getElementById('regionFilter') || {}).value || '';
+  const riskF = (document.getElementById('riskFilter') || {}).value || '';
+  const contactF = ((document.getElementById('contactFilter') || {}).value || '').toLowerCase();
 
   let expired=0, critical=0, warning=0, total=0;
 
@@ -215,7 +272,7 @@ function filterRows() {
     const type = row.dataset.type;
     const company = row.dataset.company;
     const code = row.dataset.code;
-    const mgr = row.dataset.manager.toLowerCase();
+    const status = row.dataset.status || 'Active';
 
     let show = true;
 
@@ -231,11 +288,19 @@ function filterRows() {
     // Doc type filter
     if (docType === 'trade' && type !== 'Trade License') show = false;
     if (docType === 'address' && type !== 'Address Proof') show = false;
-    if (docType === 'passport' && type !== 'Passport') show = false;
-    if (docType === 'eid' && type !== 'Emirates ID') show = false;
+    if (docType === 'passport' && type.indexOf('Passport') === -1) show = false;
+    if (docType === 'eid' && type.indexOf('Emirates ID') === -1) show = false;
 
-    // Manager filter
-    if (manager && !mgr.includes(manager)) show = false;
+    // Status filter — Disabled hidden by default
+    if (statusF === '') { if (status === 'Disabled') show = false; }
+    else if (statusF === 'Disabled') { if (status !== 'Disabled') show = false; }
+    else if (statusF === 'Active' || statusF === 'Inactive') { if (status !== statusF) show = false; }
+    // statusF === 'all' shows everything
+
+    // Advanced filters
+    if (regionF && (row.dataset.region || '') !== regionF) show = false;
+    if (riskF && (row.dataset.risk || '') !== riskF) show = false;
+    if (contactF && (row.dataset.contact || '').indexOf(contactF) === -1) show = false;
 
     row.style.display = show ? '' : 'none';
     if (show) {
@@ -306,15 +371,15 @@ function exportAlerts() {
   const expiry = document.getElementById('expiryFilter').value;
   const docType = document.getElementById('docFilter').value;
   const search = document.getElementById('searchInput').value;
-  const manager = document.getElementById('managerFilter').value;
-  
+  const status = document.getElementById('statusFilter').value;
+
   const params = new URLSearchParams({
     type: 'expiry',
     format: 'xlsx',
     expiry_filter: expiry,
     doc_type: docType,
     search: search,
-    manager: manager
+    status: status
   });
   
   window.location.href = '/export/report?' + params.toString();

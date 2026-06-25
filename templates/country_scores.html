@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Country Risk Scores - Zewer CRM{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto; padding: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #d97706;">
+        <div>
+            <h1 style="margin: 0; font-size: 26px; color: var(--text);">🌍 Country Risk Scores</h1>
+            <div style="font-size: 13px; color: var(--text-dim); margin-top: 4px;">Used by Risk Assessment for jurisdiction & nationality scoring. Update as country ratings change.</div>
+        </div>
+        <a href="{{ url_for('settings') }}" class="btn btn-ghost">← Settings</a>
+    </div>
+
+    <div style="display:flex; gap:12px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">
+        <input type="text" id="countrySearch" placeholder="🔍 Search country..." oninput="filterCountries()"
+               style="flex:1; min-width:220px; padding:10px 12px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text);">
+        <span style="font-size:12px; color:var(--text-dim);">1 = Low · 2 = Medium · 3 = High</span>
+        <button class="btn btn-primary" onclick="saveScores()">💾 Save Changes</button>
+    </div>
+    <div id="savedMsg" style="display:none; margin-bottom:14px; font-size:14px; font-weight:600;"></div>
+
+    <div class="card" style="padding:0; overflow:hidden;">
+        <div class="table-wrap" style="max-height:65vh; overflow-y:auto;">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead style="position:sticky; top:0;">
+                    <tr style="background: var(--surface2);">
+                        <th style="padding:11px 14px; text-align:left; font-size:12px; text-transform:uppercase; color:var(--text-dim);">Country</th>
+                        <th style="padding:11px 14px; text-align:left; font-size:12px; text-transform:uppercase; color:var(--text-dim); width:160px;">Risk Score</th>
+                    </tr>
+                </thead>
+                <tbody id="countryBody">
+                    {% for c in countries %}
+                    <tr class="country-row" data-name="{{ c.country|lower }}" style="border-top:1px solid var(--border);">
+                        <td style="padding:9px 14px; font-size:13px; color:var(--text);">{{ c.country }}</td>
+                        <td style="padding:9px 14px;">
+                            <select data-country="{{ c.country }}" data-original="{{ c.score }}"
+                                    style="padding:6px 10px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); font-size:13px;">
+                                <option value="1" {% if c.score == 1 %}selected{% endif %}>1 — Low</option>
+                                <option value="2" {% if c.score == 2 %}selected{% endif %}>2 — Medium</option>
+                                <option value="3" {% if c.score == 3 %}selected{% endif %}>3 — High</option>
+                            </select>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterCountries() {
+    const q = document.getElementById('countrySearch').value.toLowerCase();
+    document.querySelectorAll('.country-row').forEach(r => {
+        r.style.display = r.dataset.name.includes(q) ? '' : 'none';
+    });
+}
+
+function saveScores() {
+    const scores = {};
+    document.querySelectorAll('#countryBody select').forEach(sel => {
+        if (sel.value !== sel.dataset.original) {
+            scores[sel.dataset.country] = parseInt(sel.value);
+        }
+    });
+    const msg = document.getElementById('savedMsg');
+    if (Object.keys(scores).length === 0) {
+        msg.style.display = 'block'; msg.style.color = '#9ca3af';
+        msg.textContent = 'No changes to save.';
+        return;
+    }
+    fetch('/api/risk-country-scores', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scores})
+    }).then(r => r.json()).then(d => {
+        msg.style.display = 'block';
+        if (d.success) {
+            msg.style.color = '#16a34a';
+            msg.textContent = '✅ Saved ' + d.updated + ' change(s). New scores apply to future risk assessments.';
+            document.querySelectorAll('#countryBody select').forEach(sel => { sel.dataset.original = sel.value; });
+        } else {
+            msg.style.color = '#dc2626';
+            msg.textContent = '❌ ' + (d.error || 'Save failed');
+        }
+    }).catch(e => {
+        msg.style.display = 'block'; msg.style.color = '#dc2626';
+        msg.textContent = '❌ ' + e;
+    });
+}
+</script>
+{% endblock %}
