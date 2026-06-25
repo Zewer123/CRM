@@ -140,41 +140,6 @@ def lastid(conn):
 def commit(conn):
     conn.commit()
 
-def _pg_ensure_columns():
-    """Add new columns/tables on PostgreSQL using a FRESH autocommit connection.
-
-    A brand-new connection cannot be in an aborted-transaction state, so each
-    DDL statement here is guaranteed to run independently — immune to the
-    'current transaction is aborted' cascade that can skip ALTERs during the
-    main migration. This is what actually guarantees the new columns exist.
-    """
-    if not use_pg():
-        return
-    ddl = [
-        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS disabled BOOLEAN DEFAULT FALSE",
-        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS disabled BOOLEAN DEFAULT FALSE",
-        "ALTER TABLE clients ADD COLUMN IF NOT EXISTS pep TEXT",
-        "ALTER TABLE ubos ADD COLUMN IF NOT EXISTS pep_status TEXT",
-        "ALTER TABLE aml_tracker ADD COLUMN IF NOT EXISTS exchange_rate NUMERIC",
-        "CREATE TABLE IF NOT EXISTS risk_country_scores (country TEXT PRIMARY KEY, score INTEGER NOT NULL DEFAULT 2, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
-        "CREATE TABLE IF NOT EXISTS login_history (id SERIAL PRIMARY KEY, user_id INTEGER, username TEXT, success BOOLEAN DEFAULT FALSE, ip_address TEXT, user_agent TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
-    ]
-    try:
-        import psycopg2
-        url = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
-        c = psycopg2.connect(url, connect_timeout=10)
-        c.autocommit = True
-        cur = c.cursor()
-        for stmt in ddl:
-            try:
-                cur.execute(stmt)
-            except Exception as e:
-                logger.warning(f'ensure_columns ({stmt[:45]}...): {e}')
-        cur.close(); c.close()
-        logger.info('ensure_columns: new columns/tables verified on PostgreSQL')
-    except Exception as e:
-        logger.error(f'_pg_ensure_columns failed: {e}')
-
 def setup_db():
     conn = get_db()
     if is_pg(conn):
@@ -185,8 +150,6 @@ def setup_db():
     _run_migrations(conn)
     commit(conn)
     conn.close()
-    # Guarantee the new columns exist, independent of any migration state.
-    _pg_ensure_columns()
 
 def _run_migrations(conn):
     """Universal migrations that run for BOTH PostgreSQL and SQLite on every startup."""
