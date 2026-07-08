@@ -163,6 +163,9 @@ def _pg_ensure_columns():
         "ALTER TABLE clients ADD COLUMN IF NOT EXISTS pep TEXT",
         "ALTER TABLE ubos ADD COLUMN IF NOT EXISTS pep_status TEXT",
         "ALTER TABLE aml_tracker ADD COLUMN IF NOT EXISTS exchange_rate NUMERIC",
+        "ALTER TABLE internal_documents ADD COLUMN IF NOT EXISTS file_url TEXT",
+        "ALTER TABLE internal_documents ADD COLUMN IF NOT EXISTS file_name TEXT",
+        "ALTER TABLE internal_documents ADD COLUMN IF NOT EXISTS public_id TEXT",
         "CREATE TABLE IF NOT EXISTS risk_country_scores (country TEXT PRIMARY KEY, score INTEGER NOT NULL DEFAULT 2, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS login_history (id SERIAL PRIMARY KEY, user_id INTEGER, username TEXT, success BOOLEAN DEFAULT FALSE, ip_address TEXT, user_agent TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
     ]
@@ -269,6 +272,10 @@ def _run_migrations(conn):
     safe_alter('ubos', 'pep_status', 'TEXT')
     # Exchange rate (to AED) for AML tracker transactions
     safe_alter('aml_tracker', 'exchange_rate', 'NUMERIC')
+    # File attachment for internal (Zewer) documents
+    safe_alter('internal_documents', 'file_url')
+    safe_alter('internal_documents', 'file_name')
+    safe_alter('internal_documents', 'public_id')
     # Force-insert new dropdown values on existing DBs
     new_dd = [
         ('ID TYPE','National ID'),('ID TYPE','Passport'),('ID TYPE','Emirates ID'),('ID TYPE','Visa No'),('ID TYPE','Other'),
@@ -594,7 +601,8 @@ def healthz():
     try:
         conn = get_db()
         for tbl, col in [('companies', 'disabled'), ('clients', 'disabled'), ('clients', 'pep'),
-                         ('ubos', 'pep_status'), ('aml_tracker', 'exchange_rate')]:
+                         ('ubos', 'pep_status'), ('aml_tracker', 'exchange_rate'),
+                         ('internal_documents', 'file_url')]:
             try:
                 x(conn, f'SELECT {col} FROM {tbl} LIMIT 1').fetchone()
                 checks[f'{tbl}.{col}'] = 'ok'
@@ -3143,6 +3151,12 @@ def api_delete_additional_task(id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # ── INTERNAL DOCUMENTS (ZEWER STAFF / COMPANY DOCS) ──────────
+def _dl_url(url):
+    """Cloudinary URL that forces download (fl_attachment)."""
+    if url and '/upload/' in url:
+        return url.replace('/upload/', '/upload/fl_attachment/', 1)
+    return url
+
 @app.route('/internal-docs')
 @compliance_required
 def internal_docs():
@@ -3153,49 +3167,95 @@ def internal_docs():
             ORDER BY CASE WHEN d.expiry_date IS NULL THEN 1 ELSE 0 END, d.expiry_date ASC, d.doc_category, d.doc_name''')
     except: docs = []
     today = dubai_today()
+    from collections import OrderedDict
     doc_list = []
+    stats = {'total': 0, 'expired': 0, 'expiring_soon': 0, 'pending_file': 0, 'complete': 0}
+    grouped = OrderedDict()   # category -> OrderedDict(person -> [docs])
+    cat_counts = OrderedDict()
     for d in docs:
         dl = days_left(d['expiry_date'])
-        doc_list.append({**d,
-            'days_left': dl,
-            'exp_status': exp_status(dl),
-            'expiry_date': str(d['expiry_date']) if d['expiry_date'] else None})
+        est = exp_status(dl)
+        has_file = bool(d.get('file_url'))
+        row = {**d, 'days_left': dl, 'exp_status': est,
+               'expiry_date': str(d['expiry_date']) if d['expiry_date'] else None,
+               'has_file': has_file, 'download_url': _dl_url(d.get('file_url'))}
+        doc_list.append(row)
+        stats['total'] += 1
+        if est == 'expired': stats['expired'] += 1
+        elif est in ('critical', 'warning'): stats['expiring_soon'] += 1
+        if has_file: stats['complete'] += 1
+        else: stats['pending_file'] += 1
+        cat = (d.get('doc_category') or 'Other').strip() or 'Other'
+        person = (d.get('person_name') or '— Unassigned —').strip() or '— Unassigned —'
+        grouped.setdefault(cat, OrderedDict()).setdefault(person, []).append(row)
+        cat_counts[cat] = cat_counts.get(cat, 0) + 1
     users = all_(conn, 'SELECT id,name FROM users WHERE is_active=1 ORDER BY name')
     conn.close()
-    return render_template('internal_docs.html', docs=doc_list, today=str(today), all_users=users)
+    return render_template('internal_docs.html', docs=doc_list, today=str(today), all_users=users,
+                           stats=stats, grouped=grouped, cat_counts=cat_counts)
+
+def _internal_doc_file(existing_public_id=None):
+    """Upload an attached file to Cloudinary if present. Returns (file_url, file_name, public_id) or (None,None,None)."""
+    f = request.files.get('file')
+    if not f or not f.filename:
+        return None, None, None
+    if not HAS_CLD or not os.getenv('CLOUDINARY_CLOUD_NAME'):
+        raise RuntimeError('File storage (Cloudinary) is not configured')
+    r = cloudinary.uploader.upload(f, folder='zewer_crm/internal_docs', resource_type='auto',
+                                   use_filename=True, unique_filename=True)
+    return r['secure_url'], f.filename, r['public_id']
 
 @app.route('/api/internal-doc/add', methods=['POST'])
 @compliance_required
 def api_add_internal_doc():
-    d = request.get_json()
+    d = request.form if request.form else (request.get_json(silent=True) or {})
     try:
+        file_url, file_name, public_id = _internal_doc_file()
         conn = get_db()
         x(conn, '''INSERT INTO internal_documents
-            (doc_name, doc_category, person_name, issuing_authority, issue_date, expiry_date, notes, added_by)
-            VALUES (?,?,?,?,?,?,?,?)''',
+            (doc_name, doc_category, person_name, issuing_authority, issue_date, expiry_date, notes,
+             file_url, file_name, public_id, added_by)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)''',
           (d.get('doc_name'), d.get('doc_category'), d.get('person_name'),
            d.get('issuing_authority'), d.get('issue_date') or None,
-           d.get('expiry_date') or None, d.get('notes'), session.get('user_id')))
+           d.get('expiry_date') or None, d.get('notes'),
+           file_url, file_name, public_id, session.get('user_id')))
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/internal-doc/<int:id>/edit', methods=['POST'])
 @compliance_required
 def api_edit_internal_doc(id):
-    d = request.get_json()
+    d = request.form if request.form else (request.get_json(silent=True) or {})
     try:
+        file_url, file_name, public_id = _internal_doc_file()
         conn = get_db()
-        x(conn, '''UPDATE internal_documents SET doc_name=?,doc_category=?,person_name=?,
-            issuing_authority=?,issue_date=?,expiry_date=?,notes=?,updated_at=CURRENT_TIMESTAMP
-            WHERE id=?''',
-          (d.get('doc_name'), d.get('doc_category'), d.get('person_name'),
-           d.get('issuing_authority'), d.get('issue_date') or None,
-           d.get('expiry_date') or None, d.get('notes'), id))
+        if file_url:  # a new file was uploaded — replace, and remove the old one
+            old = one(conn, 'SELECT public_id FROM internal_documents WHERE id=?', (id,))
+            if old and old.get('public_id') and HAS_CLD and os.getenv('CLOUDINARY_CLOUD_NAME'):
+                try: cloudinary.uploader.destroy(old['public_id'], resource_type='raw')
+                except: pass
+            x(conn, '''UPDATE internal_documents SET doc_name=?,doc_category=?,person_name=?,
+                issuing_authority=?,issue_date=?,expiry_date=?,notes=?,file_url=?,file_name=?,public_id=?,
+                updated_at=CURRENT_TIMESTAMP WHERE id=?''',
+              (d.get('doc_name'), d.get('doc_category'), d.get('person_name'),
+               d.get('issuing_authority'), d.get('issue_date') or None,
+               d.get('expiry_date') or None, d.get('notes'),
+               file_url, file_name, public_id, id))
+        else:  # metadata only
+            x(conn, '''UPDATE internal_documents SET doc_name=?,doc_category=?,person_name=?,
+                issuing_authority=?,issue_date=?,expiry_date=?,notes=?,updated_at=CURRENT_TIMESTAMP
+                WHERE id=?''',
+              (d.get('doc_name'), d.get('doc_category'), d.get('person_name'),
+               d.get('issuing_authority'), d.get('issue_date') or None,
+               d.get('expiry_date') or None, d.get('notes'), id))
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
+        logger.error(f'Error in %s: {e}', request.path)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/internal-doc/<int:id>/delete', methods=['POST'])
@@ -3203,6 +3263,10 @@ def api_edit_internal_doc(id):
 def api_delete_internal_doc(id):
     try:
         conn = get_db()
+        doc = one(conn, 'SELECT public_id FROM internal_documents WHERE id=?', (id,))
+        if doc and doc.get('public_id') and HAS_CLD and os.getenv('CLOUDINARY_CLOUD_NAME'):
+            try: cloudinary.uploader.destroy(doc['public_id'], resource_type='raw')
+            except: pass
         x(conn, 'DELETE FROM internal_documents WHERE id=?', (id,))
         commit(conn); conn.close()
         return jsonify({'success': True})

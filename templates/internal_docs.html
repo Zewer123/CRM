@@ -3,146 +3,106 @@
 
 {% block content %}
 <div class="page-header">
-  <div class="page-title">🗂️ Zewer Internal Documents</div>
-  <div style="display:flex;gap:8px;">
-    <button class="btn btn-primary btn-sm" onclick="openModal('addDocModal')">+ Add Document</button>
+  <div class="page-title">🗂️ Zewer Documents <span style="font-size:13px;color:var(--text-dim);font-weight:500;">({{ stats.total }} total)</span></div>
+</div>
+
+<!-- STAT CARDS -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;">
+    <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Total</div>
+    <div style="font-size:26px;font-weight:800;color:var(--text);margin-top:2px;">{{ stats.total }}</div>
+  </div>
+  <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:14px 16px;">
+    <div style="font-size:11px;font-weight:700;color:#fca5a5;text-transform:uppercase;letter-spacing:0.5px;">Expired</div>
+    <div style="font-size:26px;font-weight:800;color:#fca5a5;margin-top:2px;">{{ stats.expired }}</div>
+  </div>
+  <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:14px 16px;">
+    <div style="font-size:11px;font-weight:700;color:#fcd34d;text-transform:uppercase;letter-spacing:0.5px;">Expiring Soon</div>
+    <div style="font-size:26px;font-weight:800;color:#fcd34d;margin-top:2px;">{{ stats.expiring_soon }}</div>
+  </div>
+  <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.3);border-radius:10px;padding:14px 16px;">
+    <div style="font-size:11px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:0.5px;">Pending File</div>
+    <div style="font-size:26px;font-weight:800;color:#93c5fd;margin-top:2px;">{{ stats.pending_file }}</div>
+  </div>
+  <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:14px 16px;">
+    <div style="font-size:11px;font-weight:700;color:#86efac;text-transform:uppercase;letter-spacing:0.5px;">Complete</div>
+    <div style="font-size:26px;font-weight:800;color:#86efac;margin-top:2px;">{{ stats.complete }}</div>
   </div>
 </div>
 
-<!-- FILTERS -->
-<div class="search-bar" style="margin-bottom:16px;">
-  <div class="form-group search-input">
-    <label>Search</label>
-    <input type="text" id="searchInput" placeholder="Name, person, authority..." oninput="filterDocs()">
-  </div>
-  <div class="form-group" style="min-width:130px;">
-    <label>Category</label>
-    <select id="catFilter" onchange="filterDocs()">
-      <option value="">All</option>
-      <option value="Staff">Staff</option>
-      <option value="Company">Company</option>
-      <option value="License">License</option>
-      <option value="Other">Other</option>
-    </select>
-  </div>
-  <div class="form-group" style="min-width:120px;">
-    <label>Expiry</label>
-    <select id="expiryFilter" onchange="filterDocs()">
-      <option value="">All</option>
-      <option value="expired">Expired</option>
-      <option value="30">Within 30 days</option>
-      <option value="90">Within 90 days</option>
-      <option value="ok">OK</option>
-    </select>
-  </div>
-  <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear</button>
+{% if stats.total == 0 %}
+<div style="text-align:center;padding:60px;color:var(--text-dim);background:var(--surface);border-radius:10px;border:1px solid var(--border);">
+  No documents yet. <a href="#" onclick="openAdd('Staff');return false;" style="color:var(--primary);">Add one?</a>
 </div>
+{% else %}
 
-<!-- STATS ROW -->
-{% set expired_count = docs|selectattr('exp_status','eq','expired')|list|length %}
-{% set critical_count = docs|selectattr('exp_status','eq','critical')|list|length %}
-{% set warning_count = docs|selectattr('exp_status','eq','warning')|list|length %}
-{% set ok_count = docs|selectattr('exp_status','eq','ok')|list|length %}
-<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-  <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px 18px;text-align:center;">
-    <div style="font-size:20px;font-weight:700;color:#fca5a5;">{{ expired_count }}</div>
-    <div style="font-size:11px;color:#fca5a5;">Expired</div>
-  </div>
-  <div style="background:rgba(251,146,60,0.1);border:1px solid rgba(251,146,60,0.3);border-radius:8px;padding:10px 18px;text-align:center;">
-    <div style="font-size:20px;font-weight:700;color:#fb923c;">{{ critical_count }}</div>
-    <div style="font-size:11px;color:#fb923c;">Critical (&lt;30d)</div>
-  </div>
-  <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 18px;text-align:center;">
-    <div style="font-size:20px;font-weight:700;color:#fcd34d;">{{ warning_count }}</div>
-    <div style="font-size:11px;color:#fcd34d;">Warning (&lt;90d)</div>
-  </div>
-  <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:10px 18px;text-align:center;">
-    <div style="font-size:20px;font-weight:700;color:#86efac;">{{ ok_count }}</div>
-    <div style="font-size:11px;color:#86efac;">OK</div>
-  </div>
-</div>
-
-<!-- COLUMN HEADERS -->
-<div style="display:grid;grid-template-columns:140px 1fr 150px 160px 110px 120px;gap:0;padding:6px 16px;margin-bottom:4px;">
-  {% for h in ['Category','Document Name / Person','Authority','Expiry Date','Days Left','Actions'] %}
-  <div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;{% if loop.last %}text-align:right;{% endif %}">{{ h }}</div>
+<!-- CATEGORY TABS -->
+<div style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:18px;flex-wrap:wrap;">
+  {% for cat, count in cat_counts.items() %}
+  <button class="zdoc-tab" data-tab="{{ loop.index0 }}" onclick="showTab({{ loop.index0 }})"
+    style="background:none;border:none;border-bottom:2px solid transparent;padding:10px 16px;font-size:14px;font-weight:600;color:var(--text-dim);cursor:pointer;">
+    {{ cat }} <span style="color:var(--text-dim);font-weight:500;">({{ count }})</span>
+  </button>
   {% endfor %}
 </div>
 
-<!-- DOC LIST -->
-<div id="docList" style="display:flex;flex-direction:column;gap:6px;">
-  {% for d in docs %}
-  <div class="doc-row" data-cat="{{ d.doc_category }}" data-expst="{{ d.exp_status }}" data-days="{{ d.days_left if d.days_left is not none else 9999 }}"
-    style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;
-    display:grid;grid-template-columns:140px 1fr 150px 160px 110px 120px;gap:0;align-items:center;
-    {% if d.exp_status=='expired' %}border-left:3px solid #ef4444;{% elif d.exp_status=='critical' %}border-left:3px solid #fb923c;{% elif d.exp_status=='warning' %}border-left:3px solid #fcd34d;{% endif %}"
-    data-search="{{ (d.doc_name ~ ' ' ~ (d.person_name or '') ~ ' ' ~ (d.issuing_authority or ''))|lower }}">
-
-    <!-- CATEGORY -->
-    <div>
-      <span style="font-size:11px;padding:2px 10px;border-radius:20px;font-weight:600;
-        {% if d.doc_category=='Staff' %}background:rgba(59,130,246,0.12);color:#93c5fd;
-        {% elif d.doc_category=='Company' %}background:rgba(168,85,247,0.12);color:#c4b5fd;
-        {% elif d.doc_category=='License' %}background:rgba(245,158,11,0.12);color:#fcd34d;
-        {% else %}background:var(--surface3);color:var(--text-dim);{% endif %}">
-        {{ d.doc_category }}
-      </span>
-    </div>
-
-    <!-- NAME / PERSON -->
-    <div>
-      <div style="font-weight:600;color:var(--text);font-size:14px;">{{ d.doc_name }}</div>
-      {% if d.person_name %}
-      <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">👤 {{ d.person_name }}</div>
-      {% endif %}
-      {% if d.notes %}
-      <div style="font-size:11px;color:var(--text-dim);">{{ d.notes }}</div>
-      {% endif %}
-    </div>
-
-    <!-- AUTHORITY -->
-    <div style="font-size:12px;color:var(--text-muted);">{{ d.issuing_authority or '—' }}</div>
-
-    <!-- EXPIRY -->
-    <div>
-      {% if d.expiry_date %}
-      <div style="font-size:13px;font-weight:600;
-        {% if d.exp_status=='expired' %}color:#fca5a5;
-        {% elif d.exp_status=='critical' %}color:#fb923c;
-        {% elif d.exp_status=='warning' %}color:#fcd34d;
-        {% else %}color:#86efac;{% endif %}">
-        {{ d.expiry_date }}
-      </div>
-      {% else %}
-      <span style="color:var(--text-dim);">No expiry</span>
-      {% endif %}
-    </div>
-
-    <!-- DAYS LEFT -->
-    <div>
-      {% if d.days_left is not none %}
-      <span style="font-size:12px;font-weight:600;
-        {% if d.days_left < 0 %}color:#fca5a5;{% elif d.days_left <= 30 %}color:#fb923c;{% elif d.days_left <= 90 %}color:#fcd34d;{% else %}color:#86efac;{% endif %}">
-        {% if d.days_left < 0 %}{{ d.days_left|abs }}d ago{% else %}{{ d.days_left }}d left{% endif %}
-      </span>
-      {% else %}—{% endif %}
-    </div>
-
-    <!-- ACTIONS -->
-    <div style="display:flex;gap:5px;justify-content:flex-end;">
-      <button class="btn btn-ghost btn-sm btn-icon" title="Edit"
-        onclick="editDoc({{ d.id }},'{{ d.doc_name|replace("'","\\'") }}','{{ d.doc_category }}','{{ (d.person_name or '')|replace("'","\\'") }}','{{ (d.issuing_authority or '')|replace("'","\\'") }}','{{ d.issue_date or "" }}','{{ d.expiry_date or "" }}','{{ (d.notes or '')|replace("'","\\'") }}')">✏️</button>
-      <button class="btn btn-ghost btn-sm btn-icon" title="Convert to Renewal Task"
-        onclick="convertToTask('{{ d.doc_name|e }}','{{ d.expiry_date or "" }}','{{ (d.person_name or "")|e }}')">✅</button>
-      <button class="btn btn-danger btn-sm btn-icon" title="Delete" onclick="deleteDoc({{ d.id }})">🗑️</button>
-    </div>
+<!-- CATEGORY PANELS -->
+{% for cat, persons in grouped.items() %}
+<div class="zdoc-panel" id="zdoc-panel-{{ loop.index0 }}" {% if not loop.first %}style="display:none;"{% endif %}>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <div style="font-size:13px;color:var(--text-dim);font-weight:600;">{{ cat }} documents</div>
+    <button class="btn btn-primary btn-sm" onclick="openAdd('{{ cat|replace("'","\\'") }}')">+ Add {{ cat }} Document</button>
   </div>
-  {% else %}
-  <div style="text-align:center;padding:60px;color:var(--text-dim);background:var(--surface);border-radius:10px;border:1px solid var(--border);">
-    No documents yet. <a href="#" onclick="openModal('addDocModal');return false;" style="color:var(--primary);">Add one?</a>
+
+  {% for person, plist in persons.items() %}
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden;">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-weight:700;color:var(--text);">
+      👤 {{ person }} <span style="font-size:12px;color:var(--text-dim);font-weight:500;">({{ plist|length }} doc{{ 's' if plist|length != 1 else '' }})</span>
+    </div>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="background:var(--surface2);">
+          <th style="text-align:left;padding:9px 16px;font-size:11px;text-transform:uppercase;color:var(--text-dim);">Document Type</th>
+          <th style="text-align:left;padding:9px 16px;font-size:11px;text-transform:uppercase;color:var(--text-dim);">Expiry Date</th>
+          <th style="text-align:left;padding:9px 16px;font-size:11px;text-transform:uppercase;color:var(--text-dim);">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in plist %}
+        <tr style="border-top:1px solid var(--border);">
+          <td style="padding:11px 16px;font-weight:600;color:var(--text);font-size:14px;">
+            {{ d.doc_name }}
+            {% if not d.has_file %}<span title="No file uploaded" style="font-size:10px;background:rgba(59,130,246,0.15);color:#93c5fd;padding:1px 6px;border-radius:10px;margin-left:6px;">pending file</span>{% endif %}
+          </td>
+          <td style="padding:11px 16px;font-size:13px;font-weight:600;
+            {% if d.exp_status=='expired' %}color:#fca5a5;{% elif d.exp_status=='critical' %}color:#fb923c;{% elif d.exp_status=='warning' %}color:#fcd34d;{% else %}color:var(--text-muted);{% endif %}">
+            {{ d.expiry_date or '—' }}
+            {% if d.days_left is not none %}<span style="font-size:11px;color:var(--text-dim);font-weight:500;"> ({% if d.days_left < 0 %}exp {{ d.days_left|abs }}d{% else %}{{ d.days_left }}d{% endif %})</span>{% endif %}
+          </td>
+          <td style="padding:9px 16px;">
+            <div style="display:flex;gap:5px;flex-wrap:wrap;">
+              {% if d.has_file %}
+              <a href="{{ d.file_url }}" target="_blank" class="btn btn-ghost btn-sm">View</a>
+              <a href="{{ d.download_url }}" class="btn btn-ghost btn-sm">⭳ Download</a>
+              {% endif %}
+              <button class="btn btn-sm" style="background:transparent;border:1px solid rgba(34,197,94,0.4);color:#86efac;"
+                onclick="shareWhatsApp('{{ d.doc_name|replace("'","\\'") }}','{{ person|replace("'","\\'") }}','{{ d.expiry_date or "" }}')">WhatsApp</button>
+              {% if user_role in ['admin','compliance'] %}
+              <button class="btn btn-ghost btn-sm"
+                onclick="editDoc({{ d.id }},'{{ d.doc_name|replace("'","\\'") }}','{{ d.doc_category }}','{{ (d.person_name or '')|replace("'","\\'") }}','{{ (d.issuing_authority or '')|replace("'","\\'") }}','{{ d.issue_date or "" }}','{{ d.expiry_date or "" }}','{{ (d.notes or '')|replace("'","\\'") }}')">Edit</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteDoc({{ d.id }})">Delete</button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
   {% endfor %}
 </div>
+{% endfor %}
+{% endif %}
 
 <!-- ADD DOCUMENT MODAL -->
 <div class="modal-overlay" id="addDocModal">
@@ -150,14 +110,15 @@
     <div class="modal-title">➕ Add Document</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div class="form-group form-full">
-        <label>Document Name *</label>
-        <input type="text" id="addName" placeholder="e.g. Staff Visa — Ahmed Ali">
+        <label>Document Type *</label>
+        <input type="text" id="addName" placeholder="e.g. Passport, Visa, Labour Card">
       </div>
       <div class="form-group">
         <label>Category</label>
         <select id="addCat">
+          <option value="Zewer">Zewer</option>
           <option value="Staff">Staff</option>
-          <option value="Company">Company</option>
+          <option value="Management">Management</option>
           <option value="License">License</option>
           <option value="Other">Other</option>
         </select>
@@ -179,13 +140,17 @@
         <input type="date" id="addExpiry">
       </div>
       <div class="form-group form-full">
+        <label>Attach File <small style="color:var(--text-dim);">(PDF / image — optional)</small></label>
+        <input type="file" id="addFile" accept=".pdf,.jpg,.jpeg,.png,.webp">
+      </div>
+      <div class="form-group form-full">
         <label>Notes</label>
         <textarea id="addNotes" rows="2" placeholder="Any additional notes..."></textarea>
       </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('addDocModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitAdd()">💾 Save</button>
+      <button class="btn btn-primary" id="addSaveBtn" onclick="submitAdd()">💾 Save</button>
     </div>
   </div>
 </div>
@@ -197,14 +162,15 @@
     <input type="hidden" id="editId">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div class="form-group form-full">
-        <label>Document Name *</label>
+        <label>Document Type *</label>
         <input type="text" id="editName">
       </div>
       <div class="form-group">
         <label>Category</label>
         <select id="editCat">
+          <option value="Zewer">Zewer</option>
           <option value="Staff">Staff</option>
-          <option value="Company">Company</option>
+          <option value="Management">Management</option>
           <option value="License">License</option>
           <option value="Other">Other</option>
         </select>
@@ -226,53 +192,17 @@
         <input type="date" id="editExpiry">
       </div>
       <div class="form-group form-full">
+        <label>Replace File <small style="color:var(--text-dim);">(leave empty to keep current)</small></label>
+        <input type="file" id="editFile" accept=".pdf,.jpg,.jpeg,.png,.webp">
+      </div>
+      <div class="form-group form-full">
         <label>Notes</label>
         <textarea id="editNotes" rows="2"></textarea>
       </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('editDocModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitEdit()">💾 Save</button>
-    </div>
-  </div>
-</div>
-<!-- CONVERT TO TASK MODAL -->
-<div class="modal-overlay" id="convertTaskModal">
-  <div class="modal-box" style="max-width:480px;">
-    <div class="modal-title">✅ Create Renewal Task</div>
-    <div id="convertDocName" style="font-size:13px;font-weight:600;color:var(--primary);margin-bottom:16px;"></div>
-    <div class="form-group">
-      <label>Task Title</label>
-      <input type="text" id="ctTitle">
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div class="form-group">
-        <label>Assign To</label>
-        <select id="ctAssign">
-          <option value="">— Unassigned —</option>
-          {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Priority</label>
-        <select id="ctPriority">
-          <option value="normal">Normal</option>
-          <option value="high">High</option>
-          <option value="urgent">Urgent</option>
-        </select>
-      </div>
-    </div>
-    <div class="form-group">
-      <label>Due Date</label>
-      <input type="date" id="ctDue">
-    </div>
-    <div class="form-group">
-      <label>Notes</label>
-      <textarea id="ctNotes" rows="2" placeholder="Renewal instructions, reference numbers..."></textarea>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('convertTaskModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitConvertTask()">✅ Create Task</button>
+      <button class="btn btn-primary" id="editSaveBtn" onclick="submitEdit()">💾 Save</button>
     </div>
   </div>
 </div>
@@ -281,122 +211,97 @@
 
 {% block scripts %}
 <script>
-function filterDocs() {
-  const search = document.getElementById('searchInput').value.toLowerCase();
-  const cat = document.getElementById('catFilter').value;
-  const exp = document.getElementById('expiryFilter').value;
-  document.querySelectorAll('.doc-row').forEach(row => {
-    const matchSearch = !search || row.dataset.search.includes(search);
-    const matchCat = !cat || row.dataset.cat === cat;
-    let matchExp = true;
-    if (exp) {
-      const days = parseInt(row.dataset.days);
-      const expst = row.dataset.expst;
-      if (exp === 'expired') matchExp = expst === 'expired';
-      else if (exp === '30') matchExp = days >= 0 && days <= 30;
-      else if (exp === '90') matchExp = days >= 0 && days <= 90;
-      else if (exp === 'ok') matchExp = expst === 'ok';
-    }
-    row.style.display = (matchSearch && matchCat && matchExp) ? '' : 'none';
+function showTab(i) {
+  document.querySelectorAll('.zdoc-panel').forEach((p, idx) => { p.style.display = (idx === i) ? '' : 'none'; });
+  document.querySelectorAll('.zdoc-tab').forEach((t, idx) => {
+    const active = idx === i;
+    t.style.color = active ? 'var(--primary)' : 'var(--text-dim)';
+    t.style.borderBottomColor = active ? 'var(--primary)' : 'transparent';
   });
 }
-function clearFilters() {
-  document.getElementById('searchInput').value = '';
-  document.getElementById('catFilter').value = '';
-  document.getElementById('expiryFilter').value = '';
-  filterDocs();
+document.addEventListener('DOMContentLoaded', () => { if (document.querySelector('.zdoc-tab')) showTab(0); });
+
+function openAdd(cat) {
+  document.getElementById('addName').value = '';
+  document.getElementById('addPerson').value = '';
+  document.getElementById('addAuth').value = '';
+  document.getElementById('addIssue').value = '';
+  document.getElementById('addExpiry').value = '';
+  document.getElementById('addNotes').value = '';
+  document.getElementById('addFile').value = '';
+  const sel = document.getElementById('addCat');
+  if (cat && [...sel.options].some(o => o.value === cat)) sel.value = cat;
+  openModal('addDocModal');
 }
+
 function submitAdd() {
   const name = document.getElementById('addName').value.trim();
-  if (!name) { alert('Document name is required'); return; }
-  fetch('/api/internal-doc/add', {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      doc_name: name,
-      doc_category: document.getElementById('addCat').value,
-      person_name: document.getElementById('addPerson').value,
-      issuing_authority: document.getElementById('addAuth').value,
-      issue_date: document.getElementById('addIssue').value,
-      expiry_date: document.getElementById('addExpiry').value,
-      notes: document.getElementById('addNotes').value
-    })
-  }).then(r => r.json()).then(d => {
-    if (d.success) { closeModal('addDocModal'); location.reload(); }
-    else alert('Error: ' + d.error);
-  });
+  if (!name) { alert('Document type is required'); return; }
+  const fd = new FormData();
+  fd.append('doc_name', name);
+  fd.append('doc_category', document.getElementById('addCat').value);
+  fd.append('person_name', document.getElementById('addPerson').value);
+  fd.append('issuing_authority', document.getElementById('addAuth').value);
+  fd.append('issue_date', document.getElementById('addIssue').value);
+  fd.append('expiry_date', document.getElementById('addExpiry').value);
+  fd.append('notes', document.getElementById('addNotes').value);
+  const f = document.getElementById('addFile').files[0];
+  if (f) fd.append('file', f);
+  const btn = document.getElementById('addSaveBtn'); btn.disabled = true; btn.textContent = '⏳ Saving...';
+  fetch('/api/internal-doc/add', { method: 'POST', body: fd })
+    .then(r => r.json()).then(d => {
+      if (d.success) { location.reload(); }
+      else { alert('Error: ' + d.error); btn.disabled = false; btn.textContent = '💾 Save'; }
+    }).catch(e => { alert('Error: ' + e); btn.disabled = false; btn.textContent = '💾 Save'; });
 }
+
 function editDoc(id, name, cat, person, auth, issue, expiry, notes) {
   document.getElementById('editId').value = id;
   document.getElementById('editName').value = name;
-  document.getElementById('editCat').value = cat;
+  const sel = document.getElementById('editCat');
+  if ([...sel.options].some(o => o.value === cat)) sel.value = cat; else { const o = new Option(cat, cat); sel.add(o); sel.value = cat; }
   document.getElementById('editPerson').value = person;
   document.getElementById('editAuth').value = auth;
   document.getElementById('editIssue').value = issue;
   document.getElementById('editExpiry').value = expiry;
   document.getElementById('editNotes').value = notes;
+  document.getElementById('editFile').value = '';
   openModal('editDocModal');
 }
+
 function submitEdit() {
   const id = document.getElementById('editId').value;
   const name = document.getElementById('editName').value.trim();
-  if (!name) { alert('Document name is required'); return; }
-  fetch(`/api/internal-doc/${id}/edit`, {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      doc_name: name,
-      doc_category: document.getElementById('editCat').value,
-      person_name: document.getElementById('editPerson').value,
-      issuing_authority: document.getElementById('editAuth').value,
-      issue_date: document.getElementById('editIssue').value,
-      expiry_date: document.getElementById('editExpiry').value,
-      notes: document.getElementById('editNotes').value
-    })
-  }).then(r => r.json()).then(d => {
-    if (d.success) { closeModal('editDocModal'); location.reload(); }
-    else alert('Error: ' + d.error);
-  });
+  if (!name) { alert('Document type is required'); return; }
+  const fd = new FormData();
+  fd.append('doc_name', name);
+  fd.append('doc_category', document.getElementById('editCat').value);
+  fd.append('person_name', document.getElementById('editPerson').value);
+  fd.append('issuing_authority', document.getElementById('editAuth').value);
+  fd.append('issue_date', document.getElementById('editIssue').value);
+  fd.append('expiry_date', document.getElementById('editExpiry').value);
+  fd.append('notes', document.getElementById('editNotes').value);
+  const f = document.getElementById('editFile').files[0];
+  if (f) fd.append('file', f);
+  const btn = document.getElementById('editSaveBtn'); btn.disabled = true; btn.textContent = '⏳ Saving...';
+  fetch(`/api/internal-doc/${id}/edit`, { method: 'POST', body: fd })
+    .then(r => r.json()).then(d => {
+      if (d.success) { location.reload(); }
+      else { alert('Error: ' + d.error); btn.disabled = false; btn.textContent = '💾 Save'; }
+    }).catch(e => { alert('Error: ' + e); btn.disabled = false; btn.textContent = '💾 Save'; });
 }
+
 function deleteDoc(id) {
   if (!confirm('Delete this document?')) return;
-  fetch(`/api/internal-doc/${id}/delete`, {method:'POST'})
-    .then(r => r.json()).then(d => {
-      if (d.success) location.reload();
-      else alert('Error: ' + d.error);
-    });
+  fetch(`/api/internal-doc/${id}/delete`, { method: 'POST' })
+    .then(r => r.json()).then(d => { if (d.success) location.reload(); else alert('Error: ' + d.error); });
 }
-function convertToTask(docName, expiry, person) {
-  document.getElementById('convertDocName').textContent = '📄 ' + docName + (person ? ' — ' + person : '');
-  document.getElementById('ctTitle').value = 'Renew: ' + docName + (person ? ' (' + person + ')' : '');
-  document.getElementById('ctDue').value = expiry || '';
-  document.getElementById('ctNotes').value = '';
-  document.getElementById('ctPriority').value = 'high';
-  openModal('convertTaskModal');
-}
-function submitConvertTask() {
-  const title = document.getElementById('ctTitle').value.trim();
-  if (!title) { alert('Title required'); return; }
-  fetch('/api/task/add', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      title,
-      description: document.getElementById('ctNotes').value,
-      assigned_to: document.getElementById('ctAssign').value || null,
-      priority: document.getElementById('ctPriority').value,
-      due_date: document.getElementById('ctDue').value || null
-    })
-  }).then(r => r.json()).then(d => {
-    if (d.success) {
-      closeModal('convertTaskModal');
-      const msg = document.createElement('div');
-      msg.style.cssText = 'position:fixed;top:20px;right:20px;background:#166534;color:#86efac;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.4)';
-      msg.textContent = '✅ Task created successfully';
-      document.body.appendChild(msg);
-      setTimeout(() => msg.remove(), 3000);
-    } else alert('Error: ' + d.error);
-  });
+
+function shareWhatsApp(docName, person, expiry) {
+  let msg = `Document reminder: ${docName}`;
+  if (person && person !== '— Unassigned —') msg += ` for ${person}`;
+  if (expiry) msg += ` — expiry ${expiry}`;
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
 }
 </script>
 {% endblock %}
-
-
