@@ -794,7 +794,7 @@ def dashboard():
         upcoming_birthdays=upcoming_birthdays,kyc_alerts=kyc_alerts)
 
 @app.route('/companies')
-@compliance_required
+@login_required
 def companies():
     conn=get_db()
     s=request.args.get('search',''); sf=request.args.get('status','')
@@ -848,7 +848,7 @@ def company_new():
     return render_template('company_form.html',dropdown_data=dropdowns(),company=None,ubos=[],edit=False,staff_users=staff,max_kyc_date=max_kyc)
 
 @app.route('/company/<int:id>')
-@compliance_required
+@login_required
 def company_detail(id):
     conn=get_db()
     co=one(conn,'SELECT * FROM companies WHERE id=?',(id,))
@@ -999,7 +999,7 @@ def api_toggle_disable_client(id):
         return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/alerts')
-@compliance_required
+@login_required
 def alerts():
     conn=get_db(); today=dubai_today()
     # Build unified alert list from all document types
@@ -1772,7 +1772,7 @@ def risk_assessment_individual_result(id):
         factors=factors, calc=calc)
 
 @app.route('/reports')
-@compliance_required
+@login_required
 def reports():
     conn=get_db(); today=dubai_today()
     df=request.args.get('from',''); dt=request.args.get('to','')
@@ -2651,7 +2651,7 @@ def api_delete_document(did):
         return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/export/template')
-@compliance_required
+@login_required
 def export_template():
     if not HAS_XL: return "openpyxl not installed",500
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -2817,7 +2817,7 @@ def export_template():
         as_attachment=True, download_name='zewer_company_template.xlsx')
 
 @app.route('/export/companies')
-@compliance_required
+@login_required
 def export_companies():
     scope=request.args.get('scope','all'); fmt=request.args.get('format','csv')
     conn=get_db()
@@ -2842,7 +2842,7 @@ def export_companies():
     return send_file(io.BytesIO(out.getvalue().encode()),mimetype='text/csv',as_attachment=True,download_name=fname+'.csv')
 
 @app.route('/export/report')
-@compliance_required
+@login_required
 def export_report():
     rt=request.args.get('type','all'); fmt=request.args.get('format','xlsx')
     conn=get_db(); today=dubai_today()
@@ -2992,7 +2992,7 @@ def export_report():
     return send_file(io.BytesIO(out.getvalue().encode()),mimetype='text/csv',as_attachment=True,download_name=fname+'.csv')
 
 @app.route('/api/import/companies',methods=['POST'])
-@compliance_required
+@login_required
 def api_import_companies():
     if not HAS_XL: return jsonify({'success':False,'error':'openpyxl not installed'}),500
     if 'file' not in request.files: return jsonify({'success':False,'error':'No file'}),400
@@ -3210,7 +3210,7 @@ def api_delete_internal_doc(id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/company/<int:cid>/docs-export')
-@compliance_required
+@login_required
 def api_export_company_docs(cid):
     if not HAS_XL:
         return "openpyxl not installed", 500

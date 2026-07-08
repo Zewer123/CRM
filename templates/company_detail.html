@@ -30,14 +30,18 @@
         {% if wa_num %}
         <button onclick="sendWhatsApp()" class="btn btn-wa">💬 WhatsApp</button>
         {% endif %}
+        {% if user_role in ['admin', 'compliance'] %}
         <a href="#" onclick="secureAction('edit',{{ company.id }});return false;" class="btn btn-ghost">✏️ Edit</a>
+        {% endif %}
         <a href="{{ url_for('api_export_company_docs', cid=company.id) }}" class="btn btn-ghost">📥 Export Docs</a>
+        {% if user_role in ['admin', 'compliance'] %}
         {% if company.disabled %}
         <button onclick="toggleDisable()" class="btn btn-primary">✅ Enable</button>
         {% else %}
         <button onclick="toggleDisable()" class="btn btn-ghost" style="color:#f59e0b;">🚫 Disable</button>
         {% endif %}
         <button onclick="secureAction('delete',{{ company.id }})" class="btn btn-danger">🗑️ Delete</button>
+        {% endif %}
       </div>
     </div>
   </div>
