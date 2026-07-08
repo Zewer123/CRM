@@ -17,7 +17,8 @@
         </div>
     {% endif %}
 
-    <form id="amlForm" method="POST" style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 30px;">
+    <form id="amlForm" method="POST" {% if record %}onsubmit="return amlEditConfirm(this)"{% endif %} style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 30px;">
+        {% if record %}<input type="hidden" name="action_password" id="amlActionPw">{% endif %}
         <!-- Transaction Details Section -->
         <div style="margin-bottom: 30px;">
             <h2 style="font-size: 18px; font-weight: 700; color: #d97706; margin: 0 0 20px 0; padding-bottom: 12px; border-bottom: 2px solid #d97706;">
@@ -304,6 +305,15 @@
 </div>
 
 <script>
+// Editing an existing DPMSR record is admin-only and needs the action password
+function amlEditConfirm(form) {
+    const pw = getActionPw();
+    if (pw === null) return false;
+    const el = document.getElementById('amlActionPw');
+    if (el) el.value = pw;
+    return true;
+}
+
 // Auto-calculate Period (reporting quarter) and Due Date (transaction + 15 days)
 function calcDates() {
     const td = document.getElementById('transactionDate').value;

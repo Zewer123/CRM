@@ -588,6 +588,43 @@ def compliance_required(f):
         return f(*a,**k)
     return d
 
+def _check_action_pw(pw):
+    """True if the supplied action password matches the stored one (or none is set)."""
+    try:
+        conn = get_db()
+        s = one(conn, "SELECT value FROM app_settings WHERE key='action_password'")
+        conn.close()
+        if not s or not s.get('value'):
+            return True  # no action password configured
+        import hashlib
+        return hashlib.sha256((pw or '').encode()).hexdigest() == s['value']
+    except Exception:
+        return False
+
+def _require_admin_pw():
+    """Guard for edit/delete: caller must be admin AND supply a valid action password.
+    Returns an error (response, status) tuple to return, or None if allowed."""
+    if session.get('user_role') != 'admin':
+        return jsonify({'success': False, 'error': 'Only an admin can edit or delete records.'}), 403
+    if request.is_json:
+        pw = (request.get_json(silent=True) or {}).get('action_password')
+    else:
+        pw = request.form.get('action_password')
+    if not _check_action_pw(pw):
+        return jsonify({'success': False, 'error': 'Action password is required or incorrect.'}), 403
+    return None
+
+def admin_pw_required(f):
+    """Decorator form of _require_admin_pw for JSON edit/delete endpoints."""
+    @wraps(f)
+    def d(*a, **k):
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': 'Not signed in'}), 401
+        err = _require_admin_pw()
+        if err: return err
+        return f(*a, **k)
+    return d
+
 # ── ROUTES ──────────────────────────────────────────────────
 
 @app.route('/')
@@ -875,7 +912,7 @@ def company_detail(id):
         today=str(dubai_today()))
 
 @app.route('/company/<int:id>/edit')
-@compliance_required
+@admin_required
 def company_edit(id):
     conn=get_db()
     co=one(conn,'SELECT * FROM companies WHERE id=?',(id,))
@@ -941,7 +978,7 @@ def api_add_company():
         return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/api/company/<int:id>/edit', methods=['POST'])
-@compliance_required
+@admin_pw_required
 def api_edit_company(id):
     d=request.get_json()
     kyc_err = _validate_kyc_expiry(d.get('kyc_expiry_date'))
@@ -967,7 +1004,7 @@ def api_edit_company(id):
         return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/api/company/<int:id>/delete', methods=['POST'])
-@compliance_required
+@admin_pw_required
 def api_delete_company(id):
     try:
         conn=get_db(); x(conn,'DELETE FROM companies WHERE id=?',(id,))
@@ -2051,6 +2088,14 @@ def aml_tracker_edit(id):
         locked = record.get('goaml_status') and record.get('goaml_status') != 'pending' and session.get('user_role') != 'admin'
 
         if request.method == 'POST':
+            # Edit is admin-only and requires the action password
+            if session.get('user_role') != 'admin':
+                conn.close()
+                return ("Only an admin can edit records.", 403)
+            _pw = request.form.get('action_password') if request.form else (request.get_json(silent=True) or {}).get('action_password')
+            if not _check_action_pw(_pw):
+                conn.close()
+                return ("Action password is required or incorrect.", 403)
             if locked:
                 conn.close()
                 if request.is_json:
@@ -2113,7 +2158,7 @@ def aml_tracker_edit(id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/aml-tracker/<int:id>/delete', methods=['POST'])
-@login_required
+@admin_pw_required
 def api_aml_tracker_delete(id):
     """Delete AML Tracker record"""
     try:
@@ -3227,7 +3272,7 @@ def api_add_internal_doc():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/internal-doc/<int:id>/edit', methods=['POST'])
-@compliance_required
+@admin_pw_required
 def api_edit_internal_doc(id):
     d = request.form if request.form else (request.get_json(silent=True) or {})
     try:
@@ -3259,7 +3304,7 @@ def api_edit_internal_doc(id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/internal-doc/<int:id>/delete', methods=['POST'])
-@compliance_required
+@admin_pw_required
 def api_delete_internal_doc(id):
     try:
         conn = get_db()
@@ -3504,7 +3549,7 @@ def api_add_client():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/client/<int:id>/edit', methods=['POST'])
-@login_required
+@admin_pw_required
 def api_edit_client(id):
     d = request.get_json()
     err = _validate_kyc_expiry(d.get('kyc_expiry_date'))
@@ -3536,7 +3581,7 @@ def api_edit_client(id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/client/<int:id>/delete', methods=['POST'])
-@compliance_required
+@admin_pw_required
 def api_delete_client(id):
     try:
         conn = get_db()

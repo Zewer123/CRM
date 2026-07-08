@@ -783,6 +783,15 @@ function submitForm() {
     followup_details: form.querySelectorAll('[name="ubo_followup[]"]')[i]?.value || '',
   })).filter(u => u.person_name);
 
+  // Editing is admin-only + action password. Reuse the password entered before
+  // opening this form (stored on navigation); prompt if it's missing.
+  if (IS_EDIT) {
+    let pw = sessionStorage.getItem('zw_action_pw');
+    if (pw === null) { pw = getActionPw(); if (pw === null) return; }
+    sessionStorage.removeItem('zw_action_pw');
+    data.action_password = pw;
+  }
+
   const btn = document.querySelector('button[onclick="submitForm()"]');
   btn.disabled = true;
   btn.textContent = '⏳ Saving...';

@@ -116,6 +116,12 @@
     });
     function openModal(id) { document.getElementById(id).classList.add('open'); }
     function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+    // Admin edit/delete confirmation: prompt for the action password.
+    // Returns the entered string, or null if the user cancelled.
+    window.getActionPw = function() {
+      return window.prompt('Admin action password required to confirm this change:');
+    };
     
     // Make all date inputs open picker on click anywhere in the field
     document.addEventListener('DOMContentLoaded', function() {

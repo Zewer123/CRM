@@ -158,8 +158,8 @@
     <button class="btn btn-ghost btn-sm btn-icon" disabled title="No phone/WhatsApp number" style="opacity:0.3;cursor:not-allowed;">💬</button>
     {% endif %}
     <a href="{{ url_for('client_detail', id=c.id) }}" class="btn btn-ghost btn-sm btn-icon" title="View">👁️</a>
+    {% if user_role == 'admin' %}
     <button class="btn btn-ghost btn-sm btn-icon" title="Edit" onclick="editClient({{ c.id }})">✏️</button>
-    {% if user_role in ['admin','compliance'] %}
     <button class="btn btn-danger btn-sm btn-icon" title="Delete" onclick="deleteClient({{ c.id }},'{{ c.name|e }}')">🗑️</button>
     {% endif %}
   </div>
@@ -789,9 +789,11 @@ function submitEditClient() {
   const name = document.getElementById('e_name').value.trim();
   if (!name) { alert('Name required'); return; }
   if (!validateKycField('e')) return;
+  const _pw = getActionPw(); if (_pw === null) return;
   fetch('/api/client/'+id+'/edit', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
+      action_password: _pw,
       name, phone: document.getElementById('e_phone').value,
       whatsapp_number: document.getElementById('e_wa').value,
       email: document.getElementById('e_email').value,
@@ -828,7 +830,8 @@ function submitEditClient() {
 
 function deleteClient(id, name) {
   if (!confirm('Delete client "'+name+'"?')) return;
-  fetch('/api/client/'+id+'/delete', {method:'POST'}).then(r=>r.json()).then(d=>{
+  const _pw = getActionPw(); if (_pw === null) return;
+  fetch('/api/client/'+id+'/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action_password: _pw})}).then(r=>r.json()).then(d=>{
     if(d.success) location.reload(); else alert('Error: '+d.error);
   });
 }

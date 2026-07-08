@@ -169,7 +169,7 @@
          class="btn btn-wa btn-sm btn-icon" title="WhatsApp">💬</a>
       {% endif %}
       <a href="{{ url_for('company_detail', id=c.id) }}" class="btn btn-ghost btn-sm btn-icon" title="View">👁️</a>
-      {% if user_role in ['admin', 'compliance'] %}
+      {% if user_role == 'admin' %}
       <a href="#" onclick="editCompanySecure({{ c.id }});return false;" class="btn btn-ghost btn-sm btn-icon" title="Edit">✏️</a>
       <button class="btn btn-danger btn-sm btn-icon" onclick="deleteCompany({{ c.id }}, '{{ c.client_name|replace("'","\\'") }}')" title="Delete">🗑️</button>
       {% endif %}
@@ -353,10 +353,11 @@ function submitActionPw() {
     if (d.success) {
       closeModal('actionPwModal');
       if (_actionTarget.type === 'delete') {
-        fetch(`/api/company/${_actionTarget.id}/delete`,{method:'POST'}).then(r=>r.json()).then(d=>{
+        fetch(`/api/company/${_actionTarget.id}/delete`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action_password:pw})}).then(r=>r.json()).then(d=>{
           if(d.success) location.reload(); else alert('Error: '+d.error);
         });
       } else if (_actionTarget.type === 'edit') {
+        sessionStorage.setItem('zw_action_pw', pw);
         window.location.href = `/company/${_actionTarget.id}/edit`;
       }
     } else {

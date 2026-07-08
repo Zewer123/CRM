@@ -173,11 +173,8 @@
                             </td>
                             <td style="padding: 12px; text-align: center;">
                                 {# Once submitted, only admin may edit or delete #}
-                                {% set locked = record.goaml_status and record.goaml_status != 'pending' and user_role != 'admin' %}
                                 <a href="{{ url_for('aml_tracker_edit', id=record.id) }}" style="display: inline-block; padding: 6px 12px; background: #3b82f6; color: white; border-radius: 4px; text-decoration: none; font-weight: 600; font-size: 12px; margin: 0 2px; cursor: pointer;">👁️ View</a>
-                                {% if locked %}
-                                <span title="Submitted — only an admin can edit or delete" style="display:inline-block; padding:6px 12px; background:#e5e7eb; color:#9ca3af; border-radius:4px; font-weight:600; font-size:12px; margin:0 2px;">🔒 Locked</span>
-                                {% else %}
+                                {% if user_role == 'admin' %}
                                 <a href="{{ url_for('aml_tracker_edit', id=record.id) }}" style="display: inline-block; padding: 6px 12px; background: #d97706; color: white; border-radius: 4px; text-decoration: none; font-weight: 600; font-size: 12px; margin: 0 2px; cursor: pointer;">✏️ Edit</a>
                                 <button onclick="deleteRecord({{ record.id }})" style="display: inline-block; padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 4px; text-decoration: none; font-weight: 600; font-size: 12px; margin: 0 2px; cursor: pointer;">🗑️ Delete</button>
                                 {% endif %}
@@ -198,7 +195,8 @@
 <script>
 function deleteRecord(id) {
     if (confirm('Delete this AML record?')) {
-        fetch(`/api/aml-tracker/${id}/delete`, {method: 'POST'})
+        const _pw = getActionPw(); if (_pw === null) return;
+        fetch(`/api/aml-tracker/${id}/delete`, {method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({action_password: _pw})})
             .then(r => r.json())
             .then(d => {
                 if (d.success) {

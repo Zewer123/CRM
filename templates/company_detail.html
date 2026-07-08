@@ -30,7 +30,7 @@
         {% if wa_num %}
         <button onclick="sendWhatsApp()" class="btn btn-wa">💬 WhatsApp</button>
         {% endif %}
-        {% if user_role in ['admin', 'compliance'] %}
+        {% if user_role == 'admin' %}
         <a href="#" onclick="secureAction('edit',{{ company.id }});return false;" class="btn btn-ghost">✏️ Edit</a>
         {% endif %}
         <a href="{{ url_for('api_export_company_docs', cid=company.id) }}" class="btn btn-ghost">📥 Export Docs</a>
@@ -40,6 +40,8 @@
         {% else %}
         <button onclick="toggleDisable()" class="btn btn-ghost" style="color:#f59e0b;">🚫 Disable</button>
         {% endif %}
+        {% endif %}
+        {% if user_role == 'admin' %}
         <button onclick="secureAction('delete',{{ company.id }})" class="btn btn-danger">🗑️ Delete</button>
         {% endif %}
       </div>
@@ -337,10 +339,11 @@ function submitAP() {
     if (d.success) {
       closeModal('apModal');
       if (_actionType === 'edit') {
+        sessionStorage.setItem('zw_action_pw', pw);
         window.location.href = `/company/${_actionId}/edit`;
       } else {
         if (!confirm('Delete this company? This cannot be undone.')) return;
-        fetch(`/api/company/${_actionId}/delete`,{method:'POST'})
+        fetch(`/api/company/${_actionId}/delete`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action_password:pw})})
           .then(r=>r.json()).then(dd=>{ if(dd.success) window.location.href='/companies'; else alert('Error: '+dd.error); });
       }
     } else {

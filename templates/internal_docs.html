@@ -87,7 +87,7 @@
               {% endif %}
               <button class="btn btn-sm" style="background:transparent;border:1px solid rgba(34,197,94,0.4);color:#86efac;"
                 onclick="shareWhatsApp('{{ d.doc_name|replace("'","\\'") }}','{{ person|replace("'","\\'") }}','{{ d.expiry_date or "" }}')">WhatsApp</button>
-              {% if user_role in ['admin','compliance'] %}
+              {% if user_role == 'admin' %}
               <button class="btn btn-ghost btn-sm"
                 onclick="editDoc({{ d.id }},'{{ d.doc_name|replace("'","\\'") }}','{{ d.doc_category }}','{{ (d.person_name or '')|replace("'","\\'") }}','{{ (d.issuing_authority or '')|replace("'","\\'") }}','{{ d.issue_date or "" }}','{{ d.expiry_date or "" }}','{{ (d.notes or '')|replace("'","\\'") }}')">Edit</button>
               <button class="btn btn-danger btn-sm" onclick="deleteDoc({{ d.id }})">Delete</button>
@@ -283,6 +283,8 @@ function submitEdit() {
   fd.append('notes', document.getElementById('editNotes').value);
   const f = document.getElementById('editFile').files[0];
   if (f) fd.append('file', f);
+  const _pw = getActionPw(); if (_pw === null) return;
+  fd.append('action_password', _pw);
   const btn = document.getElementById('editSaveBtn'); btn.disabled = true; btn.textContent = '⏳ Saving...';
   fetch(`/api/internal-doc/${id}/edit`, { method: 'POST', body: fd })
     .then(r => r.json()).then(d => {
@@ -293,7 +295,8 @@ function submitEdit() {
 
 function deleteDoc(id) {
   if (!confirm('Delete this document?')) return;
-  fetch(`/api/internal-doc/${id}/delete`, { method: 'POST' })
+  const _pw = getActionPw(); if (_pw === null) return;
+  fetch(`/api/internal-doc/${id}/delete`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({action_password: _pw}) })
     .then(r => r.json()).then(d => { if (d.success) location.reload(); else alert('Error: ' + d.error); });
 }
 
