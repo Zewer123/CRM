@@ -1875,11 +1875,14 @@ def aml_tracker():
         company_filter = request.args.get('company', '')
         vc_no_filter = request.args.get('vc_no', '')
         submitted_by_filter = request.args.get('submitted_by', '')
-        
+        period_filter = request.args.get('period', '')   # today | week | month | range
+        date_from = request.args.get('from', '')
+        date_to = request.args.get('to', '')
+
         # Build WHERE clause
         where = []
         params = []
-        
+
         if status_filter:
             where.append(f'goaml_status = {P()}')
             params.append(status_filter)
@@ -1892,7 +1895,23 @@ def aml_tracker():
         if submitted_by_filter:
             where.append(f'submitted_by = {P()}')
             params.append(submitted_by_filter)
-        
+
+        # Period search on transaction_date
+        _td = dubai_today()
+        if period_filter == 'today':
+            where.append(f'transaction_date = {P()}'); params.append(str(_td))
+        elif period_filter == 'week':
+            _mon = _td - timedelta(days=_td.weekday())
+            where.append(f'transaction_date BETWEEN {P()} AND {P()}'); params += [str(_mon), str(_mon + timedelta(days=6))]
+        elif period_filter == 'month':
+            _first = _td.replace(day=1)
+            where.append(f'transaction_date BETWEEN {P()} AND {P()}'); params += [str(_first), str(_td)]
+        elif period_filter == 'range':
+            if date_from:
+                where.append(f'transaction_date >= {P()}'); params.append(date_from)
+            if date_to:
+                where.append(f'transaction_date <= {P()}'); params.append(date_to)
+
         where_clause = ' AND '.join(where) if where else '1=1'
         
         # Get AML records with company/individual/user names
@@ -1943,7 +1962,10 @@ def aml_tracker():
                              status_filter=status_filter,
                              company_filter=company_filter,
                              vc_no_filter=vc_no_filter,
-                             submitted_by_filter=submitted_by_filter)
+                             submitted_by_filter=submitted_by_filter,
+                             period_filter=period_filter,
+                             date_from=date_from,
+                             date_to=date_to)
     except Exception as e:
         logger.error(f'Error in aml_tracker: {e}')
         return render_template('aml_tracker.html', records=[], companies=[], 

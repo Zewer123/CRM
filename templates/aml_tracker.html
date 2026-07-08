@@ -62,6 +62,27 @@
             </div>
 
             <div style="min-width: 150px;">
+                <label style="display: block; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 6px;">Period (Transaction)</label>
+                <select name="period" id="dpmsrPeriod" onchange="dpmsrPeriodChange()" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: white;">
+                    <option value="" {% if not period_filter %}selected{% endif %}>All Time</option>
+                    <option value="today" {% if period_filter=='today' %}selected{% endif %}>Today</option>
+                    <option value="week" {% if period_filter=='week' %}selected{% endif %}>This Week</option>
+                    <option value="month" {% if period_filter=='month' %}selected{% endif %}>This Month</option>
+                    <option value="range" {% if period_filter=='range' %}selected{% endif %}>Date Range…</option>
+                </select>
+            </div>
+            <div id="dpmsrRange" style="{% if period_filter != 'range' %}display:none;{% endif %} display:flex; gap:8px;">
+                <div style="min-width: 130px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 6px;">From</label>
+                    <input type="date" name="from" value="{{ date_from }}" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: white;">
+                </div>
+                <div style="min-width: 130px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 6px;">To</label>
+                    <input type="date" name="to" value="{{ date_to }}" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: white;">
+                </div>
+            </div>
+
+            <div style="min-width: 150px;">
                 <label style="display: block; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 6px;">Status</label>
                 <select name="status" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #1f2937; background: white;">
                     <option value="">All</option>
@@ -193,6 +214,10 @@
 </div>
 
 <script>
+function dpmsrPeriodChange() {
+    const v = document.getElementById('dpmsrPeriod').value;
+    document.getElementById('dpmsrRange').style.display = (v === 'range') ? 'flex' : 'none';
+}
 function deleteRecord(id) {
     if (confirm('Delete this AML record?')) {
         const _pw = getActionPw(); if (_pw === null) return;
