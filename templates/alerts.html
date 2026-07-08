@@ -174,19 +174,19 @@
           <td>
             <div style="display:flex;gap:5px;align-items:center;">
               {% if row.company_id %}
-              <a href="{{ url_for('company_detail', id=row.company_id) }}" class="btn btn-ghost btn-sm btn-icon" title="View">👁️</a>
+              <a href="{{ url_for('company_detail', id=row.company_id) }}" class="btn btn-ghost btn-sm btn-icon" title="View company">👁️</a>
+              {% elif row.client_id %}
+              <a href="{{ url_for('client_detail', id=row.client_id) }}" class="btn btn-ghost btn-sm btn-icon" title="View individual">👁️</a>
               {% endif %}
               {% set wa_contact = row.contact_person_number or row.whatsapp_number or row.mobile %}
               {% if wa_contact %}
               <a href="https://wa.me/{{ wa_contact|replace('+','')|replace(' ','')|replace('-','') }}" target="_blank"
                  class="btn btn-wa btn-sm btn-icon" title="WhatsApp {{ row.contact_person_name or 'Contact' }}">💬</a>
               {% endif %}
-              {% if row.company_id %}
               <button class="btn btn-ghost btn-sm btn-icon" title="Create Task"
-                onclick="createTask('{{ row.ac_code }}', {{ row.company_id }}, '{{ row.client_name|replace("'","\\'") }}', '{{ row.doc_type }}', '{{ row.expiry_date }}', '{{ row.account_manager or "" }}')">
+                onclick="createTask('{{ row.ac_code }}', {{ row.company_id or 'null' }}, '{{ row.client_name|replace("'","\\'") }}', '{{ row.doc_type }}', '{{ row.expiry_date }}', '{{ row.account_manager or "" }}')">
                 ✅
               </button>
-              {% endif %}
             </div>
           </td>
         </tr>
@@ -321,7 +321,7 @@ function filterRows() {
 filterRows();
 
 function createTask(acCode, companyId, companyName, docType, expiryDate, accountManager) {
-  document.getElementById('ctCompanyId').value = companyId;
+  document.getElementById('ctCompanyId').value = companyId || '';
   document.getElementById('ctTitle').value = `${docType} Renewal — ${companyName}`;
   document.getElementById('ctDesc').value = `AC Code: ${acCode}\nDocument: ${docType}\nExpiry Date: ${expiryDate}\n\nPlease follow up with the client to collect the renewed document.`;
 
