@@ -3,9 +3,19 @@
 {% block title %}{% if record %}Edit{% else %}New{% endif %} DPMSR Report - Zewer CRM{% endblock %}
 
 {% block content %}
-<div style="max-width: 1000px; margin: 0 auto; padding: 20px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #d97706;">
-        <h1 style="margin: 0; font-size: 28px; color: #1c1917;">
+<style>
+/* Compact DPMSR entry form — denser layout so staff can enter details faster */
+#amlForm { padding: 16px !important; }
+#amlForm > div { margin-bottom: 12px !important; }
+#amlForm h2 { font-size: 14px !important; margin: 0 0 8px 0 !important; padding-bottom: 5px !important; }
+#amlForm > div > div[style*="grid"] { gap: 10px !important; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)) !important; }
+#amlForm label { font-size: 10px !important; margin-bottom: 3px !important; }
+#amlForm input, #amlForm select, #amlForm textarea { padding: 6px 9px !important; font-size: 13px !important; }
+#amlForm textarea { min-height: 58px !important; }
+</style>
+<div style="max-width: 1180px; margin: 0 auto; padding: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 2px solid #d97706;">
+        <h1 style="margin: 0; font-size: 22px; color: #1c1917;">
             {% if record %}Edit DPMSR Report #{{ record.id }}{% else %}New DPMSR Report{% endif %}
         </h1>
         <a href="{{ url_for('aml_tracker') }}" style="padding: 10px 16px; background: #6b7280; color: white; border-radius: 6px; text-decoration: none; font-weight: 600;">← Back to DPMSR Report</a>

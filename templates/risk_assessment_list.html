@@ -8,6 +8,9 @@
     <div style="font-size:13px;color:var(--text-dim);">View & manage all completed risk assessments</div>
   </div>
   <div style="display:flex;gap:10px;">
+    <a href="{{ url_for('dashboard') }}" style="padding:10px 18px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-weight:600;font-size:13px;text-decoration:none;">
+      ← Back
+    </a>
     <a href="{{ url_for('risk_assessment') }}" style="padding:10px 18px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-weight:600;font-size:13px;text-decoration:none;">
       📋 New Test (Existing Client)
     </a>
@@ -180,7 +183,7 @@ function applyFilters() {
     const searchMatch = !search || rowName.includes(search);
     
     const show = typeMatch && statusMatch && ratingMatch && searchMatch;
-    row.style.display = show ? '' : 'none';
+    row.style.display = show ? 'grid' : 'none';
     if (show) visible++;
   });
 }
