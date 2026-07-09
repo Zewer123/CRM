@@ -97,6 +97,16 @@ def _close_db_conns(exc):
         except Exception:
             pass
 
+# ── SAFE ERROR RESPONSE ──────────────────────────────────────
+def _fail(e, code=500):
+    """Log the real exception server-side, return a generic message to the client.
+    Never leak SQL/schema/paths (str(e)) to the browser."""
+    try:
+        logger.error(f'{request.path}: {e}')
+    except Exception:
+        pass
+    return jsonify({'success': False, 'error': 'Server error — please try again or contact support.'}), code
+
 DATABASE_URL = os.getenv('DATABASE_URL', '')
 
 # Local SQLite location (used only when DATABASE_URL is not set, i.e. local installs).
@@ -697,16 +707,28 @@ def compliance_required(f):
         return f(*a,**k)
     return d
 
+def _action_pw_matches(pw, stored):
+    """Verify pw against a stored action-password hash. Accepts both the new
+    salted werkzeug hashes and the legacy unsalted sha256 hex, so an already-set
+    password keeps working after the upgrade."""
+    if not stored:
+        return True  # no action password configured
+    pw = pw or ''
+    if stored.startswith(('pbkdf2:', 'scrypt:')):
+        try:
+            return check_password_hash(stored, pw)
+        except Exception:
+            return False
+    import hashlib  # legacy unsalted sha256
+    return hashlib.sha256(pw.encode()).hexdigest() == stored
+
 def _check_action_pw(pw):
     """True if the supplied action password matches the stored one (or none is set)."""
     try:
         conn = get_db()
         s = one(conn, "SELECT value FROM app_settings WHERE key='action_password'")
         conn.close()
-        if not s or not s.get('value'):
-            return True  # no action password configured
-        import hashlib
-        return hashlib.sha256((pw or '').encode()).hexdigest() == s['value']
+        return _action_pw_matches(pw, s.get('value') if s else None)
     except Exception:
         return False
 
@@ -775,7 +797,8 @@ def healthz():
         ok = all(v == 'ok' for v in checks.values())
         return jsonify({'status': 'ok' if ok else 'degraded', 'schema': checks}), (200 if ok else 503)
     except Exception as e:
-        return jsonify({'status': 'error', 'error': str(e)}), 500
+        logger.error(f'/healthz: {e}')
+        return jsonify({'status': 'error'}), 500
 
 def _client_ip():
     """Best-effort client IP, honouring the first X-Forwarded-For hop (Railway proxy)."""
@@ -1150,7 +1173,7 @@ def api_add_company():
         return jsonify({'success':True,'id':cid})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/api/company/<int:id>/edit', methods=['POST'])
 @admin_pw_required
@@ -1176,7 +1199,7 @@ def api_edit_company(id):
         return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/api/company/<int:id>/delete', methods=['POST'])
 @admin_pw_required
@@ -1186,7 +1209,7 @@ def api_delete_company(id):
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/api/company/<int:id>/toggle-disable', methods=['POST'])
 @admin_pw_required
@@ -1201,7 +1224,7 @@ def api_toggle_disable_company(id):
         return jsonify({'success':True,'disabled':new_val})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/api/client/<int:id>/toggle-disable', methods=['POST'])
 @admin_pw_required
@@ -1216,7 +1239,7 @@ def api_toggle_disable_client(id):
         return jsonify({'success':True,'disabled':new_val})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/alerts')
 @login_required
@@ -1474,7 +1497,7 @@ def api_save_health_note(id):
         logger.error(f'Error saving health note: {e}')
         try: conn.close()
         except: pass
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 # ──────────── RISK ASSESSMENT ────────────
 def calculate_risk_score(scores):
@@ -1566,7 +1589,7 @@ def api_send_risk_email():
         return jsonify({'success': True, 'message': f'Risk assessment for {company} ({rating} - {score}) ready to send'})
     except Exception as e:
         logger.error(f'Error sending risk email: {e}')
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 @app.route('/risk-assessment-list')
 @compliance_required
@@ -1651,7 +1674,8 @@ def risk_assessment_list():
         logger.error(f'Error loading risk assessment list: {e}', exc_info=True)
         try: conn.close()
         except: pass
-        return f'<h1>Error</h1><p>{str(e)}</p>', 500
+        logger.error(f'{request.path}: {e}')
+        return '<h1>Error</h1><p>Something went wrong. Please try again.</p>', 500
 
 
 @app.route('/risk-assessment/walkin', methods=['GET','POST'])
@@ -1699,7 +1723,8 @@ def risk_assessment_walkin():
             logger.error(f'Walk-in assessment error: {e}', exc_info=True)
             try: conn.close()
             except: pass
-            return f'<h1>Error</h1><p>{str(e)}</p>', 500
+            logger.error(f'{request.path}: {e}')
+        return '<h1>Error</h1><p>Something went wrong. Please try again.</p>', 500
 
     refresh_country_scores()
     return render_template('risk_assessment_walkin.html', lookups=RISK_LOOKUPS)
@@ -1744,7 +1769,8 @@ def risk_assessment():
         logger.error(f'Error in risk_assessment: {e}', exc_info=True)
         try: conn.close()
         except: pass
-        return f'<h1>Error</h1><p>{str(e)}</p>', 500
+        logger.error(f'{request.path}: {e}')
+        return '<h1>Error</h1><p>Something went wrong. Please try again.</p>', 500
 
 @app.route('/risk-assessment/company/<int:id>', methods=['GET','POST'])
 @compliance_required
@@ -2263,7 +2289,7 @@ def aml_tracker_add():
                              record=None)
     except Exception as e:
         logger.error(f'Error in aml_tracker_add: {e}')
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 @app.route('/aml-tracker/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -2352,7 +2378,7 @@ def aml_tracker_edit(id):
                              record=record)
     except Exception as e:
         logger.error(f'Error in aml_tracker_edit: {e}')
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 @app.route('/api/aml-tracker/<int:id>/delete', methods=['POST'])
 @admin_pw_required
@@ -2371,7 +2397,7 @@ def api_aml_tracker_delete(id):
         return jsonify({'success': True, 'message': 'AML record deleted'})
     except Exception as e:
         logger.error(f'Error deleting AML record: {e}')
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 # AML Tracker import column order (used by export, template, and import)
 AML_IMPORT_COLS = ['transaction_date','company_name','individual_name','vc_no','payment_mode',
@@ -2576,7 +2602,7 @@ def api_save_country_scores():
         return jsonify({'success': True, 'updated': len(scores)})
     except Exception as e:
         logger.error(f'Error saving country scores: {e}')
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 def _load_risk_questions(conn, applies_to=None):
     """Return questions (optionally for a given entity type) with nested answer options."""
@@ -2701,7 +2727,7 @@ def api_set_local_docs_path():
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 @app.route('/api/settings/browse-folder', methods=['POST'])
 @admin_required
@@ -2743,7 +2769,7 @@ def api_add_user():
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/api/user/<int:id>/edit',methods=['POST'])
 @admin_required
@@ -2766,7 +2792,7 @@ def api_edit_user(id):
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/api/user/<int:id>/toggle',methods=['POST'])
 @admin_required
@@ -2777,7 +2803,7 @@ def api_toggle_user(id):
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/api/user/<int:id>/delete',methods=['POST'])
 @admin_required
@@ -2787,7 +2813,7 @@ def api_delete_user(id):
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/api/dropdown/add',methods=['POST'])
 @admin_required
@@ -2799,7 +2825,7 @@ def api_add_dropdown():
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/api/dropdown/<int:id>/delete',methods=['POST'])
 @admin_required
@@ -2809,7 +2835,7 @@ def api_delete_dropdown(id):
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/tasks')
 @login_required
@@ -2968,7 +2994,7 @@ def api_add_task():
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/api/task/<int:id>/edit',methods=['POST'])
 @login_required
@@ -2982,7 +3008,7 @@ def api_edit_task(id):
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/api/task/<int:id>/status',methods=['POST'])
 @login_required
@@ -2994,7 +3020,7 @@ def api_task_status(id):
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/api/task/<int:id>/delete',methods=['POST'])
 @login_required
@@ -3006,7 +3032,7 @@ def api_delete_task(id):
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/api/company/<int:cid>/documents')
 @compliance_required
@@ -3035,7 +3061,7 @@ def api_upload_document(cid):
         return jsonify({'success':True,'url':r['secure_url'],'name':file.filename})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/api/document/<int:did>/delete',methods=['POST'])
 @compliance_required
@@ -3049,7 +3075,7 @@ def api_delete_document(did):
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/export/template')
 @login_required
@@ -3463,7 +3489,7 @@ def api_import_companies():
         return jsonify({'success':True,'imported':imported,'skipped':skipped})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 if __name__=='__main__':
     app.run(debug=False,host='0.0.0.0',port=int(os.getenv('PORT',8000)))
@@ -3497,7 +3523,7 @@ def api_add_regular_task():
     except Exception as e:
         try: conn.close()
         except: pass
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 @app.route('/api/regular-task/<int:id>/delete', methods=['POST'])
 @compliance_required
@@ -3511,7 +3537,7 @@ def api_delete_regular_task(id):
     except Exception as e:
         try: conn.close()
         except: pass
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 @app.route('/api/regular-task/<int:id>/log', methods=['POST'])
 @login_required
@@ -3527,7 +3553,7 @@ def api_log_regular_task(id):
     except Exception as e:
         try: conn.close()
         except: pass
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 # ════════════════════════════════════════════════════════════
 # ADDITIONAL TASKS
@@ -3564,7 +3590,7 @@ def api_add_additional_task():
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 @app.route('/api/additional-task/<int:id>/delete', methods=['POST'])
 @login_required
@@ -3580,7 +3606,7 @@ def api_delete_additional_task(id):
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 # ── INTERNAL DOCUMENTS (ZEWER STAFF / COMPANY DOCS) ──────────
 def _dl_url(url):
@@ -3658,7 +3684,7 @@ def api_add_internal_doc():
         return jsonify({'success': True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 @app.route('/api/internal-doc/<int:id>/edit', methods=['POST'])
 @admin_pw_required
@@ -3690,7 +3716,7 @@ def api_edit_internal_doc(id):
         return jsonify({'success': True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 @app.route('/api/internal-doc/<int:id>/delete', methods=['POST'])
 @admin_pw_required
@@ -3705,7 +3731,7 @@ def api_delete_internal_doc(id):
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 @app.route('/api/company/<int:cid>/docs-export')
 @login_required
@@ -3787,7 +3813,8 @@ def api_get_role_permissions():
             return jsonify({'permissions': _json.loads(row['value'])})
         return jsonify({'permissions': None})
     except Exception as e:
-        return jsonify({'permissions': None, 'error': str(e)})
+        logger.error(f'{request.path}: {e}')
+        return jsonify({'permissions': None})
 
 @app.route('/api/settings/role-permissions', methods=['POST'])
 @login_required
@@ -3804,7 +3831,7 @@ def api_save_role_permissions():
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 # ════════════════════════════════════════════════════════════
 # CLIENTS PAGE
@@ -3935,7 +3962,7 @@ def api_add_client():
     except Exception as e:
         try: conn.close()
         except: pass
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 @app.route('/api/client/<int:id>/edit', methods=['POST'])
 @admin_pw_required
@@ -3967,7 +3994,7 @@ def api_edit_client(id):
     except Exception as e:
         try: conn.close()
         except: pass
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 @app.route('/api/client/<int:id>/delete', methods=['POST'])
 @admin_pw_required
@@ -3978,7 +4005,7 @@ def api_delete_client(id):
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 # ════════════════════════════════════════════════════════════
 # COMPANY GROUPS (admin panel)
@@ -4002,7 +4029,7 @@ def api_add_group():
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 @app.route('/api/group/<int:id>/delete', methods=['POST'])
 @compliance_required
@@ -4013,7 +4040,7 @@ def api_delete_group(id):
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 # ════════════════════════════════════════════════════════════
 # APP SETTINGS (action password)
@@ -4025,18 +4052,17 @@ def api_set_action_password():
         return jsonify({'success': False, 'error': 'Admin only'}), 403
     d = request.get_json()
     pw = d.get('password', '').strip()
-    if len(pw) < 4:
-        return jsonify({'success': False, 'error': 'Password must be at least 4 characters'}), 400
+    if len(pw) < 6:
+        return jsonify({'success': False, 'error': 'Password must be at least 6 characters'}), 400
     try:
-        import hashlib
-        hashed = hashlib.sha256(pw.encode()).hexdigest()
+        hashed = generate_password_hash(pw)  # salted, unlike the legacy sha256
         conn = get_db()
         x(conn, "INSERT INTO app_settings (key,value) VALUES ('action_password',?) ON CONFLICT(key) DO UPDATE SET value=?,updated_at=CURRENT_TIMESTAMP",
           (hashed, hashed))
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 @app.route('/api/settings/verify-action-password', methods=['POST'])
 @login_required
@@ -4044,16 +4070,14 @@ def api_verify_action_password():
     d = request.get_json()
     pw = d.get('password', '')
     try:
-        import hashlib
-        hashed = hashlib.sha256(pw.encode()).hexdigest()
         conn = get_db()
         s = one(conn, "SELECT value FROM app_settings WHERE key='action_password'")
         conn.close()
         if not s:
             return jsonify({'success': True, 'note': 'No action password set'})
-        return jsonify({'success': s['value'] == hashed})
+        return jsonify({'success': _action_pw_matches(pw, s.get('value'))})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 # ════════════════════════════════════════════════════════════
 # DATA BACKUP — full Excel export
@@ -4110,6 +4134,18 @@ def admin_backup():
 # ════════════════════════════════════════════════════════════
 # RESTORE FROM BACKUP
 # ════════════════════════════════════════════════════════════
+def _real_columns(conn, table):
+    """Actual column names for a table — used to whitelist restore columns so an
+    uploaded backup file cannot inject SQL through crafted header names."""
+    try:
+        if is_pg(conn):
+            rows = all_(conn, "SELECT column_name AS name FROM information_schema.columns WHERE table_name=?", (table,))
+        else:
+            rows = all_(conn, f"PRAGMA table_info({table})")
+        return {r['name'] for r in rows}
+    except Exception:
+        return set()
+
 @app.route('/admin/restore', methods=['POST'])
 @login_required
 def admin_restore():
@@ -4135,7 +4171,14 @@ def admin_restore():
                 results[sheet_name] = 'Empty — skipped'
                 return
             skip = set(skip_cols or [])
-            use_headers = [h for h in headers if h and h not in skip]
+            # Whitelist: only real columns of this table, and only safe identifiers.
+            # This is what makes the dynamic INSERT below injection-proof.
+            valid = _real_columns(conn, table)
+            use_headers = [h for h in headers
+                           if h and h not in skip
+                           and isinstance(h, str)
+                           and re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', h)
+                           and (not valid or h in valid)]
             inserted = 0; skipped = 0
             for row in ws.iter_rows(min_row=2, values_only=True):
                 rd = {headers[i]: row[i] for i in range(len(headers)) if headers[i]}
@@ -4171,7 +4214,7 @@ def admin_restore():
         conn.close()
         return jsonify({'success': True, 'results': results})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 # ════════════════════════════════════════════════════════════
 # GROUPS API for companies form
@@ -4222,7 +4265,7 @@ def api_client_upload_document(cid):
         save_local_copy(file_bytes, f'individuals/client_{cid}', file.filename)
         return jsonify({'success':True,'url':r['secure_url'],'name':file.filename})
     except Exception as e:
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/api/client-document/<int:did>/delete', methods=['POST'])
 @login_required
@@ -4237,7 +4280,7 @@ def api_delete_client_document(did):
         commit(conn); conn.close()
         return jsonify({'success':True})
     except Exception as e:
-        return jsonify({'success':False,'error':str(e)}),500
+        return _fail(e)
 
 @app.route('/client/<int:id>')
 @login_required
