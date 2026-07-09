@@ -79,6 +79,20 @@
     </div>
   </nav>
 
+  <script>
+    // ── HTML ESCAPING (XSS protection) ─────────────────────
+    // Defined BEFORE the content block on purpose: some pages call esc() from a
+    // top-level script that runs immediately during parsing (not from a later
+    // event handler), so it must already exist by the time content renders.
+    // Use esc() around ANY user-supplied value inserted via innerHTML / template
+    // literals, so names/notes/filenames can't inject <script> or event handlers.
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+        {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    window.esc = esc;
+  </script>
+
   <div class="container">
     {% with messages = get_flashed_messages() %}
       {% if messages %}
@@ -91,14 +105,6 @@
   </div>
 
   <script>
-    // ── HTML ESCAPING (XSS protection) ─────────────────────
-    // Use esc() around ANY user-supplied value inserted via innerHTML / template
-    // literals, so names/notes/filenames can't inject <script> or event handlers.
-    function esc(s) {
-      return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
-        {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    }
-    window.esc = esc;
     // ── THEME ──────────────────────────────────────────────
     function setTheme(cls) {
       document.body.className = cls;

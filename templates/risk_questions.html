@@ -41,8 +41,20 @@ function showSet(name, btn) {
 }
 
 function render(setName) {
+  try {
+    renderInner(setName);
+  } catch (e) {
+    // Never let a rendering problem in one tab silently blank out the other —
+    // show the error and log it so it's diagnosable instead of a mystery blank tab.
+    console.error('render(' + setName + ') failed:', e);
+    const el = document.getElementById('set-' + setName);
+    if (el) el.innerHTML = `<div style="color:#fca5a5;padding:20px;">⚠️ Could not display these questions (${esc(e.message||e)}). Check the browser console for details.</div>`;
+  }
+}
+
+function renderInner(setName) {
   const el = document.getElementById('set-' + setName);
-  const qs = DATA[setName];
+  const qs = DATA[setName] || [];
   if (!qs.length) {
     el.innerHTML = `<div style="color:var(--text-dim);padding:30px;text-align:center;background:var(--surface);border-radius:10px;">
       No questions yet. Click "+ Add Question", or
