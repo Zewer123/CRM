@@ -80,6 +80,13 @@
   </nav>
 
   <div class="container">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for m in messages %}
+        <div style="background:rgba(217,119,6,0.12);border:1px solid rgba(217,119,6,0.4);color:#f59e0b;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:13px;font-weight:600;">⚠️ {{ m }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
     {% block content %}{% endblock %}
   </div>
 

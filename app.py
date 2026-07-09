@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file, g
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file, g, flash
 from werkzeug.security import check_password_hash, generate_password_hash
 import os, io, csv, re, sqlite3, logging
 from datetime import datetime, timedelta, timezone
@@ -695,7 +695,9 @@ def admin_required(f):
     @wraps(f)
     def d(*a,**k):
         if 'user_id' not in session: return redirect(url_for('login'))
-        if session.get('user_role')!='admin': return redirect(url_for('dashboard'))
+        if session.get('user_role')!='admin':
+            flash("That page is for administrators only.")
+            return redirect(url_for('dashboard'))
         return f(*a,**k)
     return d
 
@@ -703,7 +705,9 @@ def compliance_required(f):
     @wraps(f)
     def d(*a,**k):
         if 'user_id' not in session: return redirect(url_for('login'))
-        if session.get('user_role') not in ('admin','compliance'): return redirect(url_for('tasks'))
+        if session.get('user_role') not in ('admin','compliance'):
+            flash("You don't have access to that section.")
+            return redirect(url_for('tasks'))
         return f(*a,**k)
     return d
 
