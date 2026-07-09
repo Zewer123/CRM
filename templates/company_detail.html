@@ -34,7 +34,7 @@
         <a href="#" onclick="secureAction('edit',{{ company.id }});return false;" class="btn btn-ghost">✏️ Edit</a>
         {% endif %}
         <a href="{{ url_for('api_export_company_docs', cid=company.id) }}" class="btn btn-ghost">📥 Export Docs</a>
-        {% if user_role in ['admin', 'compliance'] %}
+        {% if user_role == 'admin' %}
         {% if company.disabled %}
         <button onclick="toggleDisable()" class="btn btn-primary">✅ Enable</button>
         {% else %}
@@ -359,7 +359,8 @@ function toggleDisable() {
     ? 'Re-enable this company? It will reappear across all modules.'
     : 'Disable this company? It will be marked out-of-scope and hidden from all modules (still visible in the Companies list).';
   if (!confirm(msg)) return;
-  fetch(`/api/company/${CO.id}/toggle-disable`,{method:'POST'})
+  const _pw = getActionPw(); if (_pw === null) return;
+  fetch(`/api/company/${CO.id}/toggle-disable`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action_password:_pw})})
     .then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else alert('Error: '+(d.error||'failed')); });
 }
 

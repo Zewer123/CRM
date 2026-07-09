@@ -13,11 +13,13 @@
     {% if client.whatsapp_number %}
     <a href="https://wa.me/{{ client.whatsapp_number|replace('+','')|replace(' ','')|replace('-','') }}" target="_blank" class="btn btn-wa">💬 WhatsApp</a>
     {% endif %}
+    {% if user_role == 'admin' %}
     <button class="btn btn-ghost" onclick="editClient({{ client.id }})">✏️ Edit</button>
     {% if client.disabled %}
     <button class="btn btn-primary" onclick="toggleDisable()">✅ Enable</button>
     {% else %}
     <button class="btn btn-ghost" style="color:#f59e0b;" onclick="toggleDisable()">🚫 Disable</button>
+    {% endif %}
     {% endif %}
   </div>
 </div>
@@ -150,7 +152,8 @@ function toggleDisable() {
     ? 'Re-enable this individual? They will reappear across all modules.'
     : 'Disable this individual? They will be marked out-of-scope and hidden from all modules (still visible in the Clients list).';
   if (!confirm(msg)) return;
-  fetch(`/api/client/${CLIENT_ID}/toggle-disable`,{method:'POST'})
+  const _pw = getActionPw(); if (_pw === null) return;
+  fetch(`/api/client/${CLIENT_ID}/toggle-disable`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action_password:_pw})})
     .then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else alert('Error: '+(d.error||'failed')); });
 }
 

@@ -280,6 +280,20 @@
       <button class="btn btn-primary" onclick="saveActionPassword()">💾 Save Password</button>
     </div>
     <div class="card">
+      <div class="card-title" style="margin-bottom:16px;">📁 Local Document Storage</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">
+        When running the CRM on a local/office PC (not the cloud version), set a folder path here and every
+        uploaded document (company, individual, Zewer Docs) will also be saved as a copy in that folder.
+        Leave blank to skip local copies.
+      </div>
+      <div class="form-group">
+        <label>Folder Path</label>
+        <input type="text" id="localDocsPath" placeholder="e.g. C:\Zewer Documents" value="{{ local_docs_path }}">
+      </div>
+      <div id="localDocsMsg" style="display:none;font-size:12px;margin-bottom:12px;"></div>
+      <button class="btn btn-primary" onclick="saveLocalDocsPath()">💾 Save Path</button>
+    </div>
+    <div class="card">
       <div class="card-title" style="margin-bottom:16px;">📥 Data Backup</div>
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:20px;">
         Downloads a full Excel backup of all CRM data — companies, UBOs, tasks, clients, documents, users, dropdowns, groups, and task logs.
@@ -488,6 +502,18 @@ function saveActionPassword() {
     msg.style.display='block';
     msg.style.color = d.success ? '#86efac' : '#fca5a5';
     msg.textContent = d.success ? '✅ Action password saved' : 'Error: '+d.error;
+  });
+}
+
+// ── LOCAL DOCUMENT STORAGE PATH ──
+function saveLocalDocsPath() {
+  const path = document.getElementById('localDocsPath').value.trim();
+  const msg = document.getElementById('localDocsMsg');
+  fetch('/api/settings/local-docs-path',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path})})
+  .then(r=>r.json()).then(d=>{
+    msg.style.display='block';
+    msg.style.color = d.success ? '#86efac' : '#fca5a5';
+    msg.textContent = d.success ? '✅ Saved. New uploads will also be copied here.' : 'Error: '+d.error;
   });
 }
 

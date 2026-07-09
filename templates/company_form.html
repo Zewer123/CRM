@@ -14,20 +14,23 @@
     <button class="tab-btn active" onclick="switchTab('basic',this)">📋 Basic Info</button>
     <button class="tab-btn" onclick="switchTab('compliance',this)">🛡️ Compliance & Documents</button>
     <button class="tab-btn" onclick="switchTab('ubo',this)">👤 UBO / Auth Persons</button>
+    <button class="tab-btn" onclick="switchTab('docs',this)">📎 Documents</button>
   </div>
 
   <form id="cForm">
 
     <!-- TAB 1: BASIC INFO -->
     <div id="tab-basic" class="tab-panel">
-      <div class="form-grid">
 
+      <!-- ACCOUNT DETAILS -->
+      <div class="section-title">🗂️ Account Details</div>
+      <div class="form-grid">
         <div class="form-group">
           <label>AC Code *</label>
           <input type="text" name="ac_code" value="{{ company.ac_code if company else '' }}" {% if edit %}readonly{% endif %} required placeholder="e.g. TJ5003">
         </div>
         <div class="form-group">
-          <label>Client Name *</label>
+          <label>Company Name *</label>
           <input type="text" name="client_name" value="{{ company.client_name if company else '' }}" required placeholder="Full legal name">
         </div>
         <div class="form-group">
@@ -42,6 +45,24 @@
             {% endfor %}
           </select>
         </div>
+        <div class="form-group">
+          <label>Mode of AC</label>
+          <select name="mode_of_ac">
+            <option value="">-- Select --</option>
+            {% for v in dropdown_data.get('MODE OF AC', []) %}
+            <option value="{{ v }}" {% if company and company.mode_of_ac == v %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Active Till Year</label>
+          <input type="text" name="active_till_year" value="{{ company.active_till_year if company else '' }}" placeholder="e.g. 2026">
+        </div>
+      </div>
+
+      <!-- COMPANY DETAILS -->
+      <div class="section-title" style="margin-top:22px;">🏢 Company Details</div>
+      <div class="form-grid">
         <div class="form-group">
           <label>Nature</label>
           <select name="nature">
@@ -66,15 +87,6 @@
             <option value="">-- Select / N/A --</option>
             {% for v in dropdown_data.get('FREEZONE', []) %}
             <option value="{{ v }}" {% if company and company.name_of_freezone == v %}selected{% endif %}>{{ v }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Mode of AC</label>
-          <select name="mode_of_ac">
-            <option value="">-- Select --</option>
-            {% for v in dropdown_data.get('MODE OF AC', []) %}
-            <option value="{{ v }}" {% if company and company.mode_of_ac == v %}selected{% endif %}>{{ v }}</option>
             {% endfor %}
           </select>
         </div>
@@ -176,29 +188,65 @@
           </select>
         </div>
 
-        <div class="form-group">
-          <label>Active Till Year</label>
-          <input type="text" name="active_till_year" value="{{ company.active_till_year if company else '' }}" placeholder="e.g. 2026">
-        </div>
-
-        <div class="form-group">
-          <label>PEP Declaration <small style="color:var(--text-dim);">(Politically Exposed Person)</small></label>
-          <select name="pep">
-            <option value="">-- Select --</option>
-            <option value="Yes" {% if company and company.pep == 'Yes' %}selected{% endif %}>Yes</option>
-            <option value="No" {% if company and company.pep == 'No' %}selected{% endif %}>No</option>
-            <option value="Not Applicable" {% if company and company.pep == 'Not Applicable' %}selected{% endif %}>Not Applicable</option>
-          </select>
-        </div>
-
       </div>
-      <div style="display:flex;justify-content:flex-end;margin-top:20px;">
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+        <button type="button" class="btn btn-ghost" onclick="submitForm()">💾 Save</button>
         <button type="button" class="btn btn-primary" onclick="switchTab('compliance', document.querySelectorAll('.tab-btn')[1])">Next: Compliance & Documents →</button>
       </div>
     </div>
 
-    <!-- TAB 2: DOCUMENTS -->
-    <div id="tab-docs" class="tab-panel" style="display:none;"><!-- merged into compliance --></div>
+    <!-- TAB 4: DOCUMENTS -->
+    <div id="tab-docs" class="tab-panel" style="display:none;">
+      {% if edit %}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div class="section-title" style="margin:0;">📎 Documents & Attachments</div>
+        <button type="button" class="btn btn-primary btn-sm" onclick="openDocUploadModal()">⬆️ Attach Document</button>
+      </div>
+      <div id="formDocsList"><div style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px;">Loading...</div></div>
+      {% else %}
+      <div style="text-align:center;padding:40px;color:var(--text-dim);background:var(--surface2);border-radius:10px;">
+        📎 Save the company first, then you can attach documents (Trade License, MOA, Passport copies, etc.).
+        <div style="margin-top:14px;">
+          <button type="button" class="btn btn-primary" onclick="submitForm()">✅ Add Company &amp; Continue</button>
+        </div>
+      </div>
+      {% endif %}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:24px;">
+        <button type="button" class="btn btn-ghost" onclick="switchTab('ubo', document.querySelectorAll('.tab-btn')[2])">← Back</button>
+        <button type="button" class="btn btn-primary" style="padding:12px 36px;font-size:15px;" onclick="submitForm()">
+          {% if edit %}💾 Save Changes{% else %}✅ Add Company{% endif %}
+        </button>
+      </div>
+    </div>
+
+    <!-- DOCUMENT UPLOAD MODAL (Documents tab) -->
+    <div class="modal-overlay" id="docUploadModal">
+      <div class="modal-box">
+        <div class="modal-title">⬆️ Attach Document</div>
+        <div class="form-grid">
+          <div class="form-group form-full">
+            <label>Document Type *</label>
+            <select id="fUploadDocType">
+              <option>Trade License</option><option>Address Proof (Ejari/Tenancy)</option>
+              <option>Passport</option><option>Emirates ID</option><option>MOA</option>
+              <option>VAT Certificate</option><option>Undertaking</option>
+              <option>Source of Funds</option><option>KYC Form</option>
+              <option>Screening Report</option><option>Other</option>
+            </select>
+          </div>
+          <div class="form-group form-full">
+            <label>File(s) * (PDF, JPG, PNG, DOCX) — you can select multiple</label>
+            <input type="file" id="fUploadFile" accept=".pdf,.jpg,.jpeg,.png,.docx,.doc,.xlsx" multiple style="padding:7px;">
+          </div>
+          <div class="form-group form-full"><label>Notes <small style="color:var(--text-dim);">(use this to describe custom / "Other" documents)</small></label><input type="text" id="fUploadNotes" placeholder="Optional note"></div>
+        </div>
+        <div id="fUploadProgress" style="display:none;margin-top:10px;color:var(--primary);font-size:13px;">⏳ Uploading...</div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="closeModal('docUploadModal')">Cancel</button>
+          <button class="btn btn-primary" onclick="submitDocUpload()">Upload</button>
+        </div>
+      </div>
+    </div>
 
     <!-- TAB 2: COMPLIANCE & DOCUMENTS (merged) -->
     <div id="tab-compliance" class="tab-panel" style="display:none;">
@@ -383,12 +431,29 @@
       </div>
       <div style="display:flex;justify-content:space-between;margin-top:20px;">
         <button type="button" class="btn btn-ghost" onclick="switchTab('basic', document.querySelectorAll('.tab-btn')[0])">← Back</button>
-        <button type="button" class="btn btn-primary" onclick="switchTab('ubo', document.querySelectorAll('.tab-btn')[2])">Next: UBO →</button>
+        <div style="display:flex;gap:10px;">
+          <button type="button" class="btn btn-ghost" onclick="submitForm()">💾 Save</button>
+          <button type="button" class="btn btn-primary" onclick="switchTab('ubo', document.querySelectorAll('.tab-btn')[2])">Next: UBO →</button>
+        </div>
       </div>
     </div>
 
     <!-- TAB 4: UBO -->
     <div id="tab-ubo" class="tab-panel" style="display:none;">
+
+      <div class="section-title">🛡️ PEP Declaration</div>
+      <div class="form-grid" style="margin-bottom:22px;">
+        <div class="form-group">
+          <label>PEP Declaration <small style="color:var(--text-dim);">(Politically Exposed Person — company / beneficial owners)</small></label>
+          <select name="pep">
+            <option value="">-- Select --</option>
+            <option value="Yes" {% if company and company.pep == 'Yes' %}selected{% endif %}>Yes</option>
+            <option value="No" {% if company and company.pep == 'No' %}selected{% endif %}>No</option>
+            <option value="Not Applicable" {% if company and company.pep == 'Not Applicable' %}selected{% endif %}>Not Applicable</option>
+          </select>
+        </div>
+      </div>
+
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <div class="section-title" style="margin:0;">Beneficial Owners / Authorized Persons</div>
         <button type="button" class="btn btn-ghost" onclick="addUBO()">+ Add Person</button>
@@ -445,6 +510,13 @@
               </select>
             </div>
             <div class="form-group">
+              <label>Doc Status</label>
+              <select name="ubo_doc_status[]">
+                <option value="Incompleted" {% if u.doc_status == 'Incompleted' %}selected{% endif %}>Incompleted</option>
+                <option value="Completed" {% if u.doc_status == 'Completed' %}selected{% endif %}>Completed</option>
+              </select>
+            </div>
+            <div class="form-group">
               <label>Passport No</label>
               <input type="text" name="ubo_passport[]" value="{{ u.passport_no or '' }}">
             </div>
@@ -454,20 +526,14 @@
             </div>
             <div class="form-group">
               <label>Emirates ID <small style="color:#9ca3af;">(residents only)</small></label>
-              <input type="text" name="ubo_eid[]" value="{{ u.emirates_id or '' }}" placeholder="784-XXXX-XXXXXXX-X">
+              <input type="text" name="ubo_eid[]" value="{{ u.emirates_id or '' }}" placeholder="784-XXXX-XXXXXXX-X" oninput="validateEID(this)">
+              <div class="ubo-id-hint" style="font-size:11px;color:var(--text-dim);margin-top:4px;">Format: 784-[Year]-[7 digits]-[1 digit]</div>
             </div>
             <div class="form-group">
               <label>Emirates ID Expiry</label>
               <input type="date" name="ubo_eid_expiry[]" value="{{ u.emirates_id_expiry or '' }}" onclick="this.showPicker()">
             </div>
-            <div class="form-group">
-              <label>Doc Status</label>
-              <select name="ubo_doc_status[]">
-                <option value="Incompleted" {% if u.doc_status == 'Incompleted' %}selected{% endif %}>Incompleted</option>
-                <option value="Completed" {% if u.doc_status == 'Completed' %}selected{% endif %}>Completed</option>
-              </select>
-            </div>
-            <div class="form-group">
+            <div class="form-group form-full">
               <label>Verified By</label>
               <input type="text" name="ubo_verified_by[]" value="{{ u.verified_by or '' }}">
             </div>
@@ -483,9 +549,10 @@
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:24px;">
         <button type="button" class="btn btn-ghost" onclick="switchTab('compliance', document.querySelectorAll('.tab-btn')[1])">← Back</button>
-        <button type="button" class="btn btn-primary" style="padding:12px 36px;font-size:15px;" onclick="submitForm()">
-          {% if edit %}💾 Save Changes{% else %}✅ Add Company{% endif %}
-        </button>
+        <div style="display:flex;gap:10px;">
+          <button type="button" class="btn btn-ghost" onclick="submitForm()">💾 Save</button>
+          <button type="button" class="btn btn-primary" onclick="switchTab('docs', document.querySelectorAll('.tab-btn')[3])">Next: Documents →</button>
+        </div>
       </div>
     </div>
 
@@ -543,19 +610,11 @@
         </select>
       </div>
       <div class="form-group">
-        <label>ID Type</label>
-        <select name="ubo_id_type[]" onchange="toggleIdField(this)">
-          <option value="">-- Select --</option>
-          <option value="Emirates ID">Emirates ID</option>
-          <option value="Passport">Passport</option>
-          <option value="National ID">National ID</option>
-          <option value="Other">Other</option>
+        <label>Doc Status</label>
+        <select name="ubo_doc_status[]">
+          <option value="Incompleted">Incompleted</option>
+          <option value="Completed">Completed</option>
         </select>
-      </div>
-      <div class="form-group ubo-id-number-field" style="display:none;">
-        <label class="ubo-id-label">ID Number</label>
-        <input type="text" name="ubo_id_number[]" placeholder="">
-        <div class="ubo-id-hint" style="font-size:11px;color:var(--text-dim);margin-top:4px;"></div>
       </div>
       <div class="form-group">
         <label>Passport No</label>
@@ -567,20 +626,14 @@
       </div>
       <div class="form-group">
         <label>Emirates ID <small style="color:#9ca3af;">(residents only)</small></label>
-        <input type="text" name="ubo_eid[]" placeholder="784-XXXX-XXXXXXX-X">
+        <input type="text" name="ubo_eid[]" placeholder="784-XXXX-XXXXXXX-X" oninput="validateEID(this)">
+        <div class="ubo-id-hint" style="font-size:11px;color:var(--text-dim);margin-top:4px;">Format: 784-[Year]-[7 digits]-[1 digit]</div>
       </div>
       <div class="form-group">
         <label>Emirates ID Expiry</label>
         <input type="date" name="ubo_eid_expiry[]" onclick="this.showPicker()">
       </div>
-      <div class="form-group">
-        <label>Doc Status</label>
-        <select name="ubo_doc_status[]">
-          <option value="Incompleted">Incompleted</option>
-          <option value="Completed">Completed</option>
-        </select>
-      </div>
-      <div class="form-group">
+      <div class="form-group form-full">
         <label>Verified By</label>
         <input type="text" name="ubo_verified_by[]" placeholder="Staff name">
       </div>
@@ -658,36 +711,6 @@ function switchTab(name, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + name).style.display = 'block';
   btn.classList.add('active');
-}
-
-function toggleIdField(select) {
-  const card = select.closest('.form-grid');
-  const field = card.querySelector('.ubo-id-number-field');
-  const label = card.querySelector('.ubo-id-label');
-  const input = card.querySelector('[name="ubo_id_number[]"]');
-  const hint  = card.querySelector('.ubo-id-hint');
-  const val   = select.value;
-  if (val === 'Emirates ID') {
-    field.style.display = '';
-    label.textContent = 'Emirates ID Number';
-    input.placeholder = '784-YYYY-XXXXXXX-X';
-    hint.textContent = 'Format: 784-[Year]-[7 digits]-[1 digit]';
-    input.oninput = function() { validateEID(this); };
-  } else if (val === 'Passport') {
-    field.style.display = '';
-    label.textContent = 'Passport Number';
-    input.placeholder = 'e.g. A1234567';
-    hint.textContent = '';
-    input.oninput = null;
-  } else if (val) {
-    field.style.display = '';
-    label.textContent = 'ID Number';
-    input.placeholder = 'ID number';
-    hint.textContent = '';
-    input.oninput = null;
-  } else {
-    field.style.display = 'none';
-  }
 }
 
 function validateEID(input) {
@@ -821,6 +844,81 @@ function submitForm() {
     const cur='{{ (company.group_name or "") if company else "" }}';
     gs.forEach(g=>{const o=document.createElement('option');o.value=g;o.textContent=g;if(g===cur)o.selected=true;sel.appendChild(o);});
   }).catch(()=>{});
+
+// ── DOCUMENTS TAB (edit mode only) ──────────────────────
+function loadFormDocs() {
+  if (!IS_EDIT) return;
+  fetch(`/api/company/${COMPANY_ID}/documents`).then(r=>r.json()).then(docs=>{
+    const el = document.getElementById('formDocsList');
+    if (!el) return;
+    if (!docs.length) { el.innerHTML='<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px;">No documents attached yet.</div>'; return; }
+    el.innerHTML = docs.map(d => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div>
+          <span style="background:var(--primary-bg);color:var(--primary);padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600;margin-right:8px;">${d.doc_type}</span>
+          <a href="${d.file_url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:13px;font-weight:500;">${d.file_name}</a>
+          ${d.notes ? `<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${d.notes}</div>` : ''}
+          <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">By ${d.uploader_name||'—'} · ${d.created_at?d.created_at.substr(0,10):''}</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <a href="${d.file_url}" target="_blank" class="btn btn-ghost btn-sm">👁️ View</a>
+          <button class="btn btn-danger btn-sm btn-icon" onclick="deleteFormDoc(${d.id})">🗑️</button>
+        </div>
+      </div>`).join('');
+  }).catch(() => {
+    const el = document.getElementById('formDocsList');
+    if (el) el.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:10px;">Could not load documents.</div>';
+  });
+}
+
+function openDocUploadModal() {
+  document.getElementById('fUploadFile').value = '';
+  document.getElementById('fUploadNotes').value = '';
+  openModal('docUploadModal');
+}
+
+async function submitDocUpload() {
+  const files = Array.from(document.getElementById('fUploadFile').files);
+  if (!files.length) { alert('Please select at least one file'); return; }
+  const docType = document.getElementById('fUploadDocType').value;
+  const notes = document.getElementById('fUploadNotes').value;
+  const progress = document.getElementById('fUploadProgress');
+  progress.style.display = 'block';
+
+  let successCount = 0, errors = [];
+  for (let i = 0; i < files.length; i++) {
+    progress.textContent = `⏳ Uploading ${i+1} of ${files.length}: ${files[i].name}...`;
+    const fd = new FormData();
+    fd.append('file', files[i]);
+    fd.append('doc_type', docType);
+    fd.append('notes', notes);
+    try {
+      const res = await fetch(`/api/company/${COMPANY_ID}/upload`, {method:'POST', body: fd});
+      const d = await res.json();
+      if (d.success) successCount++; else errors.push(`${files[i].name}: ${d.error}`);
+    } catch (e) {
+      errors.push(`${files[i].name}: ${e.message || e}`);
+    }
+  }
+  progress.style.display = 'none';
+  progress.textContent = '⏳ Uploading...';
+
+  if (errors.length === 0) {
+    closeModal('docUploadModal'); loadFormDocs();
+  } else if (successCount > 0) {
+    alert(`Uploaded ${successCount} of ${files.length} files.\n\nFailed:\n` + errors.join('\n'));
+    closeModal('docUploadModal'); loadFormDocs();
+  } else {
+    alert('Upload failed:\n' + errors.join('\n'));
+  }
+}
+
+function deleteFormDoc(id) {
+  if (!confirm('Delete this document?')) return;
+  fetch(`/api/document/${id}/delete`, {method:'POST'}).then(r=>r.json()).then(d => { if (d.success) loadFormDocs(); });
+}
+
+if (IS_EDIT) loadFormDocs();
 </script>
 {% endblock %}
 

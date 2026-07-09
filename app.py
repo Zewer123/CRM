@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
 from werkzeug.security import check_password_hash, generate_password_hash
-import os, io, csv, sqlite3, logging
+import os, io, csv, re, sqlite3, logging
 from datetime import datetime, timedelta, timezone
 
 DUBAI_TZ = timezone(timedelta(hours=4))
@@ -844,10 +844,15 @@ def companies():
     conn=get_db()
     s=request.args.get('search',''); sf=request.args.get('status','')
     rgf=request.args.get('region',''); modf=request.args.get('mode',''); grpf=request.args.get('group','')
+    # Advanced filter: extra fields + multi-term search (each space-separated term
+    # must match, so terms act like progressively-refining chips: "UAE Dubai" etc.)
+    naf=request.args.get('nature',''); tcf=request.args.get('type_of_client','')
+    cof=request.args.get('country',''); rif=request.args.get('risk_status','')
+    kyf=request.args.get('kyc_status',''); dsf=request.args.get('doc_status','')
     q='SELECT * FROM companies WHERE 1=1'; p=[]
-    if s:
-        q+=' AND (client_name LIKE ? OR ac_code LIKE ? OR mobile LIKE ? OR trade_license_no LIKE ?)'
-        p+=[f'%{s}%']*4
+    for term in [t for t in s.split() if t]:
+        q+=' AND (client_name LIKE ? OR ac_code LIKE ? OR mobile LIKE ? OR trade_license_no LIKE ? OR region LIKE ? OR country_of_incorporation LIKE ?)'
+        p+=[f'%{term}%']*6
     # Status filter: Active/Inactive use ac_status; Disabled uses the out-of-scope flag.
     # Disabled records are hidden by default unless explicitly requested (or status='all').
     if sf == 'Disabled':
@@ -861,10 +866,16 @@ def companies():
     if rgf: q+=' AND region=?'; p.append(rgf)
     if modf: q+=' AND mode_of_ac=?'; p.append(modf)
     if grpf: q+=' AND group_name=?'; p.append(grpf)
+    if naf: q+=' AND nature=?'; p.append(naf)
+    if tcf: q+=' AND type_of_client=?'; p.append(tcf)
+    if cof: q+=' AND country_of_incorporation=?'; p.append(cof)
+    if rif: q+=' AND risk_status=?'; p.append(rif)
+    if kyf: q+=' AND kyc_status=?'; p.append(kyf)
+    if dsf: q+=' AND doc_status=?'; p.append(dsf)
 
     page = max(1, int(request.args.get('page', 1)))
     per_page = 100
-    total_count = cnt(conn, f"SELECT COUNT(*) FROM companies WHERE {q.split('WHERE')[1]}", p or None)
+    total_count = cnt(conn, f"SELECT COUNT(*) FROM companies WHERE {q.split('WHERE',1)[1]}", p or None)
     rows=all_(conn,q+f' ORDER BY created_at DESC LIMIT {per_page} OFFSET {(page-1)*per_page}',p or None)
     total_pages = max(1, (total_count + per_page - 1) // per_page)
     dd=dropdowns()
@@ -879,7 +890,11 @@ def companies():
                    'address_proof_expiry':str(c['address_proof_expiry']) if c['address_proof_expiry'] else None})
     return render_template('companies.html',companies=cl,search=s,
         status_filter=sf,region_filter=rgf,mode_filter=modf,group_filter=grpf,
+        nature_filter=naf,type_filter=tcf,country_filter=cof,risk_filter=rif,kyc_filter=kyf,doc_filter=dsf,
         regions=dd.get('REGION',[]),modes=dd.get('MODE OF AC',[]),
+        natures=dd.get('NATURE',[]),types=dd.get('TYPE OF CLIENT',[]),countries=dd.get('COUNTRY',[]),
+        risk_statuses=dd.get('RISK STATUS',['High','Medium','Low','Unspecified']),
+        kyc_statuses=dd.get('KYC STATUS',[]),doc_statuses=dd.get('DOC STATUS',['Completed','Incompleted']),
         groups=[g['group_name'] for g in groups],
         page=page, total_pages=total_pages, total_count=total_count, per_page=per_page)
 
@@ -1014,7 +1029,7 @@ def api_delete_company(id):
         return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/api/company/<int:id>/toggle-disable', methods=['POST'])
-@compliance_required
+@admin_pw_required
 def api_toggle_disable_company(id):
     """Mark a company as disabled (out of scope) or re-enable it."""
     try:
@@ -1029,7 +1044,7 @@ def api_toggle_disable_company(id):
         return jsonify({'success':False,'error':str(e)}),500
 
 @app.route('/api/client/<int:id>/toggle-disable', methods=['POST'])
-@compliance_required
+@admin_pw_required
 def api_toggle_disable_client(id):
     """Mark an individual as disabled (out of scope) or re-enable it."""
     try:
@@ -2401,10 +2416,56 @@ def settings():
     conn=get_db()
     users=all_(conn,'SELECT id,email,name,role,is_active,contact_number,username,permissions FROM users ORDER BY role,name')
     dds=all_(conn,'SELECT * FROM dropdowns WHERE is_active=1 ORDER BY field_name,value')
+    docs_path_row = one(conn, "SELECT value FROM app_settings WHERE key='local_docs_path'")
     conn.close()
     groups={}
     for d in dds: groups.setdefault(d['field_name'],[]).append(d)
-    return render_template('settings.html',users=users,dropdown_groups=groups)
+    return render_template('settings.html',users=users,dropdown_groups=groups,
+        local_docs_path=(docs_path_row['value'] if docs_path_row else ''))
+
+def get_local_docs_path():
+    """Admin-configured folder to also save a local copy of documents (on-prem installs only)."""
+    try:
+        conn = get_db()
+        row = one(conn, "SELECT value FROM app_settings WHERE key='local_docs_path'")
+        conn.close()
+        return (row['value'] if row else '').strip()
+    except Exception:
+        return ''
+
+def save_local_copy(file_bytes, subfolder, filename):
+    """Best-effort local copy of an uploaded document, alongside the Cloudinary copy.
+    Only runs if an admin has configured a local path. Never raises — a missing/
+    unwritable path (e.g. on a cloud host with no persistent disk) is just skipped."""
+    base = get_local_docs_path()
+    if not base:
+        return
+    try:
+        safe_sub = re.sub(r'[^A-Za-z0-9_\-]', '_', str(subfolder))
+        safe_name = re.sub(r'[^A-Za-z0-9_\-.]', '_', str(filename))
+        folder = os.path.join(base, safe_sub)
+        os.makedirs(folder, exist_ok=True)
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        with open(os.path.join(folder, f'{ts}_{safe_name}'), 'wb') as f:
+            f.write(file_bytes)
+    except Exception as e:
+        logger.warning(f'Local document copy skipped ({subfolder}/{filename}): {e}')
+
+@app.route('/api/settings/local-docs-path', methods=['POST'])
+@admin_required
+def api_set_local_docs_path():
+    d = request.get_json() or {}
+    path = (d.get('path') or '').strip()
+    try:
+        conn = get_db()
+        if use_pg():
+            x(conn, "INSERT INTO app_settings (key,value) VALUES ('local_docs_path',%s) ON CONFLICT(key) DO UPDATE SET value=%s,updated_at=CURRENT_TIMESTAMP", (path, path))
+        else:
+            conn.execute("INSERT INTO app_settings (key,value) VALUES ('local_docs_path',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP", (path,))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/user/add',methods=['POST'])
 @admin_required
@@ -2701,11 +2762,13 @@ def api_upload_document(cid):
     if not HAS_CLD or not os.getenv('CLOUDINARY_CLOUD_NAME'):
         return jsonify({'success':False,'error':'Cloudinary not configured'}),500
     try:
+        file_bytes = file.read(); file.seek(0)
         r=cloudinary.uploader.upload(file,folder=f'zewer_crm/co_{cid}',resource_type='auto',use_filename=True,unique_filename=True)
         conn=get_db()
         x(conn,'INSERT INTO documents (company_id,doc_type,file_name,file_url,public_id,uploaded_by,notes) VALUES (?,?,?,?,?,?,?)',
           (cid,request.form.get('doc_type','General'),file.filename,r['secure_url'],r['public_id'],session.get('user_id'),request.form.get('notes','')))
         commit(conn); conn.close()
+        save_local_copy(file_bytes, f'companies/co_{cid}', file.filename)
         return jsonify({'success':True,'url':r['secure_url'],'name':file.filename})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
@@ -2903,16 +2966,55 @@ def export_companies():
     elif scope=='medium': q+=' AND risk_status=\'Medium\''
     elif scope=='low': q+=' AND risk_status=\'Low\''
     elif scope=='incomplete': q+=' AND doc_status=\'Incompleted\''
-    rows=all_(conn,q); conn.close()
+    rows=all_(conn,q)
+
+    # Pull UBO/Authorized Person records for these companies too
+    company_ids = [r['id'] for r in rows]
+    ubo_rows = []
+    ubos_by_company = {}
+    if company_ids:
+        placeholders = ','.join([P()]*len(company_ids))
+        ubo_rows = all_(conn, f'SELECT * FROM ubos WHERE company_id IN ({placeholders}) ORDER BY company_id, share_percentage DESC', company_ids)
+        for u in ubo_rows:
+            ubos_by_company.setdefault(u['company_id'], []).append(u)
+    conn.close()
+
     fname=f'companies_{scope}_{datetime.now().strftime("%Y%m%d_%H%M%S")}'
     if fmt=='xlsx' and HAS_XL:
-        wb=openpyxl.Workbook(); ws=wb.active
+        wb=openpyxl.Workbook()
+        ws=wb.active; ws.title='Companies'
         if rows: ws.append(list(rows[0].keys())); [ws.append([str(v) if v else '' for v in r.values()]) for r in rows]
+        # Second sheet: every UBO / Authorized Person, tagged with their company
+        ws2 = wb.create_sheet('UBOs')
+        ubo_headers = ['company_id','ac_code','client_name','position','share_percentage','person_name',
+                       'nationality','residential_status','pep_status','passport_no','passport_expiry',
+                       'emirates_id','emirates_id_expiry','doc_status','verified_by','followup_details']
+        ws2.append(ubo_headers)
+        co_lookup = {r['id']: r for r in rows}
+        for u in ubo_rows:
+            co = co_lookup.get(u['company_id'], {})
+            ws2.append([str(u.get('company_id') or ''), co.get('ac_code',''), co.get('client_name',''),
+                       u.get('position') or '', u.get('share_percentage') or '', u.get('person_name') or '',
+                       u.get('nationality') or '', u.get('residential_status') or '', u.get('pep_status') or '',
+                       u.get('passport_no') or '', str(u.get('passport_expiry') or ''),
+                       u.get('emirates_id') or '', str(u.get('emirates_id_expiry') or ''),
+                       u.get('doc_status') or '', u.get('verified_by') or '', u.get('followup_details') or ''])
         out=io.BytesIO(); wb.save(out); out.seek(0)
         return send_file(out,mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             as_attachment=True,download_name=fname+'.xlsx')
+
+    # CSV can't hold two sheets — append a compact UBO summary column instead
     out=io.StringIO(); w=csv.writer(out)
-    if rows: w.writerow(rows[0].keys()); [w.writerow(list(r.values())) for r in rows]
+    if rows:
+        headers = list(rows[0].keys()) + ['ubos_summary']
+        w.writerow(headers)
+        for r in rows:
+            ubo_list = ubos_by_company.get(r['id'], [])
+            summary = ' | '.join(
+                f"{u.get('person_name','')} ({u.get('position','')}, {u.get('share_percentage','') or 0}%, "
+                f"PEP:{u.get('pep_status') or '-'}, Passport:{u.get('passport_no') or '-'}, EID:{u.get('emirates_id') or '-'})"
+                for u in ubo_list)
+            w.writerow(list(r.values()) + [summary])
     out.seek(0)
     return send_file(io.BytesIO(out.getvalue().encode()),mimetype='text/csv',as_attachment=True,download_name=fname+'.csv')
 
@@ -3268,8 +3370,10 @@ def _internal_doc_file(existing_public_id=None):
         return None, None, None
     if not HAS_CLD or not os.getenv('CLOUDINARY_CLOUD_NAME'):
         raise RuntimeError('File storage (Cloudinary) is not configured')
+    file_bytes = f.read(); f.seek(0)
     r = cloudinary.uploader.upload(f, folder='zewer_crm/internal_docs', resource_type='auto',
                                    use_filename=True, unique_filename=True)
+    save_local_copy(file_bytes, 'zewer_docs', f.filename)
     return r['secure_url'], f.filename, r['public_id']
 
 @app.route('/api/internal-doc/add', methods=['POST'])
@@ -3845,12 +3949,14 @@ def api_client_upload_document(cid):
     if not HAS_CLD or not os.getenv('CLOUDINARY_CLOUD_NAME'):
         return jsonify({'success':False,'error':'Cloudinary not configured'}),500
     try:
+        file_bytes = file.read(); file.seek(0)
         r = cloudinary.uploader.upload(file, folder=f'zewer_crm/client_{cid}', resource_type='auto',
                                         use_filename=True, unique_filename=True)
         conn = get_db()
         x(conn, 'INSERT INTO client_documents (client_id,doc_type,file_name,file_url,public_id,uploaded_by) VALUES (?,?,?,?,?,?)',
           (cid, request.form.get('doc_type','General'), file.filename, r['secure_url'], r['public_id'], session.get('user_id')))
         commit(conn); conn.close()
+        save_local_copy(file_bytes, f'individuals/client_{cid}', file.filename)
         return jsonify({'success':True,'url':r['secure_url'],'name':file.filename})
     except Exception as e:
         return jsonify({'success':False,'error':str(e)}),500

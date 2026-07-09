@@ -57,7 +57,48 @@
       {% endfor %}
     </select>
   </div>
+  <button class="btn btn-ghost btn-sm" onclick="toggleAdvanced()">🔧 Advanced Filter</button>
   <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear</button>
+</div>
+
+<!-- ADVANCED FILTER PANEL -->
+<div id="advancedPanel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+  <div class="form-group" style="margin-bottom:12px;">
+    <label>Add Search Term <small style="color:var(--text-dim);">(each term added narrows the results further — e.g. "UAE", then "Dubai")</small></label>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="chipInput" placeholder="Type a term and press Enter or click Add..."
+        onkeydown="if(event.key==='Enter'){event.preventDefault();addChip();}" style="flex:1;">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="addChip()">+ Add</button>
+    </div>
+    <div id="chipList" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"></div>
+  </div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
+    <div class="form-group" style="min-width:150px;">
+      <label>Nature</label>
+      <select id="natureFilter"><option value="">All</option>{% for n in natures %}<option value="{{ n }}" {% if nature_filter==n %}selected{% endif %}>{{ n }}</option>{% endfor %}</select>
+    </div>
+    <div class="form-group" style="min-width:150px;">
+      <label>Type of Client</label>
+      <select id="typeFilter"><option value="">All</option>{% for t in types %}<option value="{{ t }}" {% if type_filter==t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select>
+    </div>
+    <div class="form-group" style="min-width:150px;">
+      <label>Country of Incorporation</label>
+      <select id="countryFilter"><option value="">All</option>{% for c in countries %}<option value="{{ c }}" {% if country_filter==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select>
+    </div>
+    <div class="form-group" style="min-width:130px;">
+      <label>Risk Status</label>
+      <select id="riskFilter"><option value="">All</option>{% for r in risk_statuses %}<option value="{{ r }}" {% if risk_filter==r %}selected{% endif %}>{{ r }}</option>{% endfor %}</select>
+    </div>
+    <div class="form-group" style="min-width:150px;">
+      <label>KYC Status</label>
+      <select id="kycFilter"><option value="">All</option>{% for k in kyc_statuses %}<option value="{{ k }}" {% if kyc_filter==k %}selected{% endif %}>{{ k }}</option>{% endfor %}</select>
+    </div>
+    <div class="form-group" style="min-width:130px;">
+      <label>Doc Status</label>
+      <select id="docFilter"><option value="">All</option>{% for d in doc_statuses %}<option value="{{ d }}" {% if doc_filter==d %}selected{% endif %}>{{ d }}</option>{% endfor %}</select>
+    </div>
+    <button type="button" class="btn btn-primary btn-sm" onclick="applyFilters()">Apply Advanced Filter</button>
+  </div>
 </div>
 
 <div style="color:var(--text-dim);font-size:12px;margin-bottom:10px;">{{ total_count }} companies{% if total_pages > 1 %} · page {{ page }}/{{ total_pages }}{% endif %}</div>
@@ -186,20 +227,21 @@
 <!-- PAGINATION -->
 {% if total_pages > 1 %}
 <div style="display:flex;justify-content:center;align-items:center;gap:8px;margin:24px 0;flex-wrap:wrap;">
+  {% set qs = 'search=' ~ search ~ '&status=' ~ status_filter ~ '&region=' ~ region_filter ~ '&mode=' ~ mode_filter ~ '&group=' ~ group_filter ~ '&nature=' ~ nature_filter ~ '&type_of_client=' ~ type_filter ~ '&country=' ~ country_filter ~ '&risk_status=' ~ risk_filter ~ '&kyc_status=' ~ kyc_filter ~ '&doc_status=' ~ doc_filter %}
   {% if page > 1 %}
-  <a href="?page={{ page-1 }}&search={{ search }}&status={{ status_filter }}&region={{ region_filter }}&mode={{ mode_filter }}&group={{ group_filter }}" class="btn btn-ghost btn-sm">← Prev</a>
+  <a href="?page={{ page-1 }}&{{ qs }}" class="btn btn-ghost btn-sm">← Prev</a>
   {% endif %}
   {% for pg in range(1, total_pages+1) %}
     {% if pg == page %}
     <span style="background:var(--primary);color:#fff;padding:5px 12px;border-radius:6px;font-size:13px;font-weight:600;">{{ pg }}</span>
     {% elif pg == 1 or pg == total_pages or (pg >= page-2 and pg <= page+2) %}
-    <a href="?page={{ pg }}&search={{ search }}&status={{ status_filter }}&region={{ region_filter }}&mode={{ mode_filter }}&group={{ group_filter }}" class="btn btn-ghost btn-sm" style="min-width:36px;">{{ pg }}</a>
+    <a href="?page={{ pg }}&{{ qs }}" class="btn btn-ghost btn-sm" style="min-width:36px;">{{ pg }}</a>
     {% elif pg == page-3 or pg == page+3 %}
     <span style="color:var(--text-dim);padding:0 4px;">…</span>
     {% endif %}
   {% endfor %}
   {% if page < total_pages %}
-  <a href="?page={{ page+1 }}&search={{ search }}&status={{ status_filter }}&region={{ region_filter }}&mode={{ mode_filter }}&group={{ group_filter }}" class="btn btn-ghost btn-sm">Next →</a>
+  <a href="?page={{ page+1 }}&{{ qs }}" class="btn btn-ghost btn-sm">Next →</a>
   {% endif %}
   <span style="color:var(--text-dim);font-size:12px;margin-left:8px;">Page {{ page }} of {{ total_pages }} · {{ total_count }} total</span>
 </div>
@@ -290,15 +332,66 @@ function saveFilters() {
   sessionStorage.setItem(FILTER_KEY, JSON.stringify(f));
 }
 
+// ── ADVANCED FILTER (chip-based multi-term search) ──────
+let _chips = [];
+
+function toggleAdvanced() {
+  const p = document.getElementById('advancedPanel');
+  p.style.display = (p.style.display === 'none' || !p.style.display) ? 'block' : 'none';
+}
+
+function renderChips() {
+  document.getElementById('chipList').innerHTML = _chips.map((c, i) => `
+    <span style="display:inline-flex;align-items:center;gap:6px;background:var(--primary-bg);color:var(--primary);
+      padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;">
+      ${c}
+      <span style="cursor:pointer;font-weight:800;" onclick="removeChip(${i})">×</span>
+    </span>`).join('');
+}
+
+function addChip() {
+  const input = document.getElementById('chipInput');
+  const val = input.value.trim();
+  if (val && !_chips.includes(val)) { _chips.push(val); renderChips(); }
+  input.value = '';
+  input.focus();
+}
+
+function removeChip(i) {
+  _chips.splice(i, 1);
+  renderChips();
+}
+
+// Seed chips from the current search value (space-separated terms)
+(function initChips() {
+  const s = document.getElementById('searchInput').value.trim();
+  if (s) { _chips = s.split(/\s+/); renderChips(); }
+  const adv = ['natureFilter','typeFilter','countryFilter','riskFilter','kycFilter','docFilter']
+    .some(id => (document.getElementById(id)||{}).value);
+  if (s || adv) document.getElementById('advancedPanel').style.display = 'block';
+})();
+
 function applyFilters() {
   saveFilters();
   const p = new URLSearchParams();
-  const s = document.getElementById('searchInput').value;
+  // If the Advanced panel is open and has chips, they take priority over the
+  // plain search box (which the user may not have touched this time).
+  const panelOpen = document.getElementById('advancedPanel').style.display === 'block';
+  const chipTerms = _chips.join(' ').trim();
+  const s = (panelOpen && chipTerms) ? chipTerms : document.getElementById('searchInput').value;
   const st = document.getElementById('statusFilter').value;
   const rg = document.getElementById('regionFilter').value;
   const md = document.getElementById('modeFilter').value;
   const gp = document.getElementById('groupFilter').value;
+  const na = (document.getElementById('natureFilter')||{}).value;
+  const tc = (document.getElementById('typeFilter')||{}).value;
+  const co = (document.getElementById('countryFilter')||{}).value;
+  const ri = (document.getElementById('riskFilter')||{}).value;
+  const ky = (document.getElementById('kycFilter')||{}).value;
+  const ds = (document.getElementById('docFilter')||{}).value;
   if(s) p.set('search',s); if(st) p.set('status',st); if(rg) p.set('region',rg); if(md) p.set('mode',md); if(gp) p.set('group',gp);
+  if(na) p.set('nature',na); if(tc) p.set('type_of_client',tc); if(co) p.set('country',co);
+  if(ri) p.set('risk_status',ri); if(ky) p.set('kyc_status',ky); if(ds) p.set('doc_status',ds);
   window.location.href = '/companies?' + p.toString();
 }
 

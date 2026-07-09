@@ -84,10 +84,14 @@ body { font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var
 .navbar-dropdown:hover .navbar-dropdown-menu { display:flex; }
 .navbar-dropdown-menu {
   display:none;
-  position:absolute; top:calc(100% + 4px); left:0;
+  position:absolute; top:100%; left:0; padding-top:4px;
+  background:transparent;
+  flex-direction:column; min-width:140px; z-index:1000;
+}
+.navbar-dropdown-menu-inner {
   background:var(--surface); border:1px solid var(--border);
   border-radius:var(--radius-sm); box-shadow:var(--shadow-md);
-  flex-direction:column; min-width:140px; z-index:1000; overflow:hidden;
+  display:flex; flex-direction:column; overflow:hidden;
 }
 .navbar-dropdown-item {
   display:flex; align-items:center; gap:8px; padding:8px 12px;
