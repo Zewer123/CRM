@@ -5,9 +5,13 @@
 <div class="page-header">
   <div class="page-title">🏢 Companies</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    {% if has_perm('companies_export') %}
     <button class="btn btn-ghost btn-sm" onclick="openModal('exportModal')">⬇️ Export</button>
+    {% endif %}
+    {% if has_perm('companies_import') %}
     <button class="btn btn-ghost btn-sm" onclick="openModal('importModal')">⬆️ Import</button>
-    {% if user_role in ['admin', 'compliance'] %}
+    {% endif %}
+    {% if has_perm('companies_add') %}
     <a href="{{ url_for('company_new') }}" class="btn btn-primary btn-sm">+ Add Company</a>
     {% endif %}
   </div>

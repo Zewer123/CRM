@@ -118,7 +118,8 @@ SQLITE_PATH = os.getenv('SQLITE_PATH', os.path.join(BASE_DIR, 'data', 'aml_crm.d
 @app.context_processor
 def inject_user():
     return dict(user_name=session.get('user_name',''), user_role=session.get('user_role',''),
-                user_email=session.get('user_email',''), current_user_id=session.get('user_id'))
+                user_email=session.get('user_email',''), current_user_id=session.get('user_id'),
+                has_perm=has_perm)
 
 # ── DATABASE ────────────────────────────────────────────────
 
@@ -711,6 +712,74 @@ def compliance_required(f):
         return f(*a,**k)
     return d
 
+# ── FINE-GRAINED ROLE PERMISSIONS ────────────────────────────
+# Admin-editable per-role permissions (Settings → Role Permissions), stored as JSON
+# under app_settings 'role_permissions'. Admin ALWAYS has every permission and can
+# never be locked out. Server defaults below mirror the UI defaults, so behaviour is
+# unchanged until an admin edits the checkboxes.
+ROLE_PERM_DEFAULTS = {
+    'compliance': {'dashboard','companies_view','companies_add','companies_edit','companies_docs',
+                   'companies_export','companies_import','alerts','clients','reports',
+                   'aml_export','aml_import',
+                   'tasks_view','tasks_create','tasks_edit','tasks_delete',
+                   'regular_tasks_view','regular_tasks_log','regular_tasks_manage',
+                   'zewer_docs_view','zewer_docs_edit'},
+    'staff': {'dashboard','tasks_view','tasks_create','tasks_edit','regular_tasks_view','regular_tasks_log'},
+}
+
+def _role_perms_config():
+    """Admin-saved role→perms map (cached per request); None if never configured."""
+    try:
+        if hasattr(g, '_rp_cache'):
+            return g._rp_cache
+    except RuntimeError:
+        pass
+    val = None
+    try:
+        conn = get_db()
+        row = one(conn, "SELECT value FROM app_settings WHERE key='role_permissions'")
+        conn.close()
+        if row and row.get('value'):
+            import json as _json
+            val = _json.loads(row['value'])
+    except Exception:
+        val = None
+    try:
+        g._rp_cache = val
+    except RuntimeError:
+        pass
+    return val
+
+def has_perm(perm):
+    """True if the current user's role has `perm`. Admin is always allowed."""
+    role = session.get('user_role')
+    if role == 'admin':
+        return True
+    if not role:
+        return False
+    cfg = _role_perms_config()
+    if cfg and role in cfg:
+        return perm in (cfg.get(role) or [])
+    return perm in ROLE_PERM_DEFAULTS.get(role, set())
+
+def require_perm(perm):
+    """Route guard: 403 (API) or flash+redirect (page) if the user lacks `perm`."""
+    def deco(f):
+        @wraps(f)
+        def d(*a, **k):
+            if 'user_id' not in session:
+                if request.path.startswith('/api/') or request.is_json:
+                    return jsonify({'success': False, 'error': 'Not signed in'}), 401
+                return redirect(url_for('login'))
+            if not has_perm(perm):
+                if request.path.startswith('/api/') or request.is_json:
+                    return jsonify({'success': False, 'error': 'You do not have permission for this action.'}), 403
+                flash("You don't have permission to do that.")
+                return redirect(url_for('dashboard'))
+            return f(*a, **k)
+        return d
+    return deco
+
 def _action_pw_matches(pw, stored):
     """Verify pw against a stored action-password hash. Accepts both the new
     salted werkzeug hashes and the legacy unsalted sha256 hex, so an already-set
@@ -1086,7 +1155,7 @@ def companies():
         page=page, total_pages=total_pages, total_count=total_count, per_page=per_page)
 
 @app.route('/company/new')
-@compliance_required
+@require_perm('companies_add')
 def company_new():
     conn=get_db()
     staff=all_(conn,'SELECT id,name FROM users WHERE is_active=1 ORDER BY name')
@@ -1154,7 +1223,7 @@ def _save_ubos(conn,cid,ubos):
              u.get('doc_status','Incompleted'),u.get('verified_by'),u.get('verified_date') or None,u.get('followup_details')))
 
 @app.route('/api/company/add', methods=['POST'])
-@compliance_required
+@require_perm('companies_add')
 def api_add_company():
     d=request.get_json()
     kyc_err = _validate_kyc_expiry(d.get('kyc_expiry_date'))
@@ -2046,7 +2115,7 @@ def reports():
 
 # ──────────── AML TRACKER ────────────
 @app.route('/aml-tracker')
-@login_required
+@compliance_required
 def aml_tracker():
     """List all AML Tracker records with filters"""
     try:
@@ -2203,7 +2272,7 @@ def _aml_aed(data, exchange_rate):
     return data.get('aed_amount') or None
 
 @app.route('/aml-tracker/add', methods=['GET', 'POST'])
-@login_required
+@compliance_required
 def aml_tracker_add():
     """Add new AML Tracker record"""
     try:
@@ -2296,7 +2365,7 @@ def aml_tracker_add():
         return _fail(e)
 
 @app.route('/aml-tracker/<int:id>/edit', methods=['GET', 'POST'])
-@login_required
+@compliance_required
 def aml_tracker_edit(id):
     """Edit AML Tracker record"""
     try:
@@ -2409,7 +2478,7 @@ AML_IMPORT_COLS = ['transaction_date','company_name','individual_name','vc_no','
                    'invoice_no','invoice_amount','invoice_currency','goaml_status','goaml_ref_no','comment']
 
 @app.route('/aml-tracker/export')
-@login_required
+@require_perm('aml_export')
 def aml_tracker_export():
     """Export all AML Tracker records to Excel."""
     if not HAS_XL:
@@ -2440,7 +2509,7 @@ def aml_tracker_export():
                      as_attachment=True, download_name=fname)
 
 @app.route('/aml-tracker/import-template')
-@login_required
+@require_perm('aml_import')
 def aml_tracker_import_template():
     """Download a blank Excel template for importing AML records."""
     if not HAS_XL:
@@ -2461,7 +2530,7 @@ def aml_tracker_import_template():
                      as_attachment=True, download_name='aml_import_template.xlsx')
 
 @app.route('/aml-tracker/import', methods=['POST'])
-@login_required
+@require_perm('aml_import')
 def aml_tracker_import():
     """Import AML records from an uploaded Excel/CSV file."""
     f = request.files.get('file')
@@ -3082,7 +3151,7 @@ def api_delete_document(did):
         return _fail(e)
 
 @app.route('/export/template')
-@login_required
+@require_perm('companies_export')
 def export_template():
     if not HAS_XL: return "openpyxl not installed",500
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -3248,7 +3317,7 @@ def export_template():
         as_attachment=True, download_name='zewer_company_template.xlsx')
 
 @app.route('/export/companies')
-@login_required
+@require_perm('companies_export')
 def export_companies():
     scope=request.args.get('scope','all'); fmt=request.args.get('format','csv')
     conn=get_db()
@@ -3312,7 +3381,7 @@ def export_companies():
     return send_file(io.BytesIO(out.getvalue().encode()),mimetype='text/csv',as_attachment=True,download_name=fname+'.csv')
 
 @app.route('/export/report')
-@login_required
+@require_perm('companies_export')
 def export_report():
     rt=request.args.get('type','all'); fmt=request.args.get('format','xlsx')
     conn=get_db(); today=dubai_today()
@@ -3462,7 +3531,7 @@ def export_report():
     return send_file(io.BytesIO(out.getvalue().encode()),mimetype='text/csv',as_attachment=True,download_name=fname+'.csv')
 
 @app.route('/api/import/companies',methods=['POST'])
-@login_required
+@require_perm('companies_import')
 def api_import_companies():
     if not HAS_XL: return jsonify({'success':False,'error':'openpyxl not installed'}),500
     if 'file' not in request.files: return jsonify({'success':False,'error':'No file'}),400

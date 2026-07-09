@@ -8,8 +8,12 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #d97706;">
         <h1 style="margin: 0; font-size: 28px; color: #1c1917;">📋 DPMSR Report</h1>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            {% if has_perm('aml_export') %}
             <a href="{{ url_for('aml_tracker_export') }}" style="padding: 10px 16px; background: #047857; color: white; border-radius: 6px; text-decoration: none; font-weight: 600;">⬇️ Export</a>
+            {% endif %}
+            {% if has_perm('aml_import') %}
             <button type="button" onclick="document.getElementById('amlImportModal').style.display='flex'" style="padding: 10px 16px; background: #1d4ed8; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">⬆️ Import</button>
+            {% endif %}
             <a href="{{ url_for('aml_tracker_add') }}" style="padding: 12px 24px; background: linear-gradient(135deg, #d97706 0%, #b45309 100%); color: white; border-radius: 6px; text-decoration: none; font-weight: 600;">+ New Record</a>
         </div>
     </div>

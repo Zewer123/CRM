@@ -360,9 +360,13 @@ const PERM_ROWS = [
   ['companies_edit',      'Companies — Edit'],
   ['companies_delete',    'Companies — Delete'],
   ['companies_docs',      'Company Documents — Upload / Export'],
+  ['companies_export',    'Companies — Export'],
+  ['companies_import',    'Companies — Import'],
   ['alerts',              'Alerts'],
   ['clients',             'Clients'],
   ['reports',             'Reports — View & Export'],
+  ['aml_export',          'AML Tracker — Export'],
+  ['aml_import',          'AML Tracker — Import'],
   ['tasks_view',          'Temp Tasks — View All'],
   ['tasks_create',        'Temp Tasks — Create'],
   ['tasks_edit',          'Temp Tasks — Edit / Reassign'],
@@ -379,7 +383,8 @@ const PERM_ROWS = [
 // Default role permissions (used if nothing saved yet)
 const ROLE_PERM_DEFAULTS = {
   admin:      PERM_ROWS.map(r => r[0]),
-  compliance: ['dashboard','companies_view','companies_add','companies_edit','companies_docs','alerts','clients','reports',
+  compliance: ['dashboard','companies_view','companies_add','companies_edit','companies_docs',
+               'companies_export','companies_import','alerts','clients','reports','aml_export','aml_import',
                'tasks_view','tasks_create','tasks_edit','tasks_delete','regular_tasks_view','regular_tasks_log',
                'regular_tasks_manage','zewer_docs_view','zewer_docs_edit'],
   staff:      ['dashboard','tasks_view','tasks_create','tasks_edit','regular_tasks_view','regular_tasks_log'],
