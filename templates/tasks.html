@@ -807,16 +807,16 @@ function viewTask(id) {
   
   document.getElementById('viewTaskContent').innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
-      <div style="grid-column:1/-1;"><div style="font-size:16px;font-weight:700;color:var(--text);">${t.title}</div>
-        ${t.description ? `<div style="color:var(--text-muted);font-size:13px;margin-top:4px;line-height:1.5;">${t.description}</div>` : ''}
+      <div style="grid-column:1/-1;"><div style="font-size:16px;font-weight:700;color:var(--text);">${esc(t.title)}</div>
+        ${t.description ? `<div style="color:var(--text-muted);font-size:13px;margin-top:4px;line-height:1.5;">${esc(t.description)}</div>` : ''}
       </div>
       <div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Assigned To</div>
-        <div style="font-size:13px;margin-top:2px;">${t.assigned_name||'—'}${t.assigned_mobile ? ` <a href="https://wa.me/${t.assigned_mobile.replace(/[+\s\-]/g,'')}" target="_blank" style="color:#16a34a;margin-left:6px;font-size:12px;">💬 WA</a>` : ''}</div></div>
-      <div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Created By</div><div style="font-size:13px;margin-top:2px;">${t.created_by_name||'—'}</div></div>
+        <div style="font-size:13px;margin-top:2px;">${esc(t.assigned_name||'—')}${t.assigned_mobile ? ` <a href="https://wa.me/${esc(t.assigned_mobile.replace(/[+\s\-]/g,''))}" target="_blank" style="color:#16a34a;margin-left:6px;font-size:12px;">💬 WA</a>` : ''}</div></div>
+      <div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Created By</div><div style="font-size:13px;margin-top:2px;">${esc(t.created_by_name||'—')}</div></div>
       <div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Current Status</div><div style="font-size:13px;margin-top:2px;">${statusMap[t.status]||t.status}</div></div>
       <div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Priority</div><div style="font-size:13px;margin-top:2px;">${priorityMap[t.priority]||t.priority}</div></div>
       <div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Due Date</div><div style="font-size:13px;margin-top:2px;">${t.due_date||'—'}</div></div>
-      ${t.company_name ? `<div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Company</div><div style="font-size:13px;margin-top:2px;color:var(--primary);">${t.ac_code} — ${t.company_name}</div></div>` : ''}
+      ${t.company_name ? `<div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Company</div><div style="font-size:13px;margin-top:2px;color:var(--primary);">${esc(t.ac_code)} — ${esc(t.company_name)}</div></div>` : ''}
     </div>`;
   
   // Pre-fill update form

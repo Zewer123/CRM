@@ -84,6 +84,14 @@
   </div>
 
   <script>
+    // ── HTML ESCAPING (XSS protection) ─────────────────────
+    // Use esc() around ANY user-supplied value inserted via innerHTML / template
+    // literals, so names/notes/filenames can't inject <script> or event handlers.
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+        {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    window.esc = esc;
     // ── THEME ──────────────────────────────────────────────
     function setTheme(cls) {
       document.body.className = cls;

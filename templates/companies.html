@@ -344,7 +344,7 @@ function renderChips() {
   document.getElementById('chipList').innerHTML = _chips.map((c, i) => `
     <span style="display:inline-flex;align-items:center;gap:6px;background:var(--primary-bg);color:var(--primary);
       padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;">
-      ${c}
+      ${esc(c)}
       <span style="cursor:pointer;font-weight:800;" onclick="removeChip(${i})">×</span>
     </span>`).join('');
 }

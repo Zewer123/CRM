@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file, g
 from werkzeug.security import check_password_hash, generate_password_hash
 import os, io, csv, re, sqlite3, logging
 from datetime import datetime, timedelta, timezone
@@ -52,16 +52,50 @@ def refresh_country_scores(conn=None):
             except: pass
 
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'zewer-aml-secret-2026')
+# SECRET_KEY MUST come from the environment. There is deliberately no hardcoded
+# fallback: a known key lets anyone forge an admin session cookie. With multiple
+# workers a per-process random key would also break logins, so we fail loudly
+# and clearly instead of booting into a broken/insecure state.
+app.secret_key = os.getenv('SECRET_KEY')
+if not app.secret_key:
+    raise RuntimeError(
+        'SECRET_KEY environment variable is not set. Set it in Railway '
+        '(Variables tab) to a long random value before starting the app.')
 
 # ── SESSION & SECURITY CONFIG ────────────────────────────────
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)  # auto logout after 8h idle
 app.config['SESSION_COOKIE_HTTPONLY'] = True   # JS cannot read session cookie
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+# Only send the session cookie over HTTPS in production (Railway is HTTPS).
+# Disabled in local development so http://localhost testing still works.
+app.config['SESSION_COOKIE_SECURE'] = os.getenv('FLASK_ENV') != 'development'
+# Reject oversized uploads before they exhaust memory (files are read into RAM).
+app.config['MAX_CONTENT_LENGTH'] = 15 * 1024 * 1024  # 15 MB
 
 # ── LOGGING ──────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger('zewer_crm')
+
+# ── SECURITY HEADERS ─────────────────────────────────────────
+@app.after_request
+def _security_headers(resp):
+    """Baseline hardening applied to every response."""
+    resp.headers['X-Frame-Options'] = 'DENY'            # block clickjacking
+    resp.headers['X-Content-Type-Options'] = 'nosniff'  # block MIME sniffing
+    resp.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return resp
+
+# ── CONNECTION CLEANUP ───────────────────────────────────────
+@app.teardown_appcontext
+def _close_db_conns(exc):
+    """Close every DB connection opened during this request. Routes still close
+    their own connections on the happy path; this guarantees closure on the
+    error path too (double-close is harmless), preventing pool exhaustion."""
+    for c in (g.pop('db_conns', None) or []):
+        try:
+            c.close()
+        except Exception:
+            pass
 
 DATABASE_URL = os.getenv('DATABASE_URL', '')
 
@@ -81,7 +115,7 @@ def inject_user():
 def use_pg():
     return bool(DATABASE_URL)
 
-def get_db():
+def _open_db():
     if use_pg():
         try:
             import psycopg2, psycopg2.extras
@@ -98,6 +132,19 @@ def get_db():
     c = sqlite3.connect(SQLITE_PATH)
     c.row_factory = sqlite3.Row
     c.execute('PRAGMA foreign_keys = ON')
+    return c
+
+def get_db():
+    """Open a DB connection and register it so the request teardown always
+    closes it — even if a route raises before its own conn.close(). This is the
+    safety net against connection-pool exhaustion under load."""
+    c = _open_db()
+    try:
+        if 'db_conns' not in g:
+            g.db_conns = []
+        g.db_conns.append(c)
+    except RuntimeError:
+        pass  # called outside an app context (e.g. startup) — nothing to track
     return c
 
 def is_pg(conn):
@@ -730,12 +777,33 @@ def healthz():
     except Exception as e:
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
+def _client_ip():
+    """Best-effort client IP, honouring the first X-Forwarded-For hop (Railway proxy)."""
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr or '')
+    if ip and ',' in ip:
+        ip = ip.split(',')[0].strip()
+    return ip
+
+# Login throttle: block after this many failures from one IP within the window.
+LOGIN_MAX_FAILS = 10
+LOGIN_WINDOW_MIN = 15
+
+def _too_many_attempts(conn, ip):
+    """True if this IP has exceeded the failed-login limit inside the time window."""
+    if not ip:
+        return False
+    try:
+        cutoff = (datetime.utcnow() - timedelta(minutes=LOGIN_WINDOW_MIN)).strftime('%Y-%m-%d %H:%M:%S')
+        n = cnt(conn, "SELECT COUNT(*) FROM login_history WHERE ip_address=? AND success IS NOT TRUE AND created_at >= ?",
+                (ip, cutoff))
+        return int(n or 0) >= LOGIN_MAX_FAILS
+    except Exception:
+        return False  # never lock people out because the check itself failed
+
 def _log_login(conn, user_id, username, success):
     """Record a login attempt for the suspicious-login audit trail. Returns the row id (or None)."""
     try:
-        ip = request.headers.get('X-Forwarded-For', request.remote_addr or '')
-        if ip and ',' in ip:
-            ip = ip.split(',')[0].strip()
+        ip = _client_ip()
         ua = (request.headers.get('User-Agent', '') or '')[:300]
         x(conn, '''INSERT INTO login_history (user_id, username, success, ip_address, user_agent)
                    VALUES (?,?,?,?,?)''', (user_id, username, success, ip, ua))
@@ -751,8 +819,13 @@ def _log_login(conn, user_id, username, success):
 @app.route('/login', methods=['GET','POST'])
 def login():
     if request.method=='POST':
-        d=request.get_json()
+        d=request.get_json(silent=True) or {}
         conn=get_db()
+        # Brute-force throttle: too many recent failures from this IP → refuse early.
+        if _too_many_attempts(conn, _client_ip()):
+            conn.close()
+            logger.warning(f'Login throttled for IP {_client_ip()}')
+            return jsonify({'success':False,'error':'Too many failed attempts. Please wait 15 minutes and try again.'}),429
         login_id = d.get('username') or d.get('email','')
         u=one(conn,'SELECT * FROM users WHERE username=? OR email=?',(login_id,login_id))
         if u and check_password_hash(u['password_hash'],d.get('password','')) and u['is_active']:
@@ -2657,6 +2730,8 @@ def api_browse_folder():
 @admin_required
 def api_add_user():
     d=request.get_json()
+    if len((d.get('password') or '')) < 8:
+        return jsonify({'success':False,'error':'Password must be at least 8 characters'}),400
     try:
         conn=get_db()
         username = d.get('username','').strip().lower()
@@ -2681,6 +2756,8 @@ def api_edit_user(id):
             existing = one(conn,'SELECT id FROM users WHERE username=? AND id!=?',(username,id))
             if existing: return jsonify({'success':False,'error':'Username already taken'}),400
         if d.get('password'):
+            if len(d.get('password')) < 8:
+                return jsonify({'success':False,'error':'Password must be at least 8 characters'}),400
             x(conn,'UPDATE users SET name=?,email=?,role=?,contact_number=?,username=?,permissions=?,password_hash=? WHERE id=?',
               (d.get('name'),d.get('email'),d.get('role'),d.get('contact_number'),username,d.get('permissions',''),generate_password_hash(d.get('password')),id))
         else:

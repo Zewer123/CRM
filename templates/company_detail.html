@@ -371,13 +371,13 @@ function loadDocs() {
     el.innerHTML=docs.map(d=>`
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
         <div>
-          <span style="background:var(--primary-bg);color:var(--primary);padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600;margin-right:8px;">${d.doc_type}</span>
-          <a href="${d.file_url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:13px;font-weight:500;">${d.file_name}</a>
-          ${d.notes?`<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${d.notes}</div>`:''}
-          <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">By ${d.uploader_name||'—'} · ${d.created_at?d.created_at.substr(0,10):''}</div>
+          <span style="background:var(--primary-bg);color:var(--primary);padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600;margin-right:8px;">${esc(d.doc_type)}</span>
+          <a href="${esc(d.file_url)}" target="_blank" style="color:var(--text);text-decoration:none;font-size:13px;font-weight:500;">${esc(d.file_name)}</a>
+          ${d.notes?`<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${esc(d.notes)}</div>`:''}
+          <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">By ${esc(d.uploader_name||'—')} · ${d.created_at?esc(d.created_at.substr(0,10)):''}</div>
         </div>
         <div style="display:flex;gap:6px;">
-          <a href="${d.file_url}" target="_blank" class="btn btn-ghost btn-sm">👁️ View</a>
+          <a href="${esc(d.file_url)}" target="_blank" class="btn btn-ghost btn-sm">👁️ View</a>
           {% if user_role in ['admin','compliance'] %}<button class="btn btn-danger btn-sm btn-icon" onclick="deleteDoc(${d.id})">🗑️</button>{% endif %}
         </div>
       </div>`).join('');

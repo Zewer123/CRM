@@ -167,11 +167,11 @@ function loadDocs() {
     list.innerHTML = docs.map(d => `
       <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
         <div>
-          <div style="font-size:13px;font-weight:600;color:var(--text);">📄 ${d.doc_type}</div>
-          <div style="font-size:11px;color:var(--text-dim);">${d.file_name}</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);">📄 ${esc(d.doc_type)}</div>
+          <div style="font-size:11px;color:var(--text-dim);">${esc(d.file_name)}</div>
         </div>
         <div style="display:flex;gap:6px;">
-          <a href="${d.file_url}" target="_blank" class="btn btn-ghost btn-sm btn-icon" title="View">👁️</a>
+          <a href="${esc(d.file_url)}" target="_blank" class="btn btn-ghost btn-sm btn-icon" title="View">👁️</a>
           <button class="btn btn-danger btn-sm btn-icon" onclick="deleteDoc(${d.id})" title="Delete">🗑️</button>
         </div>
       </div>`).join('');

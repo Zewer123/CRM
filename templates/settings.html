@@ -470,10 +470,10 @@ function loadGroups() {
     list.innerHTML = data.groups.map(g => `
       <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;">
         <div>
-          <div style="font-weight:600;color:var(--text);">🏷️ ${g.group_name}</div>
-          ${g.description ? `<div style="font-size:12px;color:var(--text-dim);">${g.description}</div>` : ''}
+          <div style="font-weight:600;color:var(--text);">🏷️ ${esc(g.group_name)}</div>
+          ${g.description ? `<div style="font-size:12px;color:var(--text-dim);">${esc(g.description)}</div>` : ''}
         </div>
-        <button class="btn btn-danger btn-sm btn-icon" onclick="deleteGroup(${g.id},'${g.group_name.replace(/'/g,"\\'")}')" >🗑️</button>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="deleteGroup(${g.id},'${esc(g.group_name).replace(/'/g,"\\'")}')" >🗑️</button>
       </div>`).join('');
   });
 }
@@ -679,7 +679,7 @@ function startRestore() {
         }
         box.innerHTML = html;
       } else {
-        box.innerHTML = `<div style="color:#fca5a5;">❌ Error: ${d.error}</div>`;
+        box.innerHTML = `<div style="color:#fca5a5;">❌ Error: ${esc(d.error)}</div>`;
       }
     })
     .catch(e => {
