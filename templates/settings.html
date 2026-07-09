@@ -288,7 +288,11 @@
       </div>
       <div class="form-group">
         <label>Folder Path</label>
-        <input type="text" id="localDocsPath" placeholder="e.g. C:\Zewer Documents" value="{{ local_docs_path }}">
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="localDocsPath" placeholder="e.g. C:\Zewer Documents" value="{{ local_docs_path }}" style="flex:1;">
+          <button type="button" class="btn btn-ghost" onclick="browseFolder('localDocsPath', this)">📁 Browse</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Browse opens a folder picker on the PC running the CRM (local install).</div>
       </div>
       <div id="localDocsMsg" style="display:none;font-size:12px;margin-bottom:12px;"></div>
       <button class="btn btn-primary" onclick="saveLocalDocsPath()">💾 Save Path</button>
@@ -506,6 +510,17 @@ function saveActionPassword() {
 }
 
 // ── LOCAL DOCUMENT STORAGE PATH ──
+function browseFolder(targetId, btn) {
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Choosing...';
+  fetch('/api/settings/browse-folder', {method:'POST'})
+    .then(r=>r.json()).then(d=>{
+      btn.disabled = false; btn.textContent = orig;
+      if (d.success && d.path) document.getElementById(targetId).value = d.path;
+      else if (d.error) alert(d.error);
+    }).catch(e=>{ btn.disabled = false; btn.textContent = orig; alert('Type the path manually. ('+e+')'); });
+}
+
 function saveLocalDocsPath() {
   const path = document.getElementById('localDocsPath').value.trim();
   const msg = document.getElementById('localDocsMsg');

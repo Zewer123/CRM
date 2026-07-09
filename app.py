@@ -168,6 +168,7 @@ def _pg_ensure_columns():
         "ALTER TABLE internal_documents ADD COLUMN IF NOT EXISTS public_id TEXT",
         "CREATE TABLE IF NOT EXISTS risk_country_scores (country TEXT PRIMARY KEY, score INTEGER NOT NULL DEFAULT 2, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS login_history (id SERIAL PRIMARY KEY, user_id INTEGER, username TEXT, success BOOLEAN DEFAULT FALSE, ip_address TEXT, user_agent TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "ALTER TABLE login_history ADD COLUMN IF NOT EXISTS logout_at TIMESTAMP",
     ]
     try:
         import psycopg2
@@ -220,7 +221,7 @@ def _run_migrations(conn):
         "company_risk_assessments (id {pk}, company_id INTEGER NOT NULL, jurisdiction_score NUMERIC, ownership_score NUMERIC, delivery_channel_score NUMERIC, payment_method_score NUMERIC, transaction_volume_score NUMERIC, product_score NUMERIC, pep_status_score NUMERIC, nationality_score NUMERIC, years_relationship_score NUMERIC, years_operation_score NUMERIC, third_party_score NUMERIC, sanctions_score NUMERIC, final_score NUMERIC, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "individual_risk_assessments (id {pk}, individual_id INTEGER NOT NULL, nationality_score NUMERIC, residence_status_score NUMERIC, pep_status_score NUMERIC, profession_score NUMERIC, product_score NUMERIC, delivery_channel_score NUMERIC, payment_method_score NUMERIC, transaction_amount_score NUMERIC, years_relationship_score NUMERIC, place_of_birth_score NUMERIC, third_party_score NUMERIC, sanctions_score NUMERIC, final_score NUMERIC, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "risk_country_scores (country TEXT PRIMARY KEY, score INTEGER NOT NULL DEFAULT 2, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
-        "login_history (id {pk}, user_id INTEGER, username TEXT, success BOOLEAN DEFAULT FALSE, ip_address TEXT, user_agent TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "login_history (id {pk}, user_id INTEGER, username TEXT, success BOOLEAN DEFAULT FALSE, ip_address TEXT, user_agent TEXT, logout_at TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
     ]
     pk = "SERIAL PRIMARY KEY" if pg else "INTEGER PRIMARY KEY AUTOINCREMENT"
     for t in new_tables:
@@ -276,6 +277,8 @@ def _run_migrations(conn):
     safe_alter('internal_documents', 'file_url')
     safe_alter('internal_documents', 'file_name')
     safe_alter('internal_documents', 'public_id')
+    # Logout timestamp on login history
+    safe_alter('login_history', 'logout_at', 'TIMESTAMP')
     # Force-insert new dropdown values on existing DBs
     new_dd = [
         ('ID TYPE','National ID'),('ID TYPE','Passport'),('ID TYPE','Emirates ID'),('ID TYPE','Visa No'),('ID TYPE','Other'),
@@ -647,6 +650,13 @@ def healthz():
                 try: conn.rollback()
                 except: pass
                 checks[f'{tbl}.{col}'] = 'MISSING'
+        checks['login_history.logout_at'] = 'ok'
+        try:
+            x(conn, 'SELECT logout_at FROM login_history LIMIT 1').fetchone()
+        except Exception:
+            try: conn.rollback()
+            except: pass
+            checks['login_history.logout_at'] = 'MISSING'
         for t in ['risk_country_scores', 'login_history']:
             try:
                 x(conn, f'SELECT 1 FROM {t} LIMIT 1').fetchone()
@@ -662,7 +672,7 @@ def healthz():
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
 def _log_login(conn, user_id, username, success):
-    """Record a login attempt for the suspicious-login audit trail."""
+    """Record a login attempt for the suspicious-login audit trail. Returns the row id (or None)."""
     try:
         ip = request.headers.get('X-Forwarded-For', request.remote_addr or '')
         if ip and ',' in ip:
@@ -671,8 +681,13 @@ def _log_login(conn, user_id, username, success):
         x(conn, '''INSERT INTO login_history (user_id, username, success, ip_address, user_agent)
                    VALUES (?,?,?,?,?)''', (user_id, username, success, ip, ua))
         commit(conn)
+        try:
+            return lastid(conn)
+        except Exception:
+            return None
     except Exception as e:
         logger.warning(f'Could not record login attempt: {e}')
+        return None
 
 @app.route('/login', methods=['GET','POST'])
 def login():
@@ -685,7 +700,9 @@ def login():
             session.permanent = True  # enables PERMANENT_SESSION_LIFETIME timeout
             session.update(user_id=u['id'],user_email=u['email'],user_name=u['name'],user_role=u['role'],user_permissions=(u.get('permissions') or ''))
             logger.info(f"Login: {u['email']} (role={u['role']})")
-            _log_login(conn, u['id'], u.get('username') or u['email'], True)
+            log_id = _log_login(conn, u['id'], u.get('username') or u['email'], True)
+            if log_id:
+                session['login_log_id'] = log_id
             conn.close()
             return jsonify({'success':True})
         logger.warning(f"Failed login attempt for: {login_id}")
@@ -695,7 +712,18 @@ def login():
     return render_template('login.html')
 
 @app.route('/logout')
-def logout(): session.clear(); return redirect(url_for('login'))
+def logout():
+    # Stamp the logout time on this session's login-history row
+    log_id = session.get('login_log_id')
+    if log_id:
+        try:
+            conn = get_db()
+            x(conn, 'UPDATE login_history SET logout_at=CURRENT_TIMESTAMP WHERE id=?', (log_id,))
+            commit(conn); conn.close()
+        except Exception as e:
+            logger.warning(f'Could not record logout time: {e}')
+    session.clear()
+    return redirect(url_for('login'))
 
 @app.route('/dashboard')
 @login_required
@@ -2348,16 +2376,24 @@ def aml_tracker_import():
 @app.route('/login-history')
 @admin_required
 def login_history():
-    """Admin view of recent login attempts for suspicious-login monitoring."""
+    """Admin view of login attempts (retained for 90 days) for suspicious-login monitoring."""
     conn = get_db()
+    cutoff = dubai_today() - timedelta(days=90)
+    # Retention: purge anything older than 90 days on each visit
+    try:
+        x(conn, 'DELETE FROM login_history WHERE created_at < ?', (cutoff,))
+        commit(conn)
+    except Exception as e:
+        logger.warning(f'login_history purge skipped: {e}')
     show = request.args.get('show', '')  # '', 'failed', 'success'
-    where = ''
-    if show == 'failed': where = 'WHERE success IS NOT TRUE'
-    elif show == 'success': where = 'WHERE success IS TRUE'
+    conds = ['lh.created_at >= ?']; params = [str(cutoff)]
+    if show == 'failed': conds.append('lh.success IS NOT TRUE')
+    elif show == 'success': conds.append('lh.success IS TRUE')
+    where = 'WHERE ' + ' AND '.join(conds)
     rows = all_(conn, f'''SELECT lh.*, u.name as user_name, u.role
                   FROM login_history lh LEFT JOIN users u ON lh.user_id = u.id
                   {where}
-                  ORDER BY lh.created_at DESC LIMIT 300''')
+                  ORDER BY lh.created_at DESC LIMIT 1000''', params)
     failed_24h = cnt(conn, "SELECT COUNT(*) FROM login_history WHERE success IS NOT TRUE AND created_at >= ?",
                      (dubai_today() - timedelta(days=1),))
     conn.close()
@@ -2466,6 +2502,29 @@ def api_set_local_docs_path():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/settings/browse-folder', methods=['POST'])
+@admin_required
+def api_browse_folder():
+    """Open a native folder picker on the SERVER machine and return the chosen path.
+    Works on the local/on-prem Windows install (where server = the user's PC).
+    On a headless/cloud host there is no desktop, so it fails gracefully and the
+    admin types the path instead."""
+    try:
+        import subprocess
+        ps = ("Add-Type -AssemblyName System.Windows.Forms | Out-Null;"
+              "$f = New-Object System.Windows.Forms.FolderBrowserDialog;"
+              "$f.Description = 'Select folder for Zewer CRM storage';"
+              "$f.ShowNewFolderButton = $true;"
+              "if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($f.SelectedPath) }")
+        result = subprocess.run(['powershell', '-NoProfile', '-Sta', '-Command', ps],
+                                capture_output=True, text=True, timeout=180)
+        path = (result.stdout or '').strip()
+        if path:
+            return jsonify({'success': True, 'path': path})
+        return jsonify({'success': False, 'error': 'No folder selected.'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Folder picker not available on this server — type the path manually. ({e})'})
 
 @app.route('/api/user/add',methods=['POST'])
 @admin_required

@@ -237,6 +237,16 @@
         </div>
         <div class="form-group"><label>Location</label><input type="text" id="a_location" placeholder="e.g. Deira, Al Barsha, JLT"></div>
         <div class="form-group form-full"><label>Address</label><textarea id="a_addr" rows="2" placeholder="Full address..."></textarea></div>
+        <div class="form-group form-full"><label>Notes</label><textarea id="a_notes" rows="2" placeholder="Any notes..."></textarea></div>
+      </div>
+    </div>
+    <!-- COMPLIANCE & DOCUMENTS TAB (merged) -->
+    <div id="ctab-docs" style="display:none;"><!-- merged --></div>
+    <div id="ctab-compliance" style="display:none;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+
+        <!-- PEP SECTION -->
+        <div style="grid-column:1/-1;font-weight:700;color:var(--text-dim);font-size:11px;text-transform:uppercase;margin-bottom:4px;">🛡️ PEP</div>
         <div class="form-group">
           <label>PEP Declaration <small style="color:var(--text-dim);">(Politically Exposed Person)</small></label>
           <select id="a_pep_status">
@@ -254,16 +264,9 @@
             <option>No</option>
           </select>
         </div>
-        <div class="form-group form-full"><label>Notes</label><textarea id="a_notes" rows="2" placeholder="Any notes..."></textarea></div>
-      </div>
-    </div>
-    <!-- COMPLIANCE & DOCUMENTS TAB (merged) -->
-    <div id="ctab-docs" style="display:none;"><!-- merged --></div>
-    <div id="ctab-compliance" style="display:none;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
 
         <!-- DOCUMENTS SECTION -->
-        <div style="grid-column:1/-1;font-weight:700;color:var(--text-dim);font-size:11px;text-transform:uppercase;margin-bottom:4px;">📄 Documents</div>
+        <div style="grid-column:1/-1;font-weight:700;color:var(--text-dim);font-size:11px;text-transform:uppercase;margin-bottom:4px;margin-top:8px;">📄 Documents</div>
         <!-- PASSPORT (PRIMARY ID — always required) -->
         <div style="grid-column:1/-1;">
           <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--primary);">
@@ -419,6 +422,15 @@
         </div>
         <div class="form-group"><label>Location</label><input type="text" id="e_location" placeholder="e.g. Deira, Al Barsha, JLT"></div>
         <div class="form-group form-full"><label>Address</label><textarea id="e_addr" rows="2"></textarea></div>
+        <div class="form-group form-full"><label>Notes</label><textarea id="e_notes" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div id="ctab-edocs" style="display:none;"><!-- merged --></div>
+    <!-- COMPLIANCE & DOCUMENTS TAB (merged) -->
+    <div id="ctab-ecompliance" style="display:none;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <!-- PEP SECTION -->
+        <div style="grid-column:1/-1;font-weight:700;color:var(--text-dim);font-size:11px;text-transform:uppercase;margin-bottom:4px;">🛡️ PEP</div>
         <div class="form-group">
           <label>PEP Declaration <small style="color:var(--text-dim);">(Politically Exposed Person)</small></label>
           <select id="e_pep_status">
@@ -436,15 +448,8 @@
             <option>No</option>
           </select>
         </div>
-        <div class="form-group form-full"><label>Notes</label><textarea id="e_notes" rows="2"></textarea></div>
-      </div>
-    </div>
-    <div id="ctab-edocs" style="display:none;"><!-- merged --></div>
-    <!-- COMPLIANCE & DOCUMENTS TAB (merged) -->
-    <div id="ctab-ecompliance" style="display:none;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <!-- DOCUMENTS SECTION -->
-        <div style="grid-column:1/-1;font-weight:700;color:var(--text-dim);font-size:11px;text-transform:uppercase;margin-bottom:4px;">📄 Documents</div>
+        <div style="grid-column:1/-1;font-weight:700;color:var(--text-dim);font-size:11px;text-transform:uppercase;margin-bottom:4px;margin-top:8px;">📄 Documents</div>
         <!-- PASSPORT (PRIMARY ID) -->
         <div style="grid-column:1/-1;">
           <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--primary);">

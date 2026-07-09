@@ -29,7 +29,8 @@
             <table style="width:100%; border-collapse:collapse;">
                 <thead>
                     <tr style="background: var(--surface2);">
-                        <th style="padding:12px; text-align:left; font-size:12px; text-transform:uppercase; color:var(--text-dim);">Time</th>
+                        <th style="padding:12px; text-align:left; font-size:12px; text-transform:uppercase; color:var(--text-dim);">Login Time</th>
+                        <th style="padding:12px; text-align:left; font-size:12px; text-transform:uppercase; color:var(--text-dim);">Logout Time</th>
                         <th style="padding:12px; text-align:left; font-size:12px; text-transform:uppercase; color:var(--text-dim);">User / Login</th>
                         <th style="padding:12px; text-align:left; font-size:12px; text-transform:uppercase; color:var(--text-dim);">Result</th>
                         <th style="padding:12px; text-align:left; font-size:12px; text-transform:uppercase; color:var(--text-dim);">IP Address</th>
@@ -40,6 +41,7 @@
                     {% for r in rows %}
                     <tr style="border-top:1px solid var(--border);">
                         <td style="padding:11px 12px; font-size:13px; color:var(--text); white-space:nowrap;">{{ r.created_at }}</td>
+                        <td style="padding:11px 12px; font-size:13px; color:var(--text-muted); white-space:nowrap;">{{ r.logout_at or '—' }}</td>
                         <td style="padding:11px 12px; font-size:13px; color:var(--text);">
                             {{ r.user_name or r.username or '—' }}
                             {% if r.user_name and r.username %}<div style="font-size:11px; color:var(--text-dim);">{{ r.username }}</div>{% endif %}
@@ -55,7 +57,7 @@
                         <td style="padding:11px 12px; font-size:11px; color:var(--text-dim); max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ r.user_agent or '—' }}</td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="5" style="padding:24px; text-align:center; color:var(--text-dim);">No login history yet.</td></tr>
+                    <tr><td colspan="6" style="padding:24px; text-align:center; color:var(--text-dim);">No login history yet.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
