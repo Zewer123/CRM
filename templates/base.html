@@ -68,7 +68,8 @@
           </div>
           {% if user_role == 'admin' %}
           <a href="{{ url_for('settings') }}" class="dropdown-item">⚙️ Admin Panel</a>
-          <a href="{{ url_for('country_scores') }}" class="dropdown-item">🎯 Risk Assessment Setting</a>
+          <a href="{{ url_for('risk_questions_admin') }}" class="dropdown-item">🎯 Risk Questionnaire</a>
+          <a href="{{ url_for('country_scores') }}" class="dropdown-item">🌍 Country Risk Scores</a>
           <a href="{{ url_for('login_history') }}" class="dropdown-item">🔐 Login History</a>
           <div class="dropdown-divider"></div>
           {% endif %}

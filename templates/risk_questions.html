@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Risk Questionnaire - Zewer AML{% endblock %}
+{% block content %}
+<div style="max-width:1000px;margin:0 auto;">
+  <div class="page-header">
+    <div>
+      <div class="page-breadcrumb"><a href="{{ url_for('settings') }}">← Settings</a></div>
+      <div class="page-title">🎯 Risk Assessment Questionnaire</div>
+      <div style="font-size:13px;color:var(--text-dim);">Add / edit questions and set the score for each answer. Applies to new assessments.</div>
+    </div>
+  </div>
+
+  <div class="tab-bar" style="margin-bottom:18px;">
+    <button class="tab-btn active" onclick="showSet('company',this)">🏢 Company Questions</button>
+    <button class="tab-btn" onclick="showSet('individual',this)">👤 Individual Questions</button>
+  </div>
+
+  <div id="set-company"></div>
+  <div id="set-individual" style="display:none;"></div>
+
+  <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+    <button class="btn btn-ghost" onclick="addQuestion(currentSet)">+ Add Question</button>
+    <button class="btn btn-primary" onclick="saveSet(currentSet)">💾 Save Questionnaire</button>
+  </div>
+  <div id="saveMsg" style="display:none;margin-top:12px;font-size:14px;font-weight:600;text-align:right;"></div>
+</div>
+
+<script>
+const DATA = {
+  company: {{ company_qs|tojson }},
+  individual: {{ individual_qs|tojson }}
+};
+let currentSet = 'company';
+
+function showSet(name, btn) {
+  currentSet = name;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('set-company').style.display = name==='company' ? '' : 'none';
+  document.getElementById('set-individual').style.display = name==='individual' ? '' : 'none';
+}
+
+function render(setName) {
+  const el = document.getElementById('set-' + setName);
+  const qs = DATA[setName];
+  if (!qs.length) { el.innerHTML = '<div style="color:var(--text-dim);padding:30px;text-align:center;background:var(--surface);border-radius:10px;">No questions yet. Click "+ Add Question".</div>'; return; }
+  el.innerHTML = qs.map((q, qi) => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px;">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+        <span style="color:var(--text-dim);font-weight:700;font-size:13px;">Q${qi+1}</span>
+        <input type="text" value="${(q.question||'').replace(/"/g,'&quot;')}" onchange="DATA['${setName}'][${qi}].question=this.value"
+          placeholder="Question text" style="flex:1;font-weight:600;">
+        <button class="btn btn-danger btn-sm btn-icon" title="Delete question" onclick="delQuestion('${setName}',${qi})">🗑️</button>
+      </div>
+      <div style="padding-left:22px;">
+        <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;font-weight:700;margin-bottom:6px;">Answers &amp; Scores</div>
+        ${(q.options||[]).map((o, oi) => `
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+            <input type="text" value="${(o.label||'').replace(/"/g,'&quot;')}" onchange="DATA['${setName}'][${qi}].options[${oi}].label=this.value"
+              placeholder="Answer label" style="flex:1;">
+            <input type="number" min="1" max="3" value="${o.score}" onchange="DATA['${setName}'][${qi}].options[${oi}].score=parseInt(this.value)||1"
+              title="Score (1=Low, 2=Medium, 3=High)" style="width:70px;text-align:center;">
+            <button class="btn btn-ghost btn-sm btn-icon" title="Remove answer" onclick="delOption('${setName}',${qi},${oi})">✕</button>
+          </div>`).join('')}
+        <button class="btn btn-ghost btn-sm" onclick="addOption('${setName}',${qi})">+ Add Answer</button>
+      </div>
+    </div>`).join('');
+}
+
+function addQuestion(setName) {
+  DATA[setName].push({question:'', options:[{label:'Low risk',score:1},{label:'Medium risk',score:2},{label:'High risk',score:3}]});
+  render(setName);
+}
+function delQuestion(setName, qi) { DATA[setName].splice(qi,1); render(setName); }
+function addOption(setName, qi) { DATA[setName][qi].options.push({label:'',score:1}); render(setName); }
+function delOption(setName, qi, oi) { DATA[setName][qi].options.splice(oi,1); render(setName); }
+
+function saveSet(setName) {
+  const msg = document.getElementById('saveMsg');
+  fetch('/api/risk-questions/save', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({applies_to:setName, questions:DATA[setName]})
+  }).then(r=>r.json()).then(d=>{
+    msg.style.display='block';
+    msg.style.color = d.success ? '#16a34a' : '#dc2626';
+    msg.textContent = d.success ? '✅ ' + (setName==='company'?'Company':'Individual') + ' questionnaire saved.' : '❌ ' + (d.error||'failed');
+  }).catch(e=>{ msg.style.display='block'; msg.style.color='#dc2626'; msg.textContent='❌ '+e; });
+}
+
+render('company');
+render('individual');
+</script>
+{% endblock %}

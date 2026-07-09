@@ -169,7 +169,11 @@ def _pg_ensure_columns():
         "CREATE TABLE IF NOT EXISTS risk_country_scores (country TEXT PRIMARY KEY, score INTEGER NOT NULL DEFAULT 2, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS login_history (id SERIAL PRIMARY KEY, user_id INTEGER, username TEXT, success BOOLEAN DEFAULT FALSE, ip_address TEXT, user_agent TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "ALTER TABLE login_history ADD COLUMN IF NOT EXISTS logout_at TIMESTAMP",
+        "CREATE TABLE IF NOT EXISTS risk_questions (id SERIAL PRIMARY KEY, applies_to TEXT DEFAULT 'both', question TEXT NOT NULL, sort_order INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS risk_answer_options (id SERIAL PRIMARY KEY, question_id INTEGER NOT NULL, label TEXT NOT NULL, score INTEGER NOT NULL DEFAULT 1, sort_order INTEGER DEFAULT 0)",
+        "CREATE TABLE IF NOT EXISTS risk_responses (id SERIAL PRIMARY KEY, assessment_type TEXT, assessment_id INTEGER, question_id INTEGER, question_text TEXT, answer_label TEXT, score INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
     ]
+    # (risk_questions seeding for PG happens in _run_migrations via _seed_risk_questions)
     try:
         import psycopg2
         url = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
@@ -221,6 +225,9 @@ def _run_migrations(conn):
         "company_risk_assessments (id {pk}, company_id INTEGER NOT NULL, jurisdiction_score NUMERIC, ownership_score NUMERIC, delivery_channel_score NUMERIC, payment_method_score NUMERIC, transaction_volume_score NUMERIC, product_score NUMERIC, pep_status_score NUMERIC, nationality_score NUMERIC, years_relationship_score NUMERIC, years_operation_score NUMERIC, third_party_score NUMERIC, sanctions_score NUMERIC, final_score NUMERIC, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "individual_risk_assessments (id {pk}, individual_id INTEGER NOT NULL, nationality_score NUMERIC, residence_status_score NUMERIC, pep_status_score NUMERIC, profession_score NUMERIC, product_score NUMERIC, delivery_channel_score NUMERIC, payment_method_score NUMERIC, transaction_amount_score NUMERIC, years_relationship_score NUMERIC, place_of_birth_score NUMERIC, third_party_score NUMERIC, sanctions_score NUMERIC, final_score NUMERIC, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "risk_country_scores (country TEXT PRIMARY KEY, score INTEGER NOT NULL DEFAULT 2, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "risk_questions (id {pk}, applies_to TEXT DEFAULT 'both', question TEXT NOT NULL, sort_order INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "risk_answer_options (id {pk}, question_id INTEGER NOT NULL, label TEXT NOT NULL, score INTEGER NOT NULL DEFAULT 1, sort_order INTEGER DEFAULT 0)",
+        "risk_responses (id {pk}, assessment_type TEXT, assessment_id INTEGER, question_id INTEGER, question_text TEXT, answer_label TEXT, score INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "login_history (id {pk}, user_id INTEGER, username TEXT, success BOOLEAN DEFAULT FALSE, ip_address TEXT, user_agent TEXT, logout_at TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
     ]
     pk = "SERIAL PRIMARY KEY" if pg else "INTEGER PRIMARY KEY AUTOINCREMENT"
@@ -306,6 +313,58 @@ def _run_migrations(conn):
             if pg: conn.rollback()
     # Load any admin-edited scores over the in-memory defaults
     refresh_country_scores(conn)
+
+    # Seed the editable risk questionnaire (first run only)
+    _seed_risk_questions(conn)
+
+def _seed_risk_questions(conn):
+    """Populate the configurable questionnaire with the current factors + graded
+    answers, but only if it's empty (so admin edits are never clobbered)."""
+    try:
+        existing = cnt(conn, 'SELECT COUNT(*) FROM risk_questions')
+        if existing and int(existing) > 0:
+            return
+    except Exception:
+        return
+    LMH = [('Low risk', 1), ('Medium risk', 2), ('High risk', 3)]
+    YN = [('No', 1), ('Yes', 3)]
+    company = [
+        ('Jurisdiction / Country of Incorporation', LMH), ('Ownership Structure', LMH),
+        ('Delivery Channel', LMH), ('Payment Method', [('Cheque',1),('Bank Transfer (Local)',2),('Debit/Credit Card',2),('Cash',3),('Crypto',3),('Bank Transfer (International)',3)]),
+        ('Transaction Volume', LMH), ('Product / Service', LMH),
+        ('PEP Status', YN), ('Nationality (of owners)', LMH),
+        ('Years of Relationship', [('More than 3 years',1),('1 to 3 years',2),('Less than 1 year',3)]),
+        ('Years of Operation', [('More than 3 years',1),('1 to 3 years',2),('Less than 1 year',3)]),
+        ('Third-Party Involvement', YN), ('Sanctions Exposure', YN),
+    ]
+    individual = [
+        ('Nationality', LMH), ('Residence Status', [('Resident',1),('Non-Resident',3)]),
+        ('PEP Status', YN), ('Profession', LMH),
+        ('Product / Service', LMH), ('Delivery Channel', LMH),
+        ('Payment Method', [('Cheque',1),('Bank Transfer (Local)',2),('Debit/Credit Card',2),('Cash',3),('Crypto',3),('Bank Transfer (International)',3)]),
+        ('Transaction Amount', [('Amount up to AED 100,000',1),('Amount more than AED 100,000',3)]),
+        ('Years of Relationship', [('More than 3 years',1),('1 to 3 years',2),('Less than 1 year',3)]),
+        ('Place of Birth', LMH), ('Third-Party Involvement', YN), ('Sanctions Exposure', YN),
+    ]
+    def add_set(applies_to, factors):
+        for order, (q, answers) in enumerate(factors):
+            try:
+                if use_pg():
+                    x(conn, "INSERT INTO risk_questions (applies_to,question,sort_order,is_active) VALUES (%s,%s,%s,1)", (applies_to, q, order))
+                else:
+                    conn.execute("INSERT INTO risk_questions (applies_to,question,sort_order,is_active) VALUES (?,?,?,1)", (applies_to, q, order))
+                qid = lastid(conn)
+                for aorder, (label, score) in enumerate(answers):
+                    if use_pg():
+                        x(conn, "INSERT INTO risk_answer_options (question_id,label,score,sort_order) VALUES (%s,%s,%s,%s)", (qid, label, score, aorder))
+                    else:
+                        conn.execute("INSERT INTO risk_answer_options (question_id,label,score,sort_order) VALUES (?,?,?,?)", (qid, label, score, aorder))
+                commit(conn)
+            except Exception as e:
+                logger.warning(f'seed risk question skipped ({q}): {e}')
+                if is_pg(conn): conn.rollback()
+    add_set('company', company)
+    add_set('individual', individual)
 
 def _pg_schema(conn):
     stmts = [
@@ -657,7 +716,7 @@ def healthz():
             try: conn.rollback()
             except: pass
             checks['login_history.logout_at'] = 'MISSING'
-        for t in ['risk_country_scores', 'login_history']:
+        for t in ['risk_country_scores', 'login_history', 'risk_questions', 'risk_answer_options', 'risk_responses']:
             try:
                 x(conn, f'SELECT 1 FROM {t} LIMIT 1').fetchone()
                 checks[t] = 'ok'
@@ -2444,6 +2503,74 @@ def api_save_country_scores():
         return jsonify({'success': True, 'updated': len(scores)})
     except Exception as e:
         logger.error(f'Error saving country scores: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+def _load_risk_questions(conn, applies_to=None):
+    """Return questions (optionally for a given entity type) with nested answer options."""
+    q_sql = "SELECT * FROM risk_questions WHERE is_active=1"
+    params = []
+    if applies_to:
+        q_sql += " AND (applies_to=? OR applies_to='both')"; params.append(applies_to)
+    q_sql += " ORDER BY sort_order, id"
+    questions = all_(conn, q_sql, params or None)
+    if not questions:
+        return []
+    qids = [q['id'] for q in questions]
+    ph = ','.join([P()]*len(qids))
+    opts = all_(conn, f"SELECT * FROM risk_answer_options WHERE question_id IN ({ph}) ORDER BY sort_order, id", qids)
+    by_q = {}
+    for o in opts:
+        by_q.setdefault(o['question_id'], []).append({'id': o['id'], 'label': o['label'], 'score': o['score']})
+    for q in questions:
+        q['options'] = by_q.get(q['id'], [])
+    return questions
+
+@app.route('/settings/risk-questions')
+@admin_required
+def risk_questions_admin():
+    """Admin builder for the risk-assessment questionnaire."""
+    conn = get_db()
+    company_qs = _load_risk_questions(conn, 'company')
+    individual_qs = _load_risk_questions(conn, 'individual')
+    conn.close()
+    return render_template('risk_questions.html', company_qs=company_qs, individual_qs=individual_qs)
+
+@app.route('/api/risk-questions/save', methods=['POST'])
+@admin_required
+def api_save_risk_questions():
+    """Replace the whole questionnaire for one entity type from posted JSON.
+    Payload: {applies_to:'company'|'individual', questions:[{question, options:[{label,score}]}]}"""
+    d = request.get_json() or {}
+    applies_to = d.get('applies_to')
+    questions = d.get('questions', [])
+    if applies_to not in ('company', 'individual'):
+        return jsonify({'success': False, 'error': 'Invalid entity type'}), 400
+    try:
+        conn = get_db()
+        # Wipe existing questions (+ their options) for this entity type, then re-insert
+        old = all_(conn, "SELECT id FROM risk_questions WHERE applies_to=?", (applies_to,))
+        for o in old:
+            x(conn, "DELETE FROM risk_answer_options WHERE question_id=?", (o['id'],))
+        x(conn, "DELETE FROM risk_questions WHERE applies_to=?", (applies_to,))
+        for order, q in enumerate(questions):
+            qtext = (q.get('question') or '').strip()
+            if not qtext:
+                continue
+            x(conn, "INSERT INTO risk_questions (applies_to,question,sort_order,is_active) VALUES (?,?,?,1)",
+              (applies_to, qtext, order))
+            qid = lastid(conn)
+            for aorder, opt in enumerate(q.get('options', [])):
+                label = (opt.get('label') or '').strip()
+                if not label:
+                    continue
+                try: score = int(opt.get('score', 1))
+                except (TypeError, ValueError): score = 1
+                x(conn, "INSERT INTO risk_answer_options (question_id,label,score,sort_order) VALUES (?,?,?,?)",
+                  (qid, label, score, aorder))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f'Error saving risk questions: {e}')
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/settings')
