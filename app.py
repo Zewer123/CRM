@@ -357,7 +357,11 @@ def _run_migrations(conn):
                 commit(conn)
             else:
                 conn.execute("INSERT OR IGNORE INTO dropdowns (field_name,value,is_active) VALUES (?,?,1)", (field, val))
-        except: pass
+        except Exception:
+            # Without this rollback, a failed insert here leaves the PG transaction
+            # aborted, silently breaking every later migration step on this same
+            # connection (including the risk-questionnaire seeding below).
+            if pg: conn.rollback()
 
     # Seed editable country risk scores from the built-in defaults (first run only)
     for country, score in RISK_LOOKUPS.get('countries', {}).items():
@@ -375,54 +379,72 @@ def _run_migrations(conn):
     # Seed the editable risk questionnaire (first run only)
     _seed_risk_questions(conn)
 
+# Default questionnaire content, shared by the startup seeder and the admin
+# "Load Default Questions" recovery action (/api/risk-questions/load-defaults).
+_LMH = [('Low risk', 1), ('Medium risk', 2), ('High risk', 3)]
+_YN = [('No', 1), ('Yes', 3)]
+_PAYMENT = [('Cheque',1),('Bank Transfer (Local)',2),('Debit/Credit Card',2),('Cash',3),('Crypto',3),('Bank Transfer (International)',3)]
+DEFAULT_RISK_QUESTIONS = {
+    'company': [
+        ('Jurisdiction / Country of Incorporation', _LMH), ('Ownership Structure', _LMH),
+        ('Delivery Channel', _LMH), ('Payment Method', _PAYMENT),
+        ('Transaction Volume', _LMH), ('Product / Service', _LMH),
+        ('PEP Status', _YN), ('Nationality (of owners)', _LMH),
+        ('Years of Relationship', [('More than 3 years',1),('1 to 3 years',2),('Less than 1 year',3)]),
+        ('Years of Operation', [('More than 3 years',1),('1 to 3 years',2),('Less than 1 year',3)]),
+        ('Third-Party Involvement', _YN), ('Sanctions Exposure', _YN),
+    ],
+    'individual': [
+        ('Nationality', _LMH), ('Residence Status', [('Resident',1),('Non-Resident',3)]),
+        ('PEP Status', _YN), ('Profession', _LMH),
+        ('Product / Service', _LMH), ('Delivery Channel', _LMH),
+        ('Payment Method', _PAYMENT),
+        ('Transaction Amount', [('Amount up to AED 100,000',1),('Amount more than AED 100,000',3)]),
+        ('Years of Relationship', [('More than 3 years',1),('1 to 3 years',2),('Less than 1 year',3)]),
+        ('Place of Birth', _LMH), ('Third-Party Involvement', _YN), ('Sanctions Exposure', _YN),
+    ],
+}
+
+def _insert_question_set(conn, applies_to, factors):
+    """Insert one applies_to's default questions + answer options. Each question
+    is independently try/excepted so one bad row can't block the rest."""
+    inserted = 0
+    for order, (q, answers) in enumerate(factors):
+        try:
+            if use_pg():
+                x(conn, "INSERT INTO risk_questions (applies_to,question,sort_order,is_active) VALUES (%s,%s,%s,1)", (applies_to, q, order))
+            else:
+                conn.execute("INSERT INTO risk_questions (applies_to,question,sort_order,is_active) VALUES (?,?,?,1)", (applies_to, q, order))
+            qid = lastid(conn)
+            for aorder, (label, score) in enumerate(answers):
+                if use_pg():
+                    x(conn, "INSERT INTO risk_answer_options (question_id,label,score,sort_order) VALUES (%s,%s,%s,%s)", (qid, label, score, aorder))
+                else:
+                    conn.execute("INSERT INTO risk_answer_options (question_id,label,score,sort_order) VALUES (?,?,?,?)", (qid, label, score, aorder))
+            commit(conn)
+            inserted += 1
+        except Exception as e:
+            logger.warning(f'seed risk question skipped ({q}): {e}')
+            if is_pg(conn): conn.rollback()
+    return inserted
+
 def _seed_risk_questions(conn):
-    """Populate the configurable questionnaire with the current factors + graded
+    """Populate the configurable questionnaire with the default factors + graded
     answers, but only if it's empty (so admin edits are never clobbered)."""
+    # Defensive: guarantee a clean transaction before checking/seeding, so an
+    # earlier migration step that failed to roll back can never silently skip
+    # this seeding (this is what caused production to end up with 0 questions).
+    if is_pg(conn):
+        try: conn.rollback()
+        except Exception: pass
     try:
         existing = cnt(conn, 'SELECT COUNT(*) FROM risk_questions')
         if existing and int(existing) > 0:
             return
     except Exception:
         return
-    LMH = [('Low risk', 1), ('Medium risk', 2), ('High risk', 3)]
-    YN = [('No', 1), ('Yes', 3)]
-    company = [
-        ('Jurisdiction / Country of Incorporation', LMH), ('Ownership Structure', LMH),
-        ('Delivery Channel', LMH), ('Payment Method', [('Cheque',1),('Bank Transfer (Local)',2),('Debit/Credit Card',2),('Cash',3),('Crypto',3),('Bank Transfer (International)',3)]),
-        ('Transaction Volume', LMH), ('Product / Service', LMH),
-        ('PEP Status', YN), ('Nationality (of owners)', LMH),
-        ('Years of Relationship', [('More than 3 years',1),('1 to 3 years',2),('Less than 1 year',3)]),
-        ('Years of Operation', [('More than 3 years',1),('1 to 3 years',2),('Less than 1 year',3)]),
-        ('Third-Party Involvement', YN), ('Sanctions Exposure', YN),
-    ]
-    individual = [
-        ('Nationality', LMH), ('Residence Status', [('Resident',1),('Non-Resident',3)]),
-        ('PEP Status', YN), ('Profession', LMH),
-        ('Product / Service', LMH), ('Delivery Channel', LMH),
-        ('Payment Method', [('Cheque',1),('Bank Transfer (Local)',2),('Debit/Credit Card',2),('Cash',3),('Crypto',3),('Bank Transfer (International)',3)]),
-        ('Transaction Amount', [('Amount up to AED 100,000',1),('Amount more than AED 100,000',3)]),
-        ('Years of Relationship', [('More than 3 years',1),('1 to 3 years',2),('Less than 1 year',3)]),
-        ('Place of Birth', LMH), ('Third-Party Involvement', YN), ('Sanctions Exposure', YN),
-    ]
-    def add_set(applies_to, factors):
-        for order, (q, answers) in enumerate(factors):
-            try:
-                if use_pg():
-                    x(conn, "INSERT INTO risk_questions (applies_to,question,sort_order,is_active) VALUES (%s,%s,%s,1)", (applies_to, q, order))
-                else:
-                    conn.execute("INSERT INTO risk_questions (applies_to,question,sort_order,is_active) VALUES (?,?,?,1)", (applies_to, q, order))
-                qid = lastid(conn)
-                for aorder, (label, score) in enumerate(answers):
-                    if use_pg():
-                        x(conn, "INSERT INTO risk_answer_options (question_id,label,score,sort_order) VALUES (%s,%s,%s,%s)", (qid, label, score, aorder))
-                    else:
-                        conn.execute("INSERT INTO risk_answer_options (question_id,label,score,sort_order) VALUES (?,?,?,?)", (qid, label, score, aorder))
-                commit(conn)
-            except Exception as e:
-                logger.warning(f'seed risk question skipped ({q}): {e}')
-                if is_pg(conn): conn.rollback()
-    add_set('company', company)
-    add_set('individual', individual)
+    _insert_question_set(conn, 'company', DEFAULT_RISK_QUESTIONS['company'])
+    _insert_question_set(conn, 'individual', DEFAULT_RISK_QUESTIONS['individual'])
 
 def _pg_schema(conn):
     stmts = [
@@ -2706,6 +2728,28 @@ def risk_questions_admin():
     individual_qs = _load_risk_questions(conn, 'individual')
     conn.close()
     return render_template('risk_questions.html', company_qs=company_qs, individual_qs=individual_qs)
+
+@app.route('/api/risk-questions/load-defaults', methods=['POST'])
+@admin_required
+def api_load_default_risk_questions():
+    """Recovery action: insert the built-in default questions for one entity type,
+    but ONLY if that type currently has none — never duplicates and never
+    touches questions an admin has already added/edited."""
+    d = request.get_json() or {}
+    applies_to = d.get('applies_to')
+    if applies_to not in DEFAULT_RISK_QUESTIONS:
+        return jsonify({'success': False, 'error': 'Invalid entity type'}), 400
+    try:
+        conn = get_db()
+        existing = cnt(conn, "SELECT COUNT(*) FROM risk_questions WHERE applies_to=?", (applies_to,))
+        if existing and int(existing) > 0:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Questions already exist for this type.'}), 400
+        inserted = _insert_question_set(conn, applies_to, DEFAULT_RISK_QUESTIONS[applies_to])
+        conn.close()
+        return jsonify({'success': True, 'inserted': inserted})
+    except Exception as e:
+        return _fail(e)
 
 @app.route('/api/risk-questions/save', methods=['POST'])
 @admin_required

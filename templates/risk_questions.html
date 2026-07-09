@@ -43,7 +43,13 @@ function showSet(name, btn) {
 function render(setName) {
   const el = document.getElementById('set-' + setName);
   const qs = DATA[setName];
-  if (!qs.length) { el.innerHTML = '<div style="color:var(--text-dim);padding:30px;text-align:center;background:var(--surface);border-radius:10px;">No questions yet. Click "+ Add Question".</div>'; return; }
+  if (!qs.length) {
+    el.innerHTML = `<div style="color:var(--text-dim);padding:30px;text-align:center;background:var(--surface);border-radius:10px;">
+      No questions yet. Click "+ Add Question", or
+      <button class="btn btn-primary btn-sm" style="margin-left:6px;" onclick="loadDefaults('${setName}')">⚡ Load Default Questions</button>
+    </div>`;
+    return;
+  }
   el.innerHTML = qs.map((q, qi) => `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px;">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
@@ -74,6 +80,16 @@ function addQuestion(setName) {
 function delQuestion(setName, qi) { DATA[setName].splice(qi,1); render(setName); }
 function addOption(setName, qi) { DATA[setName][qi].options.push({label:'',score:1}); render(setName); }
 function delOption(setName, qi, oi) { DATA[setName][qi].options.splice(oi,1); render(setName); }
+
+function loadDefaults(setName) {
+  fetch('/api/risk-questions/load-defaults', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({applies_to: setName})
+  }).then(r => r.json()).then(d => {
+    if (!d.success) { alert(d.error || 'Could not load defaults'); return; }
+    location.reload();  // simplest way to pick up the freshly-seeded questions + ids
+  }).catch(() => alert('Network error loading defaults'));
+}
 
 function saveSet(setName) {
   const msg = document.getElementById('saveMsg');
