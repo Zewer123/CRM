@@ -25,6 +25,10 @@ if not os.getenv('DATABASE_URL'):
                    'Set it with: setx DATABASE_URL "<value from Railway Variables tab>"')
     sys.exit(1)
 
+# Tell the app it's the local always-on install, so the daily backup scheduler
+# runs here (and never on the multi-worker cloud host).
+os.environ['LOCAL_SERVICE'] = '1'
+
 from app import app
 from waitress import serve
 

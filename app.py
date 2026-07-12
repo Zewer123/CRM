@@ -2795,21 +2795,43 @@ def settings():
     users=all_(conn,'SELECT id,email,name,role,is_active,contact_number,username,permissions FROM users ORDER BY role,name')
     dds=all_(conn,'SELECT * FROM dropdowns WHERE is_active=1 ORDER BY field_name,value')
     docs_path_row = one(conn, "SELECT value FROM app_settings WHERE key='local_docs_path'")
+    bp = one(conn, "SELECT value FROM app_settings WHERE key='backup_path'")
+    bt = one(conn, "SELECT value FROM app_settings WHERE key='backup_time'")
+    lba = one(conn, "SELECT value FROM app_settings WHERE key='last_backup_at'")
     conn.close()
     groups={}
     for d in dds: groups.setdefault(d['field_name'],[]).append(d)
     return render_template('settings.html',users=users,dropdown_groups=groups,
-        local_docs_path=(docs_path_row['value'] if docs_path_row else ''))
+        local_docs_path=(docs_path_row['value'] if docs_path_row else ''),
+        backup_path=(bp['value'] if bp else ''),
+        backup_time=(bt['value'] if bt else ''),
+        last_backup_at=(lba['value'] if lba else ''))
+
+def get_setting(key, default=''):
+    """Read a single app_settings value."""
+    try:
+        conn = get_db()
+        row = one(conn, "SELECT value FROM app_settings WHERE key=?", (key,))
+        conn.close()
+        return row['value'] if (row and row.get('value') is not None) else default
+    except Exception:
+        return default
+
+def set_setting(key, value):
+    """Upsert a single app_settings value."""
+    conn = get_db()
+    try:
+        if use_pg():
+            x(conn, "INSERT INTO app_settings (key,value) VALUES (%s,%s) ON CONFLICT(key) DO UPDATE SET value=%s,updated_at=CURRENT_TIMESTAMP", (key, value, value))
+        else:
+            conn.execute("INSERT INTO app_settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP", (key, value))
+        commit(conn)
+    finally:
+        conn.close()
 
 def get_local_docs_path():
     """Admin-configured folder to also save a local copy of documents (on-prem installs only)."""
-    try:
-        conn = get_db()
-        row = one(conn, "SELECT value FROM app_settings WHERE key='local_docs_path'")
-        conn.close()
-        return (row['value'] if row else '').strip()
-    except Exception:
-        return ''
+    return (get_setting('local_docs_path') or '').strip()
 
 def save_local_copy(file_bytes, subfolder, filename):
     """Best-effort local copy of an uploaded document, alongside the Cloudinary copy.
@@ -4198,6 +4220,121 @@ def api_verify_action_password():
 # ════════════════════════════════════════════════════════════
 # DATA BACKUP — full Excel export
 # ════════════════════════════════════════════════════════════
+def _build_backup_workbook():
+    """Build a full-data Excel workbook of everything in the system and return it
+    as BytesIO. Reused by the download route, the manual 'Backup Now' action, and
+    the scheduled backup. Excludes password hashes and the action-password secret."""
+    from openpyxl.styles import Font, PatternFill
+    conn = get_db()
+    wb = openpyxl.Workbook()
+    gold_fill = PatternFill(start_color="1C1917", end_color="1C1917", fill_type="solid")
+    gold_font = Font(color="D97706", bold=True, size=10)
+
+    def add_sheet(name, rows, first=False):
+        ws = wb.active if first else wb.create_sheet(name[:31])
+        ws.title = name[:31]
+        if not rows:
+            ws.cell(row=1, column=1, value='(no data)')
+            return
+        headers = list(rows[0].keys())
+        for i, h in enumerate(headers, 1):
+            c = ws.cell(row=1, column=i, value=h); c.font = gold_font; c.fill = gold_fill
+        for ri, row in enumerate(rows, 2):
+            for ci, h in enumerate(headers, 1):
+                val = row.get(h)
+                ws.cell(row=ri, column=ci, value=str(val) if val is not None else '')
+        ws.freeze_panes = 'A2'
+
+    def q(sql):
+        try: return all_(conn, sql)
+        except Exception: return []
+
+    tables = [
+        ('Companies', 'SELECT * FROM companies ORDER BY ac_code', True),
+        ('UBOs', 'SELECT * FROM ubos ORDER BY company_id', False),
+        ('Clients', 'SELECT * FROM clients ORDER BY name', False),
+        ('DPMSR', 'SELECT * FROM aml_tracker ORDER BY transaction_date DESC', False),
+        ('CompanyRiskAssess', 'SELECT * FROM company_risk_assessments ORDER BY id', False),
+        ('IndividualRiskAssess', 'SELECT * FROM individual_risk_assessments ORDER BY id', False),
+        ('RiskResponses', 'SELECT * FROM risk_responses ORDER BY id', False),
+        ('RiskQuestions', 'SELECT * FROM risk_questions ORDER BY applies_to,sort_order', False),
+        ('RiskAnswerOptions', 'SELECT * FROM risk_answer_options ORDER BY question_id,sort_order', False),
+        ('CountryScores', 'SELECT * FROM risk_country_scores ORDER BY country', False),
+        ('CompanyDocs', 'SELECT * FROM documents ORDER BY company_id', False),
+        ('ClientDocs', 'SELECT * FROM client_documents ORDER BY client_id', False),
+        ('InternalDocs', 'SELECT * FROM internal_documents ORDER BY expiry_date', False),
+        ('Tasks', 'SELECT * FROM tasks ORDER BY created_at DESC', False),
+        ('RegularTasks', 'SELECT * FROM regular_task_templates', False),
+        ('TaskLogs', 'SELECT * FROM regular_task_logs ORDER BY logged_at DESC', False),
+        ('AdditionalTasks', 'SELECT * FROM additional_tasks ORDER BY from_datetime DESC', False),
+        ('Groups', 'SELECT * FROM company_groups', False),
+        ('Dropdowns', 'SELECT * FROM dropdowns ORDER BY field_name,value', False),
+        ('LoginHistory', 'SELECT * FROM login_history ORDER BY created_at DESC', False),
+        ('Users', 'SELECT id,email,name,role,is_active,created_at FROM users ORDER BY name', False),
+        ('Settings', "SELECT key,value,updated_at FROM app_settings WHERE key NOT IN ('action_password') ORDER BY key", False),
+    ]
+    for name, sql, first in tables:
+        add_sheet(name, q(sql), first=first)
+    conn.close()
+    out = io.BytesIO(); wb.save(out); out.seek(0)
+    return out
+
+def run_backup_to_path():
+    """Write a full Excel backup into the admin-configured backup folder.
+    Returns (ok, message_or_path). Records last_backup_at on success."""
+    path = (get_setting('backup_path') or '').strip()
+    if not path:
+        return False, 'No backup folder configured (Admin -> Settings).'
+    if not HAS_XL:
+        return False, 'openpyxl not installed'
+    try:
+        os.makedirs(path, exist_ok=True)
+        out = _build_backup_workbook()
+        fname = f"ZewerCRM_Backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        full = os.path.join(path, fname)
+        with open(full, 'wb') as fh:
+            fh.write(out.getvalue())
+        set_setting('last_backup_at', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        return True, full
+    except Exception as e:
+        logger.error(f'Backup to path failed: {e}')
+        return False, str(e)
+
+def _backup_scheduler():
+    """Daily auto-backup loop. Only started on the local always-on install
+    (LOCAL_SERVICE=1). Wakes every few minutes; once per day, at/after the
+    configured time, writes a backup to the configured folder if not done today."""
+    import time
+    logger.info('Backup scheduler started (local service).')
+    while True:
+        try:
+            time.sleep(300)
+            path = (get_setting('backup_path') or '').strip()
+            if not path:
+                continue
+            now = datetime.now()
+            if (get_setting('last_backup_at') or '')[:10] == now.strftime('%Y-%m-%d'):
+                continue  # already backed up today
+            btime = (get_setting('backup_time') or '02:00').strip()
+            try:
+                hh, mm = [int(v) for v in btime.split(':')]
+            except Exception:
+                hh, mm = 2, 0
+            if (now.hour, now.minute) >= (hh, mm):
+                ok, msg = run_backup_to_path()
+                logger.info(f'Scheduled backup {"OK -> "+msg if ok else "FAILED: "+msg}')
+        except Exception as e:
+            logger.warning(f'Backup scheduler tick error: {e}')
+
+# Start the daily backup scheduler ONLY on the local always-on service
+# (never on Railway/cloud, which has multiple workers and no local disk to target).
+if os.getenv('LOCAL_SERVICE') == '1':
+    try:
+        import threading
+        threading.Thread(target=_backup_scheduler, daemon=True).start()
+    except Exception as _e:
+        logger.warning(f'Could not start backup scheduler: {_e}')
+
 @app.route('/admin/backup')
 @login_required
 def admin_backup():
@@ -4205,47 +4342,31 @@ def admin_backup():
         return redirect(url_for('dashboard'))
     if not HAS_XL:
         return "openpyxl not installed", 500
-    from openpyxl.styles import Font, PatternFill, Alignment
-    conn = get_db()
-    wb = openpyxl.Workbook()
-    gold_fill = PatternFill(start_color="1C1917", end_color="1C1917", fill_type="solid")
-    gold_font = Font(color="D97706", bold=True, size=10)
-
-    def add_sheet(wb, name, rows, first=False):
-        ws = wb.active if first else wb.create_sheet(name)
-        ws.title = name
-        if not rows: return ws
-        headers = list(rows[0].keys())
-        for i, h in enumerate(headers, 1):
-            c = ws.cell(row=1, column=i, value=h)
-            c.font = gold_font; c.fill = gold_fill
-        for ri, row in enumerate(rows, 2):
-            for ci, h in enumerate(headers, 1):
-                val = row.get(h)
-                ws.cell(row=ri, column=ci, value=str(val) if val is not None else '')
-        for col in ws.columns:
-            ws.column_dimensions[col[0].column_letter].width = min(40, max(12, len(str(col[0].value or ''))+4))
-        ws.freeze_panes = 'A2'
-        return ws
-
-    add_sheet(wb, 'Companies',     all_(conn, 'SELECT * FROM companies ORDER BY ac_code'), first=True)
-    add_sheet(wb, 'UBOs',          all_(conn, 'SELECT * FROM ubos ORDER BY company_id'))
-    add_sheet(wb, 'Tasks',         all_(conn, 'SELECT * FROM tasks ORDER BY created_at DESC'))
-    add_sheet(wb, 'Users',         all_(conn, 'SELECT id,email,name,role,is_active,created_at FROM users ORDER BY name'))
-    add_sheet(wb, 'Clients',       all_(conn, 'SELECT * FROM clients ORDER BY name'))
-    add_sheet(wb, 'InternalDocs',  all_(conn, 'SELECT * FROM internal_documents ORDER BY expiry_date'))
-    add_sheet(wb, 'RegularTasks',  all_(conn, 'SELECT * FROM regular_task_templates'))
-    add_sheet(wb, 'TaskLogs',      all_(conn, 'SELECT * FROM regular_task_logs ORDER BY logged_at DESC'))
-    add_sheet(wb, 'Groups',        all_(conn, 'SELECT * FROM company_groups'))
-    add_sheet(wb, 'Dropdowns',     all_(conn, 'SELECT * FROM dropdowns WHERE is_active=1 ORDER BY field_name,value'))
-    add_sheet(wb, 'AdditionalTasks', all_(conn, 'SELECT * FROM additional_tasks ORDER BY from_datetime DESC'))
-    conn.close()
-
-    out = io.BytesIO()
-    wb.save(out); out.seek(0)
+    out = _build_backup_workbook()
     fname = f"ZewerCRM_Backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                      as_attachment=True, download_name=fname)
+
+@app.route('/api/settings/backup-path', methods=['POST'])
+@admin_required
+def api_set_backup_path():
+    d = request.get_json() or {}
+    try:
+        set_setting('backup_path', (d.get('path') or '').strip())
+        bt = (d.get('time') or '').strip()
+        if bt:
+            set_setting('backup_time', bt)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/settings/backup-now', methods=['POST'])
+@admin_required
+def api_backup_now():
+    ok, msg = run_backup_to_path()
+    if ok:
+        return jsonify({'success': True, 'path': msg})
+    return jsonify({'success': False, 'error': msg}), 400
 
 # ════════════════════════════════════════════════════════════
 # RESTORE FROM BACKUP

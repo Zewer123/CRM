@@ -298,6 +298,33 @@
       <button class="btn btn-primary" onclick="saveLocalDocsPath()">💾 Save Path</button>
     </div>
     <div class="card">
+      <div class="card-title" style="margin-bottom:16px;">🗓️ Scheduled Auto-Backup</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">
+        On the local always-on install, a full Excel backup of <strong>everything</strong> is saved to this
+        folder automatically once a day. You can also back up on demand below.
+        <span style="color:var(--text-dim);">(Runs on the local install only.)</span>
+      </div>
+      <div class="form-group">
+        <label>Backup Folder Path</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="backupPath" placeholder="e.g. D:\Zewer Backups" value="{{ backup_path }}" style="flex:1;">
+          <button type="button" class="btn btn-ghost" onclick="browseFolder('backupPath', this)">📁 Browse</button>
+        </div>
+      </div>
+      <div class="form-group" style="max-width:160px;">
+        <label>Daily Backup Time</label>
+        <input type="time" id="backupTime" value="{{ backup_time or '02:00' }}">
+      </div>
+      {% if last_backup_at %}
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">Last backup: {{ last_backup_at }}</div>
+      {% endif %}
+      <div id="backupMsg" style="display:none;font-size:12px;margin-bottom:12px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary" onclick="saveBackupPath()">💾 Save Schedule</button>
+        <button class="btn btn-ghost" onclick="backupNow()">⚡ Backup Now</button>
+      </div>
+    </div>
+    <div class="card">
       <div class="card-title" style="margin-bottom:16px;">📥 Data Backup</div>
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:20px;">
         Downloads a full Excel backup of all CRM data — companies, UBOs, tasks, clients, documents, users, dropdowns, groups, and task logs.
@@ -524,6 +551,25 @@ function browseFolder(targetId, btn) {
       if (d.success && d.path) document.getElementById(targetId).value = d.path;
       else if (d.error) alert(d.error);
     }).catch(e=>{ btn.disabled = false; btn.textContent = orig; alert('Type the path manually. ('+e+')'); });
+}
+
+function saveBackupPath() {
+  const msg = document.getElementById('backupMsg');
+  fetch('/api/settings/backup-path',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path:document.getElementById('backupPath').value.trim(), time:document.getElementById('backupTime').value})})
+  .then(r=>r.json()).then(d=>{
+    msg.style.display='block'; msg.style.color = d.success ? '#86efac' : '#fca5a5';
+    msg.textContent = d.success ? '✅ Backup schedule saved.' : 'Error: '+d.error;
+  });
+}
+function backupNow() {
+  const msg = document.getElementById('backupMsg');
+  msg.style.display='block'; msg.style.color='var(--text-dim)'; msg.textContent='⏳ Backing up...';
+  fetch('/api/settings/backup-now',{method:'POST'})
+  .then(r=>r.json()).then(d=>{
+    msg.style.color = d.success ? '#86efac' : '#fca5a5';
+    msg.textContent = d.success ? '✅ Saved: '+d.path : 'Error: '+d.error;
+  }).catch(e=>{ msg.style.color='#fca5a5'; msg.textContent='Error: '+e; });
 }
 
 function saveLocalDocsPath() {
