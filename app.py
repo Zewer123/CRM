@@ -2786,8 +2786,7 @@ def api_save_risk_questions():
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
-        logger.error(f'Error saving risk questions: {e}')
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return _fail(e)
 
 @app.route('/settings')
 @admin_required
