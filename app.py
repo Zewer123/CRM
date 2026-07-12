@@ -1109,6 +1109,22 @@ def dashboard():
     except: pass
 
     conn.close()
+    # Local-install backup reminder: nudge admins if a backup folder is configured
+    # but nothing has been backed up in ~2 days. No-op on cloud (no backup_path set).
+    try:
+        if session.get('user_role') == 'admin' and (get_setting('backup_path') or '').strip():
+            lb = (get_setting('last_backup_at') or '').strip()
+            stale = True
+            if lb:
+                try:
+                    stale = (datetime.now() - datetime.strptime(lb[:10], '%Y-%m-%d')).days >= 2
+                except Exception:
+                    stale = True
+            if stale:
+                flash('Backup reminder: your data has not been backed up recently. '
+                      'Open Settings → Scheduled Auto-Backup → "Backup Now" to protect your records.', 'warning')
+    except Exception:
+        pass
     return render_template('dashboard.html',total_companies=total,active_companies=active,total_clients=total_clients,pep_count=pep_count,eid_exp=eid_exp,
         expired_tl=etl,expiring_30_tl=e30tl,
         expired_ap=eap,expiring_30_ap=e30ap,expired_pass=epass,expiring_30_pass=e30p,
@@ -4196,22 +4212,39 @@ def _build_backup_workbook():
     return out
 
 def run_backup_to_path():
-    """Write a full Excel backup into the admin-configured backup folder.
+    """Write a full backup into the admin-configured backup folder.
+    On a local SQLite install this also copies the raw .db file — the single most
+    complete, restorable snapshot (it includes users/passwords, unlike the Excel).
     Returns (ok, message_or_path). Records last_backup_at on success."""
     path = (get_setting('backup_path') or '').strip()
     if not path:
         return False, 'No backup folder configured (Admin -> Settings).'
-    if not HAS_XL:
-        return False, 'openpyxl not installed'
     try:
         os.makedirs(path, exist_ok=True)
-        out = _build_backup_workbook()
-        fname = f"ZewerCRM_Backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-        full = os.path.join(path, fname)
-        with open(full, 'wb') as fh:
-            fh.write(out.getvalue())
+        stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        written = []
+        # 1) Raw database copy (local SQLite only) — the true full, restorable backup.
+        #    Uses SQLite's online backup API so the copy is consistent even while in use.
+        if not use_pg():
+            db_dest = os.path.join(path, f"ZewerCRM_Database_{stamp}.db")
+            src = sqlite3.connect(SQLITE_PATH); dst = sqlite3.connect(db_dest)
+            try:
+                with dst:
+                    src.backup(dst)
+            finally:
+                dst.close(); src.close()
+            written.append(os.path.basename(db_dest))
+        # 2) Human-readable Excel export (all data, no password hashes).
+        if HAS_XL:
+            out = _build_backup_workbook()
+            xl_dest = os.path.join(path, f"ZewerCRM_Backup_{stamp}.xlsx")
+            with open(xl_dest, 'wb') as fh:
+                fh.write(out.getvalue())
+            written.append(os.path.basename(xl_dest))
+        if not written:
+            return False, 'Nothing written (openpyxl not installed and not a local DB).'
         set_setting('last_backup_at', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-        return True, full
+        return True, os.path.join(path, ' + '.join(written))
     except Exception as e:
         logger.error(f'Backup to path failed: {e}')
         return False, str(e)

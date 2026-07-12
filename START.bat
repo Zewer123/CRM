@@ -32,14 +32,18 @@ echo.
 echo ================================================================
 echo   Zewer AML CRM is starting...
 echo.
-echo   Open your web browser to:   http://localhost:8000
-echo   Login:  admin@zewer.ae   /   Admin@123
+echo   A browser will open in a few seconds. If it does not, open:
+echo       http://localhost:8000
+echo   First login:  admin@zewer.ae   /   Admin@123
+echo   ^(Change this password immediately in Admin - Settings - Users^)
 echo.
 echo   Keep this window open while using the system.
 echo   To stop, close this window or press Ctrl+C.
 echo ================================================================
 echo.
 
-set PORT=8000
-python wsgi.py
+REM Open the browser a few seconds after the server starts.
+start "Zewer CRM" cmd /c "timeout /t 4 /nobreak >nul & start http://localhost:8000"
+
+python run_local.py
 pause

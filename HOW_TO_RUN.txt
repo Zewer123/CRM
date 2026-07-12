@@ -1,0 +1,87 @@
+========================================================
+   ZEWER AML CRM  -  How to run on your computer
+========================================================
+
+This runs entirely on YOUR computer. Your data stays on this
+machine (nothing is sent to any website).
+
+
+--------------------------------------------------------
+STEP 1 - Install Python (one time only)
+--------------------------------------------------------
+1. Go to:  https://www.python.org/downloads/
+2. Download and run the installer.
+3. IMPORTANT: on the first screen, TICK the box that says
+   "Add Python to PATH", then click Install.
+
+(If Python is already installed, skip this step.)
+
+
+--------------------------------------------------------
+STEP 2 - Start the CRM
+--------------------------------------------------------
+Double-click the file:   START.bat
+
+- The first time, it takes 2-3 minutes to set itself up.
+- After that it starts in a few seconds.
+- A web browser will open automatically at:
+      http://localhost:8000
+- Keep the small black window OPEN while you use the CRM.
+  Closing that window stops the CRM.
+
+
+--------------------------------------------------------
+STEP 3 - Log in
+--------------------------------------------------------
+First login:
+      Email:     admin@zewer.ae
+      Password:  Admin@123
+
+>>> IMPORTANT: Change this password immediately after your
+    first login:  Admin menu -> Settings -> Users.
+
+
+--------------------------------------------------------
+Letting other staff use it (same office network)
+--------------------------------------------------------
+While START.bat is running, other computers in the same
+office can use the CRM in their browser by going to:
+
+      http://THIS-PC-IP:8000
+
+The exact address (e.g. http://192.168.1.50:8000) is shown
+in the black window when the CRM starts. Give each staff
+member their own login (Admin -> Settings -> Users).
+
+
+--------------------------------------------------------
+Backups - please read
+--------------------------------------------------------
+Your data lives in the "data" folder next to START.bat.
+
+1. In the CRM: Admin -> Settings -> Scheduled Auto-Backup.
+   Set a backup folder and a daily time. Each day the system
+   saves a COMPLETE copy of your database (a .db file) plus
+   an Excel export into that folder.
+
+2. Best practice: point the backup folder at an external
+   drive or a shared network folder, so a copy exists OFF
+   this computer. If this PC ever fails, your data is safe.
+
+3. You can also click "Backup Now" any time.
+
+If the dashboard shows a "Backup reminder", it means you
+have not backed up recently - please do a backup.
+
+
+--------------------------------------------------------
+To move to another computer / restore after a crash
+--------------------------------------------------------
+Everything is in the "data" folder. To restore, copy the
+latest ZewerCRM_Database_*.db file from your backup folder
+back into the "data" folder, rename it to  aml_crm.db,
+and start again.
+
+--------------------------------------------------------
+Questions or problems: contact Shafeer.
+========================================================
