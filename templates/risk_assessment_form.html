@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Risk Assessment - Zewer AML{% endblock %}
+{% block content %}
+<div style="max-width:820px;margin:0 auto;">
+  <div class="page-header">
+    <div>
+      <div class="page-breadcrumb"><a href="{{ url_for('risk_assessment_list') }}">← Back</a></div>
+      <div class="page-title">⚠️ Risk Assessment{% if entity_name %} — {{ entity_name }}{% endif %}</div>
+      <div style="font-size:13px;color:var(--text-dim);">{{ entity_kind }} · answer each question below</div>
+    </div>
+  </div>
+
+  {% if is_walkin %}
+  <div style="display:flex;gap:8px;margin-bottom:16px;">
+    <a href="{{ url_for('risk_assessment_walkin', type='company') }}" class="btn btn-sm {% if walkin_type=='company' %}btn-primary{% else %}btn-ghost{% endif %}">🏢 Company</a>
+    <a href="{{ url_for('risk_assessment_walkin', type='individual') }}" class="btn btn-sm {% if walkin_type=='individual' %}btn-primary{% else %}btn-ghost{% endif %}">👤 Individual</a>
+  </div>
+  {% endif %}
+
+  {% if not questions %}
+  <div style="text-align:center;padding:40px;color:var(--text-dim);background:var(--surface);border-radius:10px;border:1px solid var(--border);">
+    No questions configured for this type yet.
+    <div style="margin-top:10px;"><a href="{{ url_for('risk_questions_admin') }}" class="btn btn-primary btn-sm">Set up the Questionnaire</a></div>
+  </div>
+  {% else %}
+  <form method="POST" action="{{ form_action }}" id="raForm">
+    {% if is_walkin %}
+    <input type="hidden" name="entity_type" value="{{ walkin_type }}">
+    <div class="card" style="margin-bottom:12px;">
+      <div class="form-group">
+        <label>Entity / Person Name *</label>
+        <input type="text" name="entity_name" required placeholder="Name of the walk-in {{ walkin_type }}">
+      </div>
+    </div>
+    {% endif %}
+
+    {% for q in questions %}
+    <div class="card" style="margin-bottom:10px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>{{ loop.index }}. {{ q.question }}</label>
+        <select name="q_{{ q.id }}" onchange="recalc()">
+          <option value="">— Select an answer —</option>
+          {% for o in q.options %}
+          <option value="{{ o.id }}" data-score="{{ o.score }}">{{ o.label }} &nbsp;(score {{ o.score }})</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="card" style="margin-bottom:10px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>Notes</label>
+        <textarea name="notes" rows="2" placeholder="Any additional notes..."></textarea>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:16px;">
+      <div style="font-size:13px;color:var(--text-dim);">Live preview <span style="color:var(--text-dim);font-size:11px;">(final score = average of answered questions)</span></div>
+      <div id="livePreview" style="font-size:16px;font-weight:700;color:var(--text-dim);">— answer questions —</div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;">
+      <button type="submit" class="btn btn-primary" style="padding:12px 32px;font-size:15px;">Calculate Risk →</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+
+<script>
+function recalc() {
+  let sum = 0, n = 0;
+  document.querySelectorAll('#raForm select[name^="q_"]').forEach(sel => {
+    const opt = sel.options[sel.selectedIndex];
+    const sc = (opt && opt.dataset.score) ? parseFloat(opt.dataset.score) : NaN;
+    if (!isNaN(sc) && sel.value) { sum += sc; n++; }
+  });
+  const el = document.getElementById('livePreview');
+  if (!el) return;
+  if (!n) { el.textContent = '— answer questions —'; el.style.color = 'var(--text-dim)'; return; }
+  const avg = sum / n;
+  let rating, color;
+  if (avg <= 1) { rating = 'Low'; color = '#22c55e'; }
+  else if (avg <= 2) { rating = 'Medium'; color = '#f59e0b'; }
+  else { rating = 'High'; color = '#ef4444'; }
+  el.style.color = color;
+  el.textContent = avg.toFixed(2) + ' / 3.0  →  ' + rating + ' Risk  (' + n + ' answered)';
+}
+</script>
+{% endblock %}

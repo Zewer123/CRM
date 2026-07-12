@@ -227,6 +227,7 @@ def _pg_ensure_columns():
         "CREATE TABLE IF NOT EXISTS risk_country_scores (country TEXT PRIMARY KEY, score INTEGER NOT NULL DEFAULT 2, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS login_history (id SERIAL PRIMARY KEY, user_id INTEGER, username TEXT, success BOOLEAN DEFAULT FALSE, ip_address TEXT, user_agent TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "ALTER TABLE login_history ADD COLUMN IF NOT EXISTS logout_at TIMESTAMP",
+        "CREATE TABLE IF NOT EXISTS walkin_risk_assessments (id SERIAL PRIMARY KEY, entity_name TEXT NOT NULL, entity_type TEXT DEFAULT 'company', final_score NUMERIC, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS risk_questions (id SERIAL PRIMARY KEY, applies_to TEXT DEFAULT 'both', question TEXT NOT NULL, sort_order INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS risk_answer_options (id SERIAL PRIMARY KEY, question_id INTEGER NOT NULL, label TEXT NOT NULL, score INTEGER NOT NULL DEFAULT 1, sort_order INTEGER DEFAULT 0)",
         "CREATE TABLE IF NOT EXISTS risk_responses (id SERIAL PRIMARY KEY, assessment_type TEXT, assessment_id INTEGER, question_id INTEGER, question_text TEXT, answer_label TEXT, score INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
@@ -282,6 +283,7 @@ def _run_migrations(conn):
         "aml_tracker (id {pk}, company_id INTEGER, individual_id INTEGER, transaction_date DATE NOT NULL, period TEXT, due_date DATE, vc_no TEXT, payment_mode TEXT, ac_type TEXT, client_name TEXT, transaction_currency TEXT, usd_amount NUMERIC, aed_amount NUMERIC, payment_remarks TEXT, invoice_no TEXT, invoice_amount NUMERIC, invoice_currency TEXT, goaml_submission_date DATE, goaml_status TEXT DEFAULT 'pending', goaml_ref_no TEXT, submitted_by INTEGER NOT NULL, checked_by INTEGER, comment TEXT, verified_ledger BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "company_risk_assessments (id {pk}, company_id INTEGER NOT NULL, jurisdiction_score NUMERIC, ownership_score NUMERIC, delivery_channel_score NUMERIC, payment_method_score NUMERIC, transaction_volume_score NUMERIC, product_score NUMERIC, pep_status_score NUMERIC, nationality_score NUMERIC, years_relationship_score NUMERIC, years_operation_score NUMERIC, third_party_score NUMERIC, sanctions_score NUMERIC, final_score NUMERIC, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "individual_risk_assessments (id {pk}, individual_id INTEGER NOT NULL, nationality_score NUMERIC, residence_status_score NUMERIC, pep_status_score NUMERIC, profession_score NUMERIC, product_score NUMERIC, delivery_channel_score NUMERIC, payment_method_score NUMERIC, transaction_amount_score NUMERIC, years_relationship_score NUMERIC, place_of_birth_score NUMERIC, third_party_score NUMERIC, sanctions_score NUMERIC, final_score NUMERIC, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "walkin_risk_assessments (id {pk}, entity_name TEXT NOT NULL, entity_type TEXT DEFAULT 'company', final_score NUMERIC, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "risk_country_scores (country TEXT PRIMARY KEY, score INTEGER NOT NULL DEFAULT 2, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "risk_questions (id {pk}, applies_to TEXT DEFAULT 'both', question TEXT NOT NULL, sort_order INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "risk_answer_options (id {pk}, question_id INTEGER NOT NULL, label TEXT NOT NULL, score INTEGER NOT NULL DEFAULT 1, sort_order INTEGER DEFAULT 0)",
@@ -880,7 +882,7 @@ def healthz():
             try: conn.rollback()
             except: pass
             checks['login_history.logout_at'] = 'MISSING'
-        for t in ['risk_country_scores', 'login_history', 'risk_questions', 'risk_answer_options', 'risk_responses']:
+        for t in ['risk_country_scores', 'login_history', 'risk_questions', 'risk_answer_options', 'risk_responses', 'walkin_risk_assessments']:
             try:
                 x(conn, f'SELECT 1 FROM {t} LIMIT 1').fetchone()
                 checks[t] = 'ok'
@@ -1610,6 +1612,55 @@ def calculate_risk_score(scores):
     else:
         return round(avg, 2), 'High'
 
+def _dynamic_assessment_responses(conn, question_type, form):
+    """From a submitted dynamic risk form, return (final_score, risk_rating, responses).
+    `question_type` is which question set to load ('company' or 'individual').
+    responses = [{'question_id','question_text','answer_label','score'}] for the
+    answers the user actually selected. Scores come from the DB (never trusted
+    from the client)."""
+    questions = _load_risk_questions(conn, question_type)
+    responses, scores = [], []
+    for q in questions:
+        sel = form.get(f"q_{q['id']}")
+        if not sel:
+            continue
+        opt = next((o for o in q.get('options', []) if str(o['id']) == str(sel)), None)
+        if not opt:
+            continue
+        responses.append({'question_id': q['id'], 'question_text': q['question'],
+                          'answer_label': opt['label'], 'score': int(opt['score'])})
+        scores.append(float(opt['score']))
+    final_score, risk_rating = calculate_risk_score(scores)
+    return final_score, risk_rating, responses
+
+def _save_responses(conn, assessment_type, assessment_id, responses):
+    for r in responses:
+        x(conn, '''INSERT INTO risk_responses
+           (assessment_type, assessment_id, question_id, question_text, answer_label, score)
+           VALUES (?,?,?,?,?,?)''',
+          (assessment_type, assessment_id, r['question_id'], r['question_text'], r['answer_label'], r['score']))
+
+def _load_responses(conn, assessment_type, assessment_id):
+    """Return stored per-question responses for an assessment (new DB-driven ones)."""
+    return all_(conn, '''SELECT question_text, answer_label, score FROM risk_responses
+                         WHERE assessment_type=? AND assessment_id=? ORDER BY id''',
+                (assessment_type, assessment_id))
+
+def _responses_to_factors(responses):
+    """Shape stored responses into the (factors, calc) the result/print template uses,
+    carrying the actual answer label so the print shows what was entered."""
+    factors, considered = [], []
+    for r in responses:
+        try: sc = float(r['score']) if r.get('score') is not None else 0
+        except (TypeError, ValueError): sc = 0
+        level = 'Low' if sc <= 1 else ('Medium' if sc <= 2 else 'High')
+        factors.append({'label': r['question_text'], 'answer': r['answer_label'],
+                        'score': sc, 'level': level})
+        if sc > 0: considered.append(sc)
+    calc = {'count': len(considered), 'total': round(sum(considered), 2),
+            'average': round(sum(considered) / len(considered), 2) if considered else 0}
+    return factors, calc
+
 def _risk_factors(assessment, atype):
     """Return [{label, score, level}] for the factors relevant to the assessment type,
     plus a calculation summary so the print can show how the score was derived."""
@@ -1779,50 +1830,34 @@ def risk_assessment_walkin():
     """Walk-in assessment - for new clients before they are in the system"""
     if request.method == 'POST':
         data = request.form
+        conn = get_db()
         try:
-            conn = get_db()
-            if is_pg(conn):
-                x(conn, '''CREATE TABLE IF NOT EXISTS walkin_risk_assessments (
-                    id SERIAL PRIMARY KEY,
-                    entity_name TEXT NOT NULL, entity_type TEXT DEFAULT 'company',
-                    jurisdiction_score FLOAT, ownership_score FLOAT, delivery_channel_score FLOAT,
-                    payment_method_score FLOAT, transaction_volume_score FLOAT, product_score FLOAT,
-                    pep_status_score FLOAT, nationality_score FLOAT, years_relationship_score FLOAT,
-                    years_operation_score FLOAT, third_party_score FLOAT, sanctions_score FLOAT,
-                    final_score FLOAT, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-                commit(conn)
-            
-            scores = [float(data.get(f) or 0) for f in [
-                'jurisdiction_score','ownership_score','delivery_channel_score','payment_method_score',
-                'transaction_volume_score','product_score','pep_status_score','nationality_score',
-                'years_relationship_score','years_operation_score','third_party_score','sanctions_score'
-            ]]
-            final_score, risk_rating = calculate_risk_score(scores)
-            
-            x(conn, '''INSERT INTO walkin_risk_assessments 
-               (entity_name, entity_type, jurisdiction_score, ownership_score, delivery_channel_score,
-                payment_method_score, transaction_volume_score, product_score, pep_status_score,
-                nationality_score, years_relationship_score, years_operation_score, third_party_score,
-                sanctions_score, final_score, risk_rating, assessment_date, notes, assessed_by)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-               (data.get('entity_name',''), data.get('entity_type','company'),
-                scores[0],scores[1],scores[2],scores[3],scores[4],scores[5],scores[6],
-                scores[7],scores[8],scores[9],scores[10],scores[11],
-                final_score, risk_rating, dubai_today(), data.get('notes',''), session.get('user_id')))
+            qtype = 'individual' if data.get('entity_type') == 'individual' else 'company'
+            final_score, risk_rating, responses = _dynamic_assessment_responses(conn, qtype, data)
+            x(conn, '''INSERT INTO walkin_risk_assessments
+               (entity_name, entity_type, final_score, risk_rating, assessment_date, notes, assessed_by)
+               VALUES (?,?,?,?,?,?,?)''',
+               (data.get('entity_name', ''), qtype, final_score, risk_rating,
+                dubai_today(), data.get('notes', ''), session.get('user_id')))
+            aid = lastid(conn)
+            _save_responses(conn, 'walkin', aid, responses)
             commit(conn)
-            walkin_id = one(conn, 'SELECT id FROM walkin_risk_assessments ORDER BY created_at DESC LIMIT 1', ())
             conn.close()
-            return redirect(url_for('risk_assessment_walkin_result', id=walkin_id['id']))
+            return redirect(url_for('risk_assessment_walkin_result', id=aid))
         except Exception as e:
             logger.error(f'Walk-in assessment error: {e}', exc_info=True)
             try: conn.close()
             except: pass
-            logger.error(f'{request.path}: {e}')
-        return '<h1>Error</h1><p>Something went wrong. Please try again.</p>', 500
+            return '<h1>Error</h1><p>Something went wrong. Please try again.</p>', 500
 
-    refresh_country_scores()
-    return render_template('risk_assessment_walkin.html', lookups=RISK_LOOKUPS)
+    qtype = 'individual' if request.args.get('type') == 'individual' else 'company'
+    conn = get_db()
+    questions = _load_risk_questions(conn, qtype)
+    conn.close()
+    return render_template('risk_assessment_form.html', questions=questions,
+                           entity_name='', entity_kind='Walk-in ' + qtype.title(),
+                           form_action=url_for('risk_assessment_walkin'), is_walkin=True,
+                           walkin_type=qtype)
 
 
 @app.route('/risk-assessment/walkin/<int:id>/result')
@@ -1830,6 +1865,7 @@ def risk_assessment_walkin():
 def risk_assessment_walkin_result(id):
     conn = get_db()
     assessment = one(conn, 'SELECT * FROM walkin_risk_assessments WHERE id=?', (id,))
+    responses = _load_responses(conn, 'walkin', id) if assessment else []
     conn.close()
     if not assessment:
         return redirect(url_for('risk_assessment_list'))
@@ -1837,13 +1873,16 @@ def risk_assessment_walkin_result(id):
     if assessment.get('assessment_date'):
         assessment['assessment_date'] = str(assessment['assessment_date'])
     risk_colors = {'Low': '#22c55e', 'Medium': '#f59e0b', 'High': '#ef4444'}
-    factors, calc = _risk_factors(assessment, 'walkin')
+    if responses:
+        factors, calc = _responses_to_factors(responses)
+    else:
+        factors, calc = _risk_factors(assessment, 'walkin')
     return render_template('risk_assessment_result.html',
         assessment=assessment,
         assessment_type='walkin',
         company=None,
         individual=None,
-        factors=factors, calc=calc,
+        factors=factors, calc=calc, responses=responses,
         risk_color=risk_colors.get(assessment.get('risk_rating','Low'), '#22c55e'))
 
 @app.route('/risk-assessment')
@@ -1879,105 +1918,28 @@ def risk_assessment_company(id):
     
     if request.method == 'POST':
         data = request.form
-        logger.info(f'Risk assessment form received for company {id}')
-        
         try:
-            # Ensure tables exist on Railway
-            if is_pg(conn):
-                x(conn, '''CREATE TABLE IF NOT EXISTS company_risk_assessments (
-                    id SERIAL PRIMARY KEY, company_id INTEGER NOT NULL,
-                    jurisdiction_score FLOAT, ownership_score FLOAT, delivery_channel_score FLOAT,
-                    payment_method_score FLOAT, transaction_volume_score FLOAT, product_score FLOAT,
-                    pep_status_score FLOAT, nationality_score FLOAT, years_relationship_score FLOAT,
-                    years_operation_score FLOAT, third_party_score FLOAT, sanctions_score FLOAT,
-                    final_score FLOAT, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-                commit(conn)
-            
-            scores = [
-                float(data.get('jurisdiction_score') or 0),
-                float(data.get('ownership_score') or 0),
-                float(data.get('delivery_channel_score') or 0),
-                float(data.get('payment_method_score') or 0),
-                float(data.get('transaction_volume_score') or 0),
-                float(data.get('product_score') or 0),
-                float(data.get('pep_status_score') or 0),
-                float(data.get('nationality_score') or 0),
-                float(data.get('years_relationship_score') or 0),
-                float(data.get('years_operation_score') or 0),
-                float(data.get('third_party_score') or 0),
-                float(data.get('sanctions_score') or 0),
-            ]
-            logger.info(f'Parsed scores: {scores}')
-            final_score, risk_rating = calculate_risk_score(scores)
-            logger.info(f'Calculated risk: score={final_score}, rating={risk_rating}')
-            
-            
-            x(conn, '''INSERT INTO company_risk_assessments 
-               (company_id, jurisdiction_score, ownership_score, delivery_channel_score, payment_method_score,
-                transaction_volume_score, product_score, pep_status_score, nationality_score, 
-                years_relationship_score, years_operation_score, third_party_score, sanctions_score,
-                final_score, risk_rating, assessment_date, notes, assessed_by)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-               (id, scores[0], scores[1], scores[2], scores[3], scores[4], scores[5], scores[6],
-                scores[7], scores[8], scores[9], scores[10], scores[11], final_score, risk_rating,
-                dubai_today(), data.get('notes',''), session.get('user_id')))
+            final_score, risk_rating, responses = _dynamic_assessment_responses(conn, 'company', data)
+            x(conn, '''INSERT INTO company_risk_assessments
+               (company_id, final_score, risk_rating, assessment_date, notes, assessed_by)
+               VALUES (?,?,?,?,?,?)''',
+               (id, final_score, risk_rating, dubai_today(), data.get('notes', ''), session.get('user_id')))
+            aid = lastid(conn)
+            _save_responses(conn, 'company', aid, responses)
             commit(conn)
-            logger.info(f'✅ Risk assessment saved for company {id}')
             conn.close()
             return redirect(url_for('risk_assessment_company_result', id=id))
         except Exception as e:
-            logger.error(f'❌ Error saving company risk assessment: {str(e)}', exc_info=True)
+            logger.error(f'Error saving company risk assessment: {e}', exc_info=True)
             try: conn.close()
             except: pass
             return redirect(url_for('risk_assessment'))
-    
-    # Prepare pre-fill data from company
-    co_country = co.get('country_of_incorporation') or co.get('region') or 'UNITED ARAB EMIRATES'
-    co_pep = (co.get('pep') or '').strip()
-    
-    prefill = {
-        'jurisdiction': co_country,
-        'nationality': co_country,   # same country as incorporation
-        'pep_status': '1' if co_pep.lower() == 'no' or co_pep == 'Not Applicable' or co_pep == '' else ('3' if co_pep.lower() == 'yes' else '1'),
-        'third_party': 'No',         # default safe
-    }
-    
-    # Calculate years in operation
-    years_operation = 3  # default high risk
-    if co.get('incorporation_date'):
-        try:
-            inc_date = co['incorporation_date'] if isinstance(co['incorporation_date'], str) else str(co['incorporation_date'])[:10]
-            from datetime import datetime
-            inc = datetime.strptime(inc_date, '%Y-%m-%d').date()
-            years_diff = (dubai_today() - inc).days / 365.25
-            if years_diff >= 5:
-                years_operation = 1
-            elif years_diff >= 1:
-                years_operation = 2
-        except:
-            pass
-    prefill['years_operation'] = years_operation
-    
-    # Calculate years in relationship
-    years_relationship = 3  # default high risk
-    if co.get('ac_opening_date'):
-        try:
-            opening = co['ac_opening_date'] if isinstance(co['ac_opening_date'], str) else str(co['ac_opening_date'])[:10]
-            from datetime import datetime
-            open_dt = datetime.strptime(opening, '%Y-%m-%d').date()
-            years_diff = (dubai_today() - open_dt).days / 365.25
-            if years_diff >= 5:
-                years_relationship = 1
-            elif years_diff >= 1:
-                years_relationship = 2
-        except:
-            pass
-    prefill['years_relationship'] = years_relationship
-    
+
+    questions = _load_risk_questions(conn, 'company')
     conn.close()
-    refresh_country_scores()
-    return render_template('risk_assessment_company.html', company=co, prefill=prefill, lookups=RISK_LOOKUPS)
+    return render_template('risk_assessment_form.html', questions=questions,
+                           entity_name=co['client_name'], entity_kind='Company',
+                           form_action=url_for('risk_assessment_company', id=id), is_walkin=False)
 
 @app.route('/risk-assessment/company/<int:id>/result')
 @compliance_required
@@ -1985,21 +1947,26 @@ def risk_assessment_company_result(id):
     """Display company risk assessment result"""
     conn = get_db()
     co = one(conn, 'SELECT * FROM companies WHERE id=?', (id,))
-    assessment = one(conn, '''SELECT * FROM company_risk_assessments 
+    assessment = one(conn, '''SELECT * FROM company_risk_assessments
                              WHERE company_id=? ORDER BY created_at DESC LIMIT 1''', (id,))
+    responses = _load_responses(conn, 'company', assessment['id']) if assessment else []
     conn.close()
-    
+
     if not co or not assessment:
         return redirect(url_for('risk_assessment'))
-    
-    # Determine color based on risk rating
+
     color_map = {'Low': '#22c55e', 'Medium': '#f59e0b', 'High': '#ef4444'}
     risk_color = color_map.get(assessment.get('risk_rating', 'Unspecified'), '#6b7280')
-    
-    factors, calc = _risk_factors(assessment, 'company')
+
+    # New DB-driven assessments store their answers in risk_responses; old ones
+    # fall back to the fixed-column factor breakdown.
+    if responses:
+        factors, calc = _responses_to_factors(responses)
+    else:
+        factors, calc = _risk_factors(assessment, 'company')
     return render_template('risk_assessment_result.html',
         company=co, assessment=assessment, risk_color=risk_color, assessment_type='company',
-        factors=factors, calc=calc)
+        factors=factors, calc=calc, responses=responses)
 
 @app.route('/risk-assessment/individual/<int:id>', methods=['GET','POST'])
 @compliance_required
@@ -2014,82 +1981,27 @@ def risk_assessment_individual(id):
     if request.method == 'POST':
         data = request.form
         try:
-            # Ensure tables exist on Railway
-            if is_pg(conn):
-                x(conn, '''CREATE TABLE IF NOT EXISTS individual_risk_assessments (
-                    id SERIAL PRIMARY KEY, individual_id INTEGER NOT NULL,
-                    nationality_score FLOAT, residence_status_score FLOAT, pep_status_score FLOAT,
-                    profession_score FLOAT, product_score FLOAT, delivery_channel_score FLOAT,
-                    payment_method_score FLOAT, transaction_amount_score FLOAT, years_relationship_score FLOAT,
-                    place_of_birth_score FLOAT, third_party_score FLOAT, sanctions_score FLOAT,
-                    final_score FLOAT, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-                commit(conn)
-            
-            scores = [
-                float(data.get('nationality_score') or 0),
-                float(data.get('residence_status_score') or 0),
-                float(data.get('pep_status_score') or 0),
-                float(data.get('profession_score') or 0),
-                float(data.get('product_score') or 0),
-                float(data.get('delivery_channel_score') or 0),
-                float(data.get('payment_method_score') or 0),
-                float(data.get('transaction_amount_score') or 0),
-                float(data.get('years_relationship_score') or 0),
-                float(data.get('place_of_birth_score') or 0),
-                float(data.get('third_party_score') or 0),
-                float(data.get('sanctions_score') or 0),
-            ]
-            final_score, risk_rating = calculate_risk_score(scores)
-            
-            
-            x(conn, '''INSERT INTO individual_risk_assessments 
-               (individual_id, nationality_score, residence_status_score, pep_status_score, profession_score,
-                product_score, delivery_channel_score, payment_method_score, transaction_amount_score,
-                years_relationship_score, place_of_birth_score, third_party_score, sanctions_score,
-                final_score, risk_rating, assessment_date, notes, assessed_by)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-               (id, scores[0], scores[1], scores[2], scores[3], scores[4], scores[5], scores[6],
-                scores[7], scores[8], scores[9], scores[10], scores[11], final_score, risk_rating,
-                dubai_today(), data.get('notes',''), session.get('user_id')))
+            final_score, risk_rating, responses = _dynamic_assessment_responses(conn, 'individual', data)
+            x(conn, '''INSERT INTO individual_risk_assessments
+               (individual_id, final_score, risk_rating, assessment_date, notes, assessed_by)
+               VALUES (?,?,?,?,?,?)''',
+               (id, final_score, risk_rating, dubai_today(), data.get('notes', ''), session.get('user_id')))
+            aid = lastid(conn)
+            _save_responses(conn, 'individual', aid, responses)
             commit(conn)
             conn.close()
             return redirect(url_for('risk_assessment_individual_result', id=id))
         except Exception as e:
-            logger.error(f'Error saving individual risk assessment: {e}')
-            conn.close()
+            logger.error(f'Error saving individual risk assessment: {e}', exc_info=True)
+            try: conn.close()
+            except: pass
             return redirect(url_for('risk_assessment'))
-    
-    # Prepare pre-fill data
-    prefill = {
-        'nationality': ind.get('nationality', ''),
-        'residence_status': 'Resident' if ind.get('is_resident') else 'Non-Resident',
-        'pep_status': ind.get('pep_status', 'No'),
-        'profession': ind.get('profession', ''),
-        'place_of_birth': ind.get('nationality', ''),
-        'payment_method': '',
-        'third_party': 'No',
-    }
-    
-    # Calculate years in relationship
-    years_relationship = 3  # default high risk
-    if ind.get('created_at'):
-        try:
-            created = ind['created_at'] if isinstance(ind['created_at'], str) else str(ind['created_at'])[:10]
-            from datetime import datetime
-            created_dt = datetime.strptime(created, '%Y-%m-%d').date()
-            years_diff = (dubai_today() - created_dt).days / 365.25
-            if years_diff >= 5:
-                years_relationship = 1
-            elif years_diff >= 1:
-                years_relationship = 2
-        except:
-            pass
-    prefill['years_relationship'] = years_relationship
-    
+
+    questions = _load_risk_questions(conn, 'individual')
     conn.close()
-    refresh_country_scores()
-    return render_template('risk_assessment_individual.html', individual=ind, prefill=prefill, lookups=RISK_LOOKUPS)
+    return render_template('risk_assessment_form.html', questions=questions,
+                           entity_name=ind['name'], entity_kind='Individual',
+                           form_action=url_for('risk_assessment_individual', id=id), is_walkin=False)
 
 @app.route('/risk-assessment/individual/<int:id>/result')
 @compliance_required
@@ -2097,20 +2009,24 @@ def risk_assessment_individual_result(id):
     """Display individual risk assessment result"""
     conn = get_db()
     ind = one(conn, 'SELECT * FROM clients WHERE id=?', (id,))
-    assessment = one(conn, '''SELECT * FROM individual_risk_assessments 
+    assessment = one(conn, '''SELECT * FROM individual_risk_assessments
                              WHERE individual_id=? ORDER BY created_at DESC LIMIT 1''', (id,))
+    responses = _load_responses(conn, 'individual', assessment['id']) if assessment else []
     conn.close()
-    
+
     if not ind or not assessment:
         return redirect(url_for('risk_assessment'))
-    
+
     color_map = {'Low': '#22c55e', 'Medium': '#f59e0b', 'High': '#ef4444'}
     risk_color = color_map.get(assessment.get('risk_rating', 'Unspecified'), '#6b7280')
-    
-    factors, calc = _risk_factors(assessment, 'individual')
+
+    if responses:
+        factors, calc = _responses_to_factors(responses)
+    else:
+        factors, calc = _risk_factors(assessment, 'individual')
     return render_template('risk_assessment_result.html',
         individual=ind, assessment=assessment, risk_color=risk_color, assessment_type='individual',
-        factors=factors, calc=calc)
+        factors=factors, calc=calc, responses=responses)
 
 @app.route('/reports')
 @login_required
