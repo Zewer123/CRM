@@ -2,30 +2,41 @@
 setlocal enabledelayedexpansion
 REM ============================================================
 REM  Zewer AML CRM - one-click local launcher (Windows)
-REM  Uses Python 3 explicitly, ignoring any old Python 2 on the PC.
+REM  Finds Python 3 even if it was installed without "Add to PATH",
+REM  and ignores any old Python 2 (e.g. from BioTime) on the PC.
 REM ============================================================
 cd /d "%~dp0"
 
-REM --- Find a real Python 3, ignoring old Python 2 (e.g. BioTime) on PATH ---
 set "PY="
+
+REM 1) The Python launcher (works if it was installed)
 py -3 --version >nul 2>nul
-if not errorlevel 1 (
-  set "PY=py -3"
-) else (
+if not errorlevel 1 set "PY=py -3"
+
+REM 2) 'python' on PATH, but only if it is version 3
+if not defined PY (
   for /f "tokens=2" %%v in ('python --version 2^>^&1') do set "PYVER=%%v"
   echo !PYVER! | findstr /b "3." >nul 2>nul
   if not errorlevel 1 set "PY=python"
 )
 
+REM 3) Search the usual install folders (Python installed WITHOUT Add-to-PATH)
+if not defined PY (
+  for /d %%p in ("%LocalAppData%\Programs\Python\Python3*") do if exist "%%p\python.exe" set PY="%%p\python.exe"
+)
+if not defined PY (
+  for /d %%p in ("%ProgramFiles%\Python3*") do if exist "%%p\python.exe" set PY="%%p\python.exe"
+)
+if not defined PY (
+  for /d %%p in ("%ProgramFiles(x86)%\Python3*") do if exist "%%p\python.exe" set PY="%%p\python.exe"
+)
+
 if not defined PY (
   echo.
-  echo  Python 3 was not found on this computer.
-  echo  ^(This PC may have an old Python 2 from other software, which will NOT work.^)
-  echo.
+  echo  Python 3 could not be found on this computer.
   echo  Please install Python 3.11 or newer from:
   echo       https://www.python.org/downloads/
-  echo  On the FIRST screen, TICK "Add python.exe to PATH", finish the
-  echo  install, then run this file again.
+  echo  On the FIRST screen, TICK "Add python.exe to PATH", then run this again.
   echo.
   pause
   exit /b 1
