@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Runs Zewer CRM entirely on THIS computer, using a local database file.
 
 Use this for an on-premise install (a shop's own PC/server). Unlike
