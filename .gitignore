@@ -36,10 +36,17 @@ wheels/
 *~
 .DS_Store
 
-# Database
+# Database (and any copies/backups people make, e.g. aml_crm.db.bak-123)
 *.db
 *.sqlite
 *.sqlite3
+*.db.*
+*.sqlite.*
+*.sqlite3.*
+
+# Local-install per-machine secret (never commit)
+secret.key
+data/secret.key
 
 # Logs
 *.log
