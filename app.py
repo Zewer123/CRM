@@ -1171,8 +1171,10 @@ def companies():
     kyf=request.args.get('kyc_status',''); dsf=request.args.get('doc_status','')
     q='SELECT * FROM companies WHERE 1=1'; p=[]
     for term in [t for t in s.split() if t]:
-        q+=' AND (client_name LIKE ? OR ac_code LIKE ? OR mobile LIKE ? OR trade_license_no LIKE ? OR region LIKE ? OR country_of_incorporation LIKE ?)'
-        p+=[f'%{term}%']*6
+        q+=(' AND (client_name LIKE ? OR ac_code LIKE ? OR mobile LIKE ? OR trade_license_no LIKE ?'
+            ' OR region LIKE ? OR country_of_incorporation LIKE ? OR contact_person_name LIKE ?'
+            ' OR contact_person_number LIKE ? OR account_manager LIKE ? OR email_id LIKE ?)')
+        p+=[f'%{term}%']*10
     # Status filter: Active/Inactive use ac_status; Disabled uses the out-of-scope flag.
     # Disabled records are hidden by default unless explicitly requested (or status='all').
     if sf == 'Disabled':
