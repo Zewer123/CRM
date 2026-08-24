@@ -853,6 +853,30 @@ def admin_pw_required(f):
         return f(*a, **k)
     return d
 
+@app.before_request
+def _enforce_active_session():
+    """A signed-in session stays valid only while its user still exists and is active.
+    Without this, disabling or deleting a user leaves any open browser session working
+    until the user logs out themselves (the auth decorators only check that a user id
+    is present in the session). Fail-open on any DB error so a transient problem can
+    never lock the whole team out."""
+    if 'user_id' not in session:
+        return
+    if (request.endpoint or '') in ('login', 'logout', 'healthz', 'static'):
+        return
+    try:
+        conn = get_db()
+        u = one(conn, 'SELECT is_active FROM users WHERE id=?', (session.get('user_id'),))
+        conn.close()
+    except Exception:
+        return  # never lock people out because the check itself failed
+    if u is None or not u['is_active']:
+        session.clear()
+        if request.path.startswith('/api/'):
+            return jsonify({'success': False, 'error': 'Your access has been revoked. Please sign in again.'}), 401
+        flash("Your session has ended. Please sign in again.")
+        return redirect(url_for('login'))
+
 # ── ROUTES ──────────────────────────────────────────────────
 
 @app.route('/')
@@ -4454,7 +4478,7 @@ def api_client_upload_document(cid):
         return _fail(e)
 
 @app.route('/api/client-document/<int:did>/delete', methods=['POST'])
-@login_required
+@compliance_required
 def api_delete_client_document(did):
     try:
         conn = get_db()
