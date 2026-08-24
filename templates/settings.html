@@ -54,12 +54,12 @@
           </td>
           <td>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
-              <button class="btn btn-ghost btn-sm" onclick="editUser({{ u.id }}, '{{ u.name|e }}', '{{ u.email|e }}', '{{ u.role }}', '{{ (u.contact_number or '')|e }}', '{{ (u.username or '')|e }}', '{{ (u.permissions or '')|e }}')">✏️ Edit</button>
+              <button class="btn btn-ghost btn-sm" onclick="editUser({{ u.id }}, '{{ u.name|replace("'","\\'") }}', '{{ u.email|replace("'","\\'") }}', '{{ u.role }}', '{{ (u.contact_number or '')|replace("'","\\'") }}', '{{ (u.username or '')|replace("'","\\'") }}', '{{ (u.permissions or '')|replace("'","\\'") }}')">✏️ Edit</button>
               <button class="btn btn-ghost btn-sm" onclick="toggleUser({{ u.id }}, {{ u.is_active }})">
                 {{ '🔴 Disable' if u.is_active else '🟢 Enable' }}
               </button>
               {% if u.id != current_user_id %}
-              <button class="btn btn-danger btn-sm" onclick="deleteUser({{ u.id }}, '{{ u.name }}')">🗑️</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteUser({{ u.id }}, '{{ u.name|replace("'","\\'") }}')">🗑️</button>
               {% endif %}
             </div>
           </td>
