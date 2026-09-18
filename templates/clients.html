@@ -741,10 +741,11 @@ function submitAddClient() {
       screening_status: document.getElementById('a_screening_status').value,
       screening_date: document.getElementById('a_screening_date').value || null
     })
-  }).then(r=>r.json()).then(d=>{
+  }).then(async r=>{
+    let d; try { d = await r.json(); } catch(e){ d = {success:false, error:'Server error ('+r.status+'). The client was NOT saved.'}; }
     if(d.success){ if(d.client_id){ window.location.href = '/client/' + d.client_id; } else { closeModal('addClientModal'); location.reload(); } }
-    else alert('Error: '+d.error);
-  });
+    else alert('Could not save: '+(d.error||'Unknown error — the client was NOT saved.'));
+  }).catch(()=>alert('Network problem — the client was NOT saved. Please check your connection and try again.'));
 }
 
 function editClient(id) {
