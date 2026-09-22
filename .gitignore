@@ -44,6 +44,11 @@ wheels/
 *.sqlite.*
 *.sqlite3.*
 
+# Postgres dumps produced by backup_database.py (uploaded as CI artifacts, never committed)
+backups/
+*.sql
+*.sql.gz
+
 # Local-install per-machine secret (never commit)
 secret.key
 data/secret.key

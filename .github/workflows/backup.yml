@@ -1,0 +1,67 @@
+name: Daily Database Backup
+
+on:
+  schedule:
+    # Runs daily at 2 AM Dubai time (10 PM UTC previous day)
+    - cron: '0 22 * * *'
+
+  # Allows manual trigger from the GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install PostgreSQL client tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl ca-certificates
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          sudo sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-18
+
+      - name: Run database backup
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python backup_database.py
+          echo "Backup script completed"
+
+      - name: Verify backup is not empty/partial
+        # Safety guard: fail the job (red) if no backup file was produced or if the
+        # newest one is suspiciously small (< 10 KB). A healthy dump is ~100 KB+ and
+        # grows over time; a tiny file usually means a partial/failed dump that would
+        # otherwise slip through as a green run. Raise MIN_BYTES as the data grows.
+        run: |
+          MIN_BYTES=10240
+          newest=$(ls -1t backups/*.sql.gz 2>/dev/null | head -n1 || true)
+          if [ -z "$newest" ]; then
+            echo "No backup file was produced — the database dump failed."
+            exit 1
+          fi
+          size=$(stat -c%s "$newest")
+          echo "Newest backup: $newest ($size bytes)"
+          if [ "$size" -lt "$MIN_BYTES" ]; then
+            echo "Backup is only $size bytes (under $MIN_BYTES) — likely a partial/empty dump. Check the DATABASE_URL secret (must be the PUBLIC Railway URL) and the run logs."
+            exit 1
+          fi
+          echo "Backup size looks healthy ($size bytes)."
+
+      - name: Upload backup as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zewer-backup-${{ github.run_number }}
+          path: backups/*.sql.gz
+          retention-days: 90   # GitHub free-tier maximum — longest safety window
+          if-no-files-found: error
