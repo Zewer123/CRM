@@ -44,6 +44,8 @@
 <!-- SUB-TABS -->
 <div class="an-tab-nav">
   <button class="an-tab-btn" data-tab="overview" onclick="switchAnTab('overview',this)">📊 Overview</button>
+  <button class="an-tab-btn" data-tab="companies" onclick="switchAnTab('companies',this)">🏢 Companies</button>
+  <button class="an-tab-btn" data-tab="individuals" onclick="switchAnTab('individuals',this)">👤 Individuals</button>
   <button class="an-tab-btn" data-tab="compliance" onclick="switchAnTab('compliance',this)">🛡️ Compliance</button>
   <button class="an-tab-btn" data-tab="expiries" onclick="switchAnTab('expiries',this)">⏰ Expiries</button>
   <button class="an-tab-btn" data-tab="tasks" onclick="switchAnTab('tasks',this)">✅ Tasks</button>
@@ -90,6 +92,119 @@
     {% if region_dist %}{% set gmax = region_dist|map(attribute=1)|max %}
     {% for label, val in region_dist %}{{ bar(label, val, gmax, '#d97706') }}{% endfor %}
     {% else %}<div class="an-empty">No region data.</div>{% endif %}
+  </div>
+</div>
+
+<!-- ═══════════ COMPANIES ═══════════ -->
+<div class="an-tab-pane" id="an-companies" style="display:none;">
+  <div class="an-grid4">
+    <div class="an-kpi"><div class="an-kpi-label">Total Companies</div><div class="an-kpi-val">{{ total_co }}</div><div class="an-kpi-sub">{{ new_co }} new this period</div></div>
+    <div class="an-kpi" style="border-top-color:#22c55e;"><div class="an-kpi-label">Active</div><div class="an-kpi-val" style="color:#86efac;">{{ active_co }}</div></div>
+    <div class="an-kpi" style="border-top-color:#8b5cf6;"><div class="an-kpi-label">PEP Flagged</div><div class="an-kpi-val">{{ pep_co }}</div></div>
+    <div class="an-kpi" style="border-top-color:#ef4444;"><div class="an-kpi-label">High Risk</div><div class="an-kpi-val" style="color:#fca5a5;">{{ co_risk['High'] }}</div></div>
+  </div>
+  <div class="an-grid2">
+    <div class="an-card">
+      <div class="an-card-title">Company Risk</div>
+      {% set cmax = co_risk.values()|max %}
+      {% for k in ['High','Medium','Low','Unrated'] %}{{ bar(k, co_risk[k], cmax, risk_colors[k]) }}{% endfor %}
+    </div>
+    <div class="an-card">
+      <div class="an-card-title">KYC Status</div>
+      {% if co_kyc %}{% set kmax = co_kyc|map(attribute=1)|max %}
+      {% for label, val in co_kyc %}{{ bar(label, val, kmax, '#3b82f6') }}{% endfor %}
+      {% else %}<div class="an-empty">No KYC data.</div>{% endif %}
+    </div>
+  </div>
+  <div class="an-grid2">
+    <div class="an-card">
+      <div class="an-card-title">Document Status</div>
+      {% if doc_status_dist %}{% set dmax = doc_status_dist|map(attribute=1)|max %}
+      {% for label, val in doc_status_dist %}{{ bar(label, val, dmax, '#3b82f6') }}{% endfor %}
+      {% else %}<div class="an-empty">No document-status data.</div>{% endif %}
+    </div>
+    <div class="an-card">
+      <div class="an-card-title">By Region</div>
+      {% if region_dist %}{% set gmax = region_dist|map(attribute=1)|max %}
+      {% for label, val in region_dist %}{{ bar(label, val, gmax, '#d97706') }}{% endfor %}
+      {% else %}<div class="an-empty">No region data.</div>{% endif %}
+    </div>
+  </div>
+  <div class="an-grid2">
+    <div class="an-card">
+      <div class="an-card-title">By Type of Client</div>
+      {% if co_by_type %}{% set tmax = co_by_type|map(attribute=1)|max %}
+      {% for label, val in co_by_type %}{{ bar(label, val, tmax, '#8b5cf6') }}{% endfor %}
+      {% else %}<div class="an-empty">No type data.</div>{% endif %}
+    </div>
+    <div class="an-card">
+      <div class="an-card-title">By Account Manager</div>
+      {% if co_by_mgr %}{% set mmax = co_by_mgr|map(attribute=1)|max %}
+      {% for label, val in co_by_mgr %}{{ bar(label, val, mmax, '#22c55e') }}{% endfor %}
+      {% else %}<div class="an-empty">No account-manager data.</div>{% endif %}
+    </div>
+  </div>
+  <div class="an-card">
+    <div class="an-card-title">Account Status</div>
+    {% if co_by_status %}{% set amax = co_by_status|map(attribute=1)|max %}
+    {% for label, val in co_by_status %}{{ bar(label, val, amax, '#d97706') }}{% endfor %}
+    {% else %}<div class="an-empty">No status data.</div>{% endif %}
+  </div>
+</div>
+
+<!-- ═══════════ INDIVIDUALS ═══════════ -->
+<div class="an-tab-pane" id="an-individuals" style="display:none;">
+  <div class="an-grid4">
+    <div class="an-kpi" style="border-top-color:#3b82f6;"><div class="an-kpi-label">Total Individuals</div><div class="an-kpi-val">{{ total_ind }}</div><div class="an-kpi-sub">{{ new_ind }} new this period</div></div>
+    <div class="an-kpi" style="border-top-color:#22c55e;"><div class="an-kpi-label">Resident</div><div class="an-kpi-val" style="color:#86efac;">{{ ind_resident }}</div></div>
+    <div class="an-kpi"><div class="an-kpi-label">Non-Resident</div><div class="an-kpi-val">{{ ind_nonresident }}</div></div>
+    <div class="an-kpi" style="border-top-color:#ef4444;"><div class="an-kpi-label">High Risk</div><div class="an-kpi-val" style="color:#fca5a5;">{{ ind_risk['High'] }}</div></div>
+  </div>
+  <div class="an-grid3">
+    <div class="an-kpi" style="border-top-color:#8b5cf6;"><div class="an-kpi-label">PEP Flagged</div><div class="an-kpi-val">{{ pep_ind }}</div></div>
+    <div class="an-kpi" style="border-top-color:#f59e0b;"><div class="an-kpi-label">Medium Risk</div><div class="an-kpi-val" style="color:#fcd34d;">{{ ind_risk['Medium'] }}</div></div>
+    <div class="an-kpi" style="border-top-color:#22c55e;"><div class="an-kpi-label">Low Risk</div><div class="an-kpi-val" style="color:#86efac;">{{ ind_risk['Low'] }}</div></div>
+  </div>
+  <div class="an-grid2">
+    <div class="an-card">
+      <div class="an-card-title">Individual Risk</div>
+      {% set imax = ind_risk.values()|max %}
+      {% for k in ['High','Medium','Low','Unrated'] %}{{ bar(k, ind_risk[k], imax, risk_colors[k]) }}{% endfor %}
+    </div>
+    <div class="an-card">
+      <div class="an-card-title">KYC Status</div>
+      {% if ind_kyc %}{% set kmax = ind_kyc|map(attribute=1)|max %}
+      {% for label, val in ind_kyc %}{{ bar(label, val, kmax, '#3b82f6') }}{% endfor %}
+      {% else %}<div class="an-empty">No KYC data.</div>{% endif %}
+    </div>
+  </div>
+  <div class="an-grid2">
+    <div class="an-card">
+      <div class="an-card-title">By Nationality</div>
+      {% if ind_by_nat %}{% set nmax = ind_by_nat|map(attribute=1)|max %}
+      {% for label, val in ind_by_nat %}{{ bar(label, val, nmax, '#d97706') }}{% endfor %}
+      {% else %}<div class="an-empty">No nationality data.</div>{% endif %}
+    </div>
+    <div class="an-card">
+      <div class="an-card-title">By Emirate</div>
+      {% if ind_by_emirate %}{% set emax = ind_by_emirate|map(attribute=1)|max %}
+      {% for label, val in ind_by_emirate %}{{ bar(label, val, emax, '#3b82f6') }}{% endfor %}
+      {% else %}<div class="an-empty">No emirate data.</div>{% endif %}
+    </div>
+  </div>
+  <div class="an-grid2">
+    <div class="an-card">
+      <div class="an-card-title">Screening Status</div>
+      {% if screening_dist %}{% set smax = screening_dist|map(attribute=1)|max %}
+      {% for label, val in screening_dist %}{{ bar(label, val, smax, '#8b5cf6') }}{% endfor %}
+      {% else %}<div class="an-empty">No screening data.</div>{% endif %}
+    </div>
+    <div class="an-card">
+      <div class="an-card-title">By Profession</div>
+      {% if ind_by_prof %}{% set pmax = ind_by_prof|map(attribute=1)|max %}
+      {% for label, val in ind_by_prof %}{{ bar(label, val, pmax, '#22c55e') }}{% endfor %}
+      {% else %}<div class="an-empty">No profession data.</div>{% endif %}
+    </div>
   </div>
 </div>
 

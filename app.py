@@ -3793,6 +3793,24 @@ def analytics():
     except Exception:
         staff_task_load = []
 
+    # ── COMPANIES tab ──
+    def group(table, col, nd, limit=None):
+        rows = all_(conn, f'SELECT {col} AS k, COUNT(*) AS c FROM {table} WHERE 1=1{nd} GROUP BY {col} ORDER BY c DESC')
+        out = [((r['k'] or 'Not set') if str(r['k'] or '').strip() else 'Not set', r['c']) for r in rows]
+        return out[:limit] if limit else out
+    co_by_status = group('companies', 'ac_status', ND)
+    co_by_type = group('companies', 'type_of_client', ND, 8)
+    co_by_mgr = group('companies', 'account_manager', ND, 8)
+    co_kyc = merge_counts(all_(conn, 'SELECT kyc_status,COUNT(*) c FROM companies WHERE 1=1' + ND + ' GROUP BY kyc_status'), [], 'kyc_status')
+
+    # ── INDIVIDUALS tab ──
+    ind_by_nat = group('clients', 'nationality', ND, 8)
+    ind_by_emirate = group('clients', 'emirate', ND, 8)
+    ind_by_prof = group('clients', 'profession', ND, 8)
+    ind_kyc = merge_counts(all_(conn, 'SELECT kyc_status,COUNT(*) c FROM clients WHERE 1=1' + ND + ' GROUP BY kyc_status'), [], 'kyc_status')
+    ind_resident = c('SELECT COUNT(*) FROM clients WHERE is_resident IS TRUE' + ND)
+    ind_nonresident = total_ind - ind_resident
+
     conn.close()
     return render_template('analytics.html',
         tab=request.args.get('tab', 'overview'), period=period, period_label=period_label,
@@ -3811,6 +3829,11 @@ def analytics():
         t_open=t_open, t_overdue=t_overdue, t_due=t_due, t_done=t_done,
         reg_total=reg_total, logs_period=logs_period, add_period=add_period,
         staff_task_load=staff_task_load,
+        # companies
+        co_by_status=co_by_status, co_by_type=co_by_type, co_by_mgr=co_by_mgr, co_kyc=co_kyc,
+        # individuals
+        ind_by_nat=ind_by_nat, ind_by_emirate=ind_by_emirate, ind_by_prof=ind_by_prof,
+        ind_kyc=ind_kyc, ind_resident=ind_resident, ind_nonresident=ind_nonresident,
     )
 
 
