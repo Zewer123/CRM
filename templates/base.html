@@ -119,8 +119,18 @@
       if (btn) btn.style.borderColor = '#fff';
     }
     (function() {
-      const t = localStorage.getItem('zewer-theme') || '';
-      setTheme(t);
+      // Navy is the standard default. Apply it once for everyone (including
+      // browsers that previously auto-saved another theme via this loader);
+      // after this one-time switch, whatever theme the user picks is kept.
+      // Note: gold is stored as '' (falsy), so we test for null — never picked —
+      // rather than truthiness, so an explicit gold choice still sticks.
+      var KEY = 'zewer-theme', MIGR = 'zewer-theme-default-navy';
+      var t = localStorage.getItem(KEY);
+      if (localStorage.getItem(MIGR) === null) {
+        t = 'theme-navy';
+        localStorage.setItem(MIGR, '1');
+      }
+      setTheme(t === null ? 'theme-navy' : t);
     })();
 
     // ── BACK BUTTON ─────────────────────────────────────────
