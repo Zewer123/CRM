@@ -279,28 +279,25 @@
       <div id="actionPwMsg" style="display:none;font-size:12px;margin-bottom:12px;"></div>
       <button class="btn btn-primary" onclick="saveActionPassword()">💾 Save Password</button>
     </div>
+    {% if is_local %}
     <div class="card">
       <div class="card-title" style="margin-bottom:16px;">📁 Local Document Storage</div>
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">
-        When running the CRM on a local/office PC (not the cloud version), set a folder path here and every
-        uploaded document (company, individual, Zewer Docs) will also be saved as a copy in that folder.
-        Leave blank to skip local copies.
+        Set a folder path here and every uploaded document (company, individual, Zewer Docs)
+        will also be saved as a copy in that folder. Leave blank to skip local copies.
       </div>
       <div class="form-group">
         <label>Folder Path</label>
         <div style="display:flex;gap:8px;">
           <input type="text" id="localDocsPath" placeholder="e.g. C:\Zewer Documents" value="{{ local_docs_path }}" style="flex:1;">
-          {% if is_local %}<button type="button" class="btn btn-ghost" onclick="browseFolder('localDocsPath', this)">📁 Browse</button>{% endif %}
+          <button type="button" class="btn btn-ghost" onclick="browseFolder('localDocsPath', this)">📁 Browse</button>
         </div>
-        {% if is_local %}
         <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Browse opens a folder picker on the PC running the CRM.</div>
-        {% else %}
-        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">This is the cloud version — local document storage only applies to the on-PC install. Type a path here when running the desktop build.</div>
-        {% endif %}
       </div>
       <div id="localDocsMsg" style="display:none;font-size:12px;margin-bottom:12px;"></div>
       <button class="btn btn-primary" onclick="saveLocalDocsPath()">💾 Save Path</button>
     </div>
+    {% endif %}
     <div class="card">
       <div class="card-title" style="margin-bottom:16px;">🗓️ Scheduled Auto-Backup</div>
       {% if is_local %}
