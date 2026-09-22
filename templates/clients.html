@@ -377,7 +377,7 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('addClientModal')">Cancel</button>
       <button class="btn btn-ghost" data-role="back" style="display:none;" onclick="clientNavPersonal('a', this)">← Back</button>
-      <button class="btn btn-primary" data-role="next" onclick="clientNavCompliance('a', this)">Save &amp; Next →</button>
+      <button class="btn btn-primary" data-role="next" onclick="clientNavCompliance('a', this)">Next →</button>
       <button class="btn btn-primary" data-role="save" style="display:none;" onclick="submitAddClient()">💾 Save Client</button>
     </div>
   </div>
@@ -557,7 +557,7 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('editClientModal')">Cancel</button>
       <button class="btn btn-ghost" data-role="back" style="display:none;" onclick="clientNavPersonal('e', this)">← Back</button>
-      <button class="btn btn-primary" data-role="next" onclick="clientNavCompliance('e', this)">Save &amp; Next →</button>
+      <button class="btn btn-primary" data-role="next" onclick="clientNavCompliance('e', this)">Next →</button>
       <button class="btn btn-primary" data-role="save" style="display:none;" onclick="submitEditClient()">💾 Save</button>
     </div>
   </div>
@@ -673,7 +673,7 @@ function switchClientTab(name, btn) {
   updateClientFooter(modal, name);
 }
 
-// Footer buttons follow the active tab: Personal shows "Save & Next →",
+// Footer buttons follow the active tab: Personal shows "Next →",
 // Compliance shows "← Back" + the final Save button.
 function updateClientFooter(modal, name) {
   const isPersonal = (name === 'personal' || name === 'epersonal');
@@ -685,7 +685,7 @@ function updateClientFooter(modal, name) {
   if (save) save.style.display = isPersonal ? 'none' : '';
 }
 
-// "Save & Next →": validate the Personal fields, then move to Compliance.
+// "Next →": validate the Personal fields, then move to Compliance.
 // (No DB write happens here — the client is created by the final Save.)
 function clientNavCompliance(prefix, btn) {
   const nm = document.getElementById(prefix + '_name');
