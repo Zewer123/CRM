@@ -3628,24 +3628,84 @@ def regular_tasks():
 @app.route('/task-history')
 @login_required
 def task_history():
+    """Unified 'Completed Tasks' page: regular-task logs (daily/weekly/monthly),
+       completed one-off tasks, and finished additional-task activities — merged."""
     conn = get_db(); uid = session.get('user_id'); role = session.get('user_role')
+    is_mgr = role in ['admin', 'compliance']
+    today = str(dubai_today())
+    rows = []
+
+    # 1) Regular task logs (recurring completions)
     try:
-        if role in ['admin', 'compliance']:
-            logs = all_(conn, """SELECT l.*,u.name as staff_name,rt.title as task_title,rt.frequency
+        if is_mgr:
+            regs = all_(conn, """SELECT l.*,u.name AS staff_name,rt.title AS task_title,rt.frequency
                 FROM regular_task_logs l JOIN users u ON l.user_id=u.id
                 JOIN regular_task_templates rt ON l.template_id=rt.id
                 ORDER BY l.logged_at DESC LIMIT 1000""")
         else:
-            logs = all_(conn, """SELECT l.*,u.name as staff_name,rt.title as task_title,rt.frequency
+            regs = all_(conn, """SELECT l.*,u.name AS staff_name,rt.title AS task_title,rt.frequency
                 FROM regular_task_logs l JOIN users u ON l.user_id=u.id
                 JOIN regular_task_templates rt ON l.template_id=rt.id
                 WHERE l.user_id=? ORDER BY l.logged_at DESC LIMIT 500""", (uid,))
     except Exception:
-        logs = []
-    logs = [{**l, 'logged_at': str(l['logged_at'])[:16] if l.get('logged_at') else ''} for l in logs]
+        regs = []
+    for l in regs:
+        rows.append({
+            'kind': 'Regular', 'title': l.get('task_title') or '—',
+            'freq': (l.get('frequency') or '').lower(),
+            'user_id': l.get('user_id'), 'staff_name': l.get('staff_name') or '—',
+            'status': l.get('status') or 'done', 'notes': l.get('notes') or '',
+            'when': str(l.get('logged_at'))[:16] if l.get('logged_at') else '',
+        })
+
+    # 2) One-off tasks marked done
+    try:
+        if is_mgr:
+            ones = all_(conn, """SELECT t.*,u.name AS staff_name
+                FROM tasks t LEFT JOIN users u ON t.assigned_to=u.id
+                WHERE t.status='done' ORDER BY t.updated_at DESC LIMIT 1000""")
+        else:
+            ones = all_(conn, """SELECT t.*,u.name AS staff_name
+                FROM tasks t LEFT JOIN users u ON t.assigned_to=u.id
+                WHERE t.status='done' AND t.assigned_to=? ORDER BY t.updated_at DESC LIMIT 500""", (uid,))
+    except Exception:
+        ones = []
+    for t in ones:
+        rows.append({
+            'kind': 'One-off', 'title': t.get('title') or '—', 'freq': '',
+            'user_id': t.get('assigned_to'), 'staff_name': t.get('staff_name') or 'Unassigned',
+            'status': 'done', 'notes': t.get('description') or '',
+            'when': str(t.get('updated_at'))[:16] if t.get('updated_at') else '',
+        })
+
+    # 3) Additional-task activities whose end time has passed (completed)
+    try:
+        if is_mgr:
+            adds = all_(conn, """SELECT a.*,u.name AS staff_name
+                FROM additional_tasks a LEFT JOIN users u ON a.created_by=u.id
+                ORDER BY a.to_datetime DESC LIMIT 1000""")
+        else:
+            adds = all_(conn, """SELECT a.*,u.name AS staff_name
+                FROM additional_tasks a LEFT JOIN users u ON a.created_by=u.id
+                WHERE a.created_by=? ORDER BY a.to_datetime DESC LIMIT 500""", (uid,))
+    except Exception:
+        adds = []
+    for a in adds:
+        to_dt = str(a.get('to_datetime') or '')
+        if to_dt[:10] and to_dt[:10] > today:
+            continue  # still upcoming — not done yet
+        details = a.get('task_details') or a.get('remarks') or ''
+        rows.append({
+            'kind': 'Additional', 'title': a.get('title') or '—', 'freq': '',
+            'user_id': a.get('created_by'), 'staff_name': a.get('staff_name') or '—',
+            'status': 'completed', 'notes': details,
+            'when': to_dt[:16],
+        })
+
+    rows.sort(key=lambda r: r['when'], reverse=True)
     users = all_(conn, 'SELECT id,name FROM users WHERE is_active=1 ORDER BY name')
     conn.close()
-    return render_template('task_history.html', logs=logs, all_users=users)
+    return render_template('task_history.html', logs=rows, all_users=users, user_role=role)
 
 
 # ════════════════════════════════════════════════════════════
