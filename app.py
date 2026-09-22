@@ -377,6 +377,22 @@ def _run_migrations(conn):
     safe_alter('additional_tasks', 'status', "TEXT DEFAULT 'open'")
     safe_alter('additional_tasks', 'completed_at', 'TIMESTAMP')
     safe_alter('additional_tasks', 'completed_by', 'INTEGER')
+    # One-time backfill: close out all additional tasks that existed before the
+    # Complete button shipped. They were records of activity that already
+    # happened, so we mark them complete with completed_at = their own end time.
+    # A flag in app_settings guarantees this runs exactly once and never
+    # re-touches a task the user later reopens.
+    try:
+        done_flag = one(conn, "SELECT value FROM app_settings WHERE key=?", ('additional_tasks_backfilled',))
+        if not done_flag:
+            x(conn, "UPDATE additional_tasks SET status='completed', completed_at=to_datetime, completed_by=created_by WHERE status IS NULL OR status='open'")
+            if pg:
+                x(conn, "INSERT INTO app_settings (key,value) VALUES (%s,%s) ON CONFLICT(key) DO UPDATE SET value=%s", ('additional_tasks_backfilled', '1', '1'))
+            else:
+                conn.execute("INSERT INTO app_settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", ('additional_tasks_backfilled', '1'))
+            commit(conn)
+    except Exception:
+        if pg: conn.rollback()
     # Force-insert new dropdown values on existing DBs
     new_dd = [
         ('ID TYPE','National ID'),('ID TYPE','Passport'),('ID TYPE','Emirates ID'),('ID TYPE','Visa No'),('ID TYPE','Other'),
@@ -2794,7 +2810,8 @@ def settings():
         local_docs_path=(docs_path_row['value'] if docs_path_row else ''),
         backup_path=(bp['value'] if bp else ''),
         backup_time=(bt['value'] if bt else ''),
-        last_backup_at=(lba['value'] if lba else ''))
+        last_backup_at=(lba['value'] if lba else ''),
+        is_local=(os.getenv('LOCAL_SERVICE') == '1'))
 
 def get_setting(key, default=''):
     """Read a single app_settings value."""
@@ -2863,6 +2880,8 @@ def api_browse_folder():
     Works on the local/on-prem Windows install (where server = the user's PC).
     On a headless/cloud host there is no desktop, so it fails gracefully and the
     admin types the path instead."""
+    if os.getenv('LOCAL_SERVICE') != '1':
+        return jsonify({'success': False, 'error': 'The folder picker only works on the local desktop install. On the cloud version, type the path manually.'})
     try:
         import subprocess
         ps = ("Add-Type -AssemblyName System.Windows.Forms | Out-Null;"
@@ -2876,8 +2895,8 @@ def api_browse_folder():
         if path:
             return jsonify({'success': True, 'path': path})
         return jsonify({'success': False, 'error': 'No folder selected.'})
-    except Exception as e:
-        return jsonify({'success': False, 'error': f'Folder picker not available on this server — type the path manually. ({e})'})
+    except Exception:
+        return jsonify({'success': False, 'error': 'Folder picker not available here — type the path manually.'})
 
 @app.route('/api/user/add',methods=['POST'])
 @admin_required

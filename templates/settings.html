@@ -290,9 +290,13 @@
         <label>Folder Path</label>
         <div style="display:flex;gap:8px;">
           <input type="text" id="localDocsPath" placeholder="e.g. C:\Zewer Documents" value="{{ local_docs_path }}" style="flex:1;">
-          <button type="button" class="btn btn-ghost" onclick="browseFolder('localDocsPath', this)">📁 Browse</button>
+          {% if is_local %}<button type="button" class="btn btn-ghost" onclick="browseFolder('localDocsPath', this)">📁 Browse</button>{% endif %}
         </div>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Browse opens a folder picker on the PC running the CRM (local install).</div>
+        {% if is_local %}
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Browse opens a folder picker on the PC running the CRM.</div>
+        {% else %}
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">This is the cloud version — local document storage only applies to the on-PC install. Type a path here when running the desktop build.</div>
+        {% endif %}
       </div>
       <div id="localDocsMsg" style="display:none;font-size:12px;margin-bottom:12px;"></div>
       <button class="btn btn-primary" onclick="saveLocalDocsPath()">💾 Save Path</button>
@@ -308,7 +312,7 @@
         <label>Backup Folder Path</label>
         <div style="display:flex;gap:8px;">
           <input type="text" id="backupPath" placeholder="e.g. D:\Zewer Backups" value="{{ backup_path }}" style="flex:1;">
-          <button type="button" class="btn btn-ghost" onclick="browseFolder('backupPath', this)">📁 Browse</button>
+          {% if is_local %}<button type="button" class="btn btn-ghost" onclick="browseFolder('backupPath', this)">📁 Browse</button>{% endif %}
         </div>
       </div>
       <div class="form-group" style="max-width:160px;">
