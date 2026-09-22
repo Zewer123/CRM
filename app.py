@@ -3811,6 +3811,29 @@ def analytics():
     ind_resident = c('SELECT COUNT(*) FROM clients WHERE is_resident IS TRUE' + ND)
     ind_nonresident = total_ind - ind_resident
 
+    # ── STAFF tab ──
+    staff_full = []
+    try:
+        for u in all_(conn, 'SELECT id,name,role FROM users WHERE is_active=1 ORDER BY name'):
+            uid = u['id']
+            open_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status NOT IN ('done')", (uid,))
+            overdue_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status NOT IN ('done','pending_close') AND due_date<?", (uid, str(today)))
+            done_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status='done'", (uid,))
+            try:
+                logs_c = c('SELECT COUNT(*) FROM regular_task_logs WHERE user_id=? AND logged_at BETWEEN ? AND ?', (uid, ps, pe + ' 23:59:59'))
+            except Exception:
+                logs_c = 0
+            try:
+                add_c = c('SELECT COUNT(*) FROM additional_tasks WHERE created_by=? AND from_datetime BETWEEN ? AND ?', (uid, ps, pe + ' 23:59:59'))
+            except Exception:
+                add_c = 0
+            staff_full.append({'name': u['name'], 'role': (u['role'] or '').title(),
+                               'open': open_c, 'overdue': overdue_c, 'done': done_c,
+                               'logs': logs_c, 'additional': add_c})
+        staff_full.sort(key=lambda s: (-(s['open'] + s['logs'] + s['additional']), s['name']))
+    except Exception:
+        staff_full = []
+
     conn.close()
     return render_template('analytics.html',
         tab=request.args.get('tab', 'overview'), period=period, period_label=period_label,
@@ -3834,6 +3857,8 @@ def analytics():
         # individuals
         ind_by_nat=ind_by_nat, ind_by_emirate=ind_by_emirate, ind_by_prof=ind_by_prof,
         ind_kyc=ind_kyc, ind_resident=ind_resident, ind_nonresident=ind_nonresident,
+        # staff
+        staff_full=staff_full,
     )
 
 

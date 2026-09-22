@@ -49,6 +49,7 @@
   <button class="an-tab-btn" data-tab="compliance" onclick="switchAnTab('compliance',this)">🛡️ Compliance</button>
   <button class="an-tab-btn" data-tab="expiries" onclick="switchAnTab('expiries',this)">⏰ Expiries</button>
   <button class="an-tab-btn" data-tab="tasks" onclick="switchAnTab('tasks',this)">✅ Tasks</button>
+  <button class="an-tab-btn" data-tab="staff" onclick="switchAnTab('staff',this)">👥 Staff</button>
 </div>
 
 {% macro bar(label, val, mx, color) %}
@@ -318,6 +319,40 @@
     {% endfor %}
     {% else %}<div class="an-empty">No open tasks assigned.</div>{% endif %}
   </div>
+</div>
+
+<!-- ═══════════ STAFF ═══════════ -->
+<div class="an-tab-pane" id="an-staff" style="display:none;">
+  <div class="an-card" style="padding:0;overflow:hidden;">
+    <div class="an-card-title" style="padding:18px 18px 0;">Staff Activity — {{ period_label }}</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Staff</th><th>Role</th>
+            <th>Open Tasks</th><th>Overdue</th><th>Closed</th>
+            <th>Updates Logged</th><th>Additional Tasks</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in staff_full %}
+          <tr>
+            <td style="font-weight:600;color:var(--text);">{{ s.name }}</td>
+            <td style="color:var(--text-muted);font-size:12px;">{{ s.role }}</td>
+            <td><span style="font-weight:700;color:var(--text);">{{ s.open }}</span></td>
+            <td>{% if s.overdue %}<span style="font-weight:700;color:#fca5a5;">{{ s.overdue }}</span>{% else %}<span style="color:var(--text-dim);">0</span>{% endif %}</td>
+            <td style="color:#86efac;">{{ s.done }}</td>
+            <td style="color:var(--text-muted);">{{ s.logs }}</td>
+            <td style="color:var(--text-muted);">{{ s.additional }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="an-empty">No active staff.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div style="font-size:12px;color:var(--text-dim);">Open Tasks / Overdue / Closed count assigned temp tasks. Updates Logged and Additional Tasks are counted within the selected period.</div>
 </div>
 
 {% endblock %}

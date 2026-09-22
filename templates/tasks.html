@@ -324,6 +324,11 @@
 <!-- TAB: REGULAR TASKS -->
 <div id="tab-regular" {% if active_tab != 'regular' %}style="display:none;"{% endif %}>
 
+<!-- COMPLETED HISTORY (top) -->
+<div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+  <a href="{{ url_for('task_history') }}" class="btn btn-ghost btn-sm">📝 Completed Task History →</a>
+</div>
+
 <!-- SUMMARY STATS -->
 {% set ns = namespace(total=0, overdue=0, due_today=0, ok=0) %}
 {% for t in rt_templates %}
@@ -357,6 +362,7 @@
       <option value="overdue">Overdue</option>
       <option value="due">Due Today</option>
       <option value="ok">Up to Date</option>
+      <option value="done">Done (logged)</option>
     </select>
   </div>
   <div class="form-group" style="min-width:160px;">
@@ -453,15 +459,6 @@
     </table>
   </div>
   <div id="regularEmpty" style="display:none;text-align:center;padding:40px;color:var(--text-dim);">No tasks match these filters.</div>
-</div>
-
-<!-- COMPLETED HISTORY LINK -->
-<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-  <div>
-    <div class="card-title" style="margin-bottom:2px;">📝 Completed Task History</div>
-    <div style="font-size:12px;color:var(--text-dim);">Done, partial and skipped updates now live on their own page.</div>
-  </div>
-  <a href="{{ url_for('task_history') }}" class="btn btn-primary btn-sm">View History →</a>
 </div>
 
 </div><!-- end tab-regular -->
@@ -926,7 +923,8 @@ function filterRegular() {
   rows.forEach(row => {
     let show = true;
     if (_rtFreq !== 'all' && row.dataset.freq !== _rtFreq) show = false;
-    if (status && row.dataset.rtstatus !== status) show = false;
+    if (status === 'done') { if (!row.dataset.lastlogged) show = false; }
+    else if (status && row.dataset.rtstatus !== status) show = false;
     if (user && row.dataset.user !== user) show = false;
     row.style.display = show ? '' : 'none';
     if (show) visible++;
