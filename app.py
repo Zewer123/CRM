@@ -4705,6 +4705,11 @@ def api_set_backup_path():
 @app.route('/api/settings/backup-now', methods=['POST'])
 @admin_required
 def api_backup_now():
+    # Folder backups only make sense on the local install — on the cloud the file
+    # would be written to the (ephemeral) server, never the admin's PC. Point them
+    # to the browser download instead.
+    if os.getenv('LOCAL_SERVICE') != '1':
+        return jsonify({'success': False, 'error': 'Folder backups run only on the local desktop install. On the cloud, use "Download Full Backup" to save a copy to your computer.'}), 400
     ok, msg = run_backup_to_path()
     if ok:
         return jsonify({'success': True, 'path': msg})
