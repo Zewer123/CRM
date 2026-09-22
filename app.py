@@ -4724,6 +4724,54 @@ def api_backup_now():
         return jsonify({'success': True, 'path': msg})
     return jsonify({'success': False, 'error': msg}), 400
 
+# One-time correction of timestamps written UTC before the #12 timezone fix.
+# Only pre-fix rows are shifted (+4h -> Dubai): the fix switched writes to Dubai
+# atomically at deploy, so every UTC row has a value below CUTOFF and every new
+# Dubai row is above it (a clean ~4h gap). Guarded by a flag so it can't run
+# twice; PG only; touches only auto-generated timestamp columns — never
+# user-entered dates or the mixed additional_tasks.completed_at.
+_UTC_FIX_CUTOFF = '2026-09-22 16:00:00'
+_UTC_FIX_COLUMNS = [
+    ('regular_task_logs', 'logged_at'),
+    ('tasks', 'created_at'), ('tasks', 'updated_at'),
+    ('companies', 'created_at'),
+    ('clients', 'created_at'), ('clients', 'updated_at'),
+    ('additional_tasks', 'created_at'),
+    ('regular_task_templates', 'created_at'),
+    ('internal_documents', 'created_at'), ('internal_documents', 'updated_at'),
+    ('documents', 'created_at'), ('client_documents', 'created_at'),
+    ('login_history', 'created_at'), ('login_history', 'logout_at'),
+    ('company_groups', 'created_at'),
+    ('aml_tracker', 'created_at'), ('aml_tracker', 'updated_at'),
+    ('company_risk_assessments', 'created_at'),
+    ('individual_risk_assessments', 'created_at'),
+    ('walkin_risk_assessments', 'created_at'),
+]
+
+@app.route('/admin/fix-utc-timestamps', methods=['POST'])
+@admin_required
+def admin_fix_utc_timestamps():
+    conn = get_db()
+    if not is_pg(conn):
+        conn.close()
+        return jsonify({'success': False, 'error': 'Only applies on the cloud (Postgres).'}), 400
+    if (get_setting('utc_to_dubai_corrected') or '') == '1':
+        conn.close()
+        return jsonify({'success': False, 'error': 'Already corrected — this runs only once.'}), 400
+    report = {}
+    for tbl, col in _UTC_FIX_COLUMNS:
+        try:
+            cur = x(conn, f"UPDATE {tbl} SET {col} = {col} + interval '4 hours' WHERE {col} IS NOT NULL AND {col} < %s", (_UTC_FIX_CUTOFF,))
+            report[f'{tbl}.{col}'] = cur.rowcount
+            commit(conn)
+        except Exception as e:
+            try: conn.rollback()
+            except Exception: pass
+            report[f'{tbl}.{col}'] = f'skip ({str(e)[:30]})'
+    conn.close()
+    set_setting('utc_to_dubai_corrected', '1')
+    return jsonify({'success': True, 'cutoff': _UTC_FIX_CUTOFF, 'corrected': report})
+
 # ════════════════════════════════════════════════════════════
 # RESTORE FROM BACKUP
 # ════════════════════════════════════════════════════════════
