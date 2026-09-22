@@ -341,157 +341,127 @@
 </div>
 
 <!-- FREQUENCY TABS -->
-<div class="tab-bar" style="margin-bottom:20px;">
-  <button class="freq-btn active" onclick="filterFreq('all',this)">All</button>
-  <button class="freq-btn" onclick="filterFreq('daily',this)">📅 Daily</button>
-  <button class="freq-btn" onclick="filterFreq('weekly',this)">📆 Weekly</button>
-  <button class="freq-btn" onclick="filterFreq('monthly',this)">🗓️ Monthly</button>
+<div class="tab-bar" style="margin-bottom:16px;">
+  <button class="freq-btn active" data-freq="all" onclick="setFreq('all',this)">All</button>
+  <button class="freq-btn" data-freq="daily" onclick="setFreq('daily',this)">📅 Daily</button>
+  <button class="freq-btn" data-freq="weekly" onclick="setFreq('weekly',this)">📆 Weekly</button>
+  <button class="freq-btn" data-freq="monthly" onclick="setFreq('monthly',this)">🗓️ Monthly</button>
 </div>
 
-<!-- TASK CARDS -->
-<div id="taskGrid" style="display:flex;flex-direction:column;gap:10px;margin-bottom:32px;">
-  {% for t in rt_templates %}
-  {% set s = task_status.get(t.id, {}) %}
-  {% set overdue = s.get('overdue_count', 0) %}
-  {% set is_due = s.get('is_due_today', false) %}
-
-  <div class="task-card" data-freq="{{ t.frequency }}"
-    style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;
-    display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;
-    {% if overdue > 0 %}border-left:3px solid #ef4444;{% elif is_due %}border-left:3px solid #fcd34d;{% else %}border-left:3px solid var(--border);{% endif %}">
-    <div>
-      <!-- TITLE + BADGES -->
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-
-        <!-- FREQUENCY ICON + BADGE -->
-        {% if t.frequency == 'daily' %}
-        <span style="font-size:15px;" title="Daily task">📅</span>
-        <span style="font-size:11px;padding:2px 10px;border-radius:20px;font-weight:600;background:rgba(59,130,246,0.12);color:#93c5fd;">DAILY</span>
-        {% elif t.frequency == 'weekly' %}
-        <span style="font-size:15px;" title="Weekly task — due every Friday">📆</span>
-        <span style="font-size:11px;padding:2px 10px;border-radius:20px;font-weight:600;background:rgba(168,85,247,0.12);color:#c4b5fd;">WEEKLY · Every Friday</span>
-        {% else %}
-        <span style="font-size:15px;" title="Monthly task — due on 25th">🗓️</span>
-        <span style="font-size:11px;padding:2px 10px;border-radius:20px;font-weight:600;background:rgba(245,158,11,0.12);color:#fcd34d;">MONTHLY · 25th</span>
-        {% endif %}
-
-        <!-- OVERDUE / DUE TODAY BADGE -->
-        {% if overdue > 0 %}
-        <span style="font-size:11px;padding:2px 10px;border-radius:20px;font-weight:700;background:rgba(239,68,68,0.15);color:#fca5a5;">
-          ⚠️ {{ overdue }} overdue
-        </span>
-        {% elif is_due %}
-        <span style="font-size:11px;padding:2px 10px;border-radius:20px;font-weight:700;background:rgba(245,158,11,0.12);color:#fcd34d;">
-          🔔 Due today
-        </span>
-        {% else %}
-        <span style="font-size:11px;padding:2px 10px;border-radius:20px;font-weight:600;background:rgba(34,197,94,0.1);color:#86efac;">
-          ✅ Up to date
-        </span>
-        {% endif %}
-
-        <span style="font-weight:700;font-size:14px;color:var(--text);">{{ t.title }}</span>
-      </div>
-
-      <!-- DESCRIPTION -->
-      {% if t.description %}
-      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">{{ t.description }}</div>
-      {% endif %}
-
-      <!-- META ROW -->
-      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;">
-
-        <!-- ASSIGNED -->
-        {% if t.assigned_user_name %}
-        <span style="color:var(--primary);">👤 {{ t.assigned_user_name }}</span>
-        {% elif t.assigned_role == 'all' or not t.assigned_role %}
-        <span style="color:var(--text-dim);">👥 All Staff</span>
-        {% else %}
-        <span style="color:var(--text-dim);">👥 {{ t.assigned_role|title }} only</span>
-        {% endif %}
-
-        <!-- LAST LOGGED -->
-        <span style="color:var(--text-dim);">
-          Last logged:
-          {% if s.get('last_logged') %}
-          <span style="color:#86efac;">{{ s.last_logged }}</span>
-          {% else %}
-          <span style="color:#fca5a5;">Never</span>
-          {% endif %}
-        </span>
-
-        <!-- NEXT DUE -->
-        <span style="color:var(--text-dim);">
-          Next due: <span style="color:var(--text-muted);">{{ s.get('next_due', '—') }}</span>
-        </span>
-
-        <!-- MISSED DATES (show if overdue) -->
-        {% if overdue > 0 and s.get('missed_dates') %}
-        <span style="color:#fca5a5;">
-          Missed: {{ s.missed_dates | join(', ') }}{% if overdue > 3 %} + {{ overdue - 3 }} more{% endif %}
-        </span>
-        {% endif %}
-
-      </div>
-    </div>
-
-    <!-- ACTIONS -->
-    <div style="display:flex;gap:6px;align-items:center;">
-      <button class="btn btn-primary btn-sm" onclick="openLogModal({{ t.id }},'{{ t.title|replace("'","\\'") }}',{{ overdue }})">✅ Log Update</button>
-      {% if user_role in ['admin','compliance'] %}
-      <button class="btn btn-danger btn-sm btn-icon" onclick="deleteTemplate({{ t.id }})">🗑️</button>
-      {% endif %}
-    </div>
+<!-- FILTERS + SORT -->
+<div class="search-bar" style="margin-bottom:16px;">
+  <div class="form-group" style="min-width:150px;">
+    <label>STATUS</label>
+    <select id="rtStatus" onchange="filterRegular()">
+      <option value="">All</option>
+      <option value="overdue">Overdue</option>
+      <option value="due">Due Today</option>
+      <option value="ok">Up to Date</option>
+    </select>
   </div>
-  {% else %}
-  <div style="text-align:center;padding:60px;color:var(--text-dim);background:var(--surface);border-radius:10px;border:1px solid var(--border);">
-    No regular tasks yet.{% if user_role in ['admin','compliance'] %} <a href="#" onclick="openModal('addTemplateModal');return false;" style="color:var(--primary);">Add one?</a>{% endif %}
+  <div class="form-group" style="min-width:160px;">
+    <label>ASSIGNED TO</label>
+    <select id="rtUser" onchange="filterRegular()">
+      <option value="">Everyone</option>
+      {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+    </select>
   </div>
-  {% endfor %}
+  <div class="form-group" style="min-width:170px;">
+    <label>SORT BY</label>
+    <select id="rtSort" onchange="filterRegular()">
+      <option value="status">Status (overdue first)</option>
+      <option value="title">Task name (A–Z)</option>
+      <option value="nextdue">Next due date</option>
+      <option value="lastlogged">Last logged</option>
+    </select>
+  </div>
+  <div class="form-group" style="min-width:80px;display:flex;align-items:flex-end;">
+    <button class="btn btn-ghost btn-sm" onclick="clearRegularFilters()">Clear</button>
+  </div>
 </div>
 
-<!-- UPDATE LOG -->
-<div class="card">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-    <div class="card-title">📝 Update Log</div>
-  </div>
+<!-- REGULAR TASK LIST (simple table) -->
+<div class="card" style="padding:0;overflow:hidden;margin-bottom:20px;">
   <div class="table-wrap">
-    <table>
+    <table id="regularTable">
       <thead>
         <tr>
-          <th>Task</th>
-          <th>Freq</th>
-          <th>Staff</th>
-          <th>Status</th>
-          <th>Notes</th>
-          <th>Logged At</th>
+          <th>STATUS</th>
+          <th>TASK</th>
+          <th>FREQ</th>
+          <th>ASSIGNED</th>
+          <th>LAST LOGGED</th>
+          <th>NEXT DUE</th>
+          <th>ACTIONS</th>
         </tr>
       </thead>
-      <tbody>
-        {% for l in rt_logs %}
-        <tr>
-          <td style="font-weight:500;color:var(--text);">{{ l.task_title }}</td>
+      <tbody id="regularBody">
+        {% for t in rt_templates %}
+        {% set s = task_status.get(t.id, {}) %}
+        {% set overdue = s.get('overdue_count', 0) %}
+        {% set is_due = s.get('is_due_today', false) %}
+        <tr class="rt-row"
+            data-freq="{{ t.frequency }}"
+            data-rtstatus="{% if overdue > 0 %}overdue{% elif is_due %}due{% else %}ok{% endif %}"
+            data-user="{{ t.assigned_user_id or '' }}"
+            data-title="{{ t.title|lower }}"
+            data-overdue="{{ overdue }}"
+            data-nextdue="{{ s.get('next_due', '') }}"
+            data-lastlogged="{{ s.get('last_logged') or '' }}">
           <td>
-            {% if l.frequency == 'daily' %}📅
-            {% elif l.frequency == 'weekly' %}📆
-            {% else %}🗓️{% endif %}
-            <span style="font-size:11px;color:var(--text-dim);">{{ (l.frequency or '').upper() }}</span>
+            {% if overdue > 0 %}
+            <span class="badge" style="background:rgba(239,68,68,0.15);color:#fca5a5;">⚠️ {{ overdue }} overdue</span>
+            {% elif is_due %}
+            <span class="badge" style="background:rgba(245,158,11,0.12);color:#fcd34d;">🔔 Due today</span>
+            {% else %}
+            <span class="badge" style="background:rgba(34,197,94,0.1);color:#86efac;">✅ Up to date</span>
+            {% endif %}
           </td>
-          <td style="color:var(--text-muted);">{{ l.staff_name }}</td>
           <td>
-            {% if l.status == 'done' %}<span class="badge badge-active">✅ Done</span>
-            {% elif l.status == 'partial' %}<span class="badge badge-compliance">⚠️ Partial</span>
-            {% else %}<span class="badge" style="background:var(--surface3);color:var(--text-muted);">⏭️ Skipped</span>{% endif %}
+            <div style="font-weight:600;color:var(--text);">{{ t.title }}</div>
+            {% if t.description %}<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">{{ t.description[:70] }}{% if t.description|length > 70 %}…{% endif %}</div>{% endif %}
+            {% if overdue > 0 and s.get('missed_dates') %}<div style="font-size:10px;color:#fca5a5;margin-top:2px;">Missed: {{ s.missed_dates | join(', ') }}{% if overdue > 3 %} +{{ overdue - 3 }}{% endif %}</div>{% endif %}
           </td>
-          <td style="font-size:12px;color:var(--text-dim);">{{ l.notes or '—' }}</td>
-          <td style="font-size:12px;color:var(--text-muted);">{{ l.logged_at|string|truncate(16,True,'') }}</td>
+          <td>
+            {% if t.frequency == 'daily' %}<span style="font-size:11px;color:#93c5fd;">📅 DAILY</span>
+            {% elif t.frequency == 'weekly' %}<span style="font-size:11px;color:#c4b5fd;">📆 WEEKLY</span>
+            {% else %}<span style="font-size:11px;color:#fcd34d;">🗓️ MONTHLY</span>{% endif %}
+          </td>
+          <td style="font-size:12px;">
+            {% if t.assigned_user_name %}<span style="color:var(--primary);">👤 {{ t.assigned_user_name }}</span>
+            {% elif t.assigned_role == 'all' or not t.assigned_role %}<span style="color:var(--text-dim);">👥 All Staff</span>
+            {% else %}<span style="color:var(--text-dim);">👥 {{ t.assigned_role|title }}</span>{% endif %}
+          </td>
+          <td style="font-size:12px;">
+            {% if s.get('last_logged') %}<span style="color:#86efac;">{{ s.last_logged }}</span>
+            {% else %}<span style="color:#fca5a5;">Never</span>{% endif %}
+          </td>
+          <td style="font-size:12px;color:var(--text-muted);">{{ s.get('next_due', '—') }}</td>
+          <td>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button class="btn btn-primary btn-sm" onclick="openLogModal({{ t.id }},'{{ t.title|replace("'","\\'") }}',{{ overdue }})">✅ Log</button>
+              {% if user_role in ['admin','compliance'] %}
+              <button class="btn btn-danger btn-sm btn-icon" onclick="deleteTemplate({{ t.id }})">🗑️</button>
+              {% endif %}
+            </div>
+          </td>
         </tr>
         {% else %}
-        <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-dim);">No logs yet.</td></tr>
+        <tr><td colspan="7" style="text-align:center;padding:50px;color:var(--text-dim);">No regular tasks yet.{% if user_role in ['admin','compliance'] %} <a href="#" onclick="openModal('addTemplateModal');return false;" style="color:var(--primary);">Add one?</a>{% endif %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  <div id="regularEmpty" style="display:none;text-align:center;padding:40px;color:var(--text-dim);">No tasks match these filters.</div>
+</div>
+
+<!-- COMPLETED HISTORY LINK -->
+<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+  <div>
+    <div class="card-title" style="margin-bottom:2px;">📝 Completed Task History</div>
+    <div style="font-size:12px;color:var(--text-dim);">Done, partial and skipped updates now live on their own page.</div>
+  </div>
+  <a href="{{ url_for('task_history') }}" class="btn btn-primary btn-sm">View History →</a>
 </div>
 
 </div><!-- end tab-regular -->
@@ -936,12 +906,65 @@ function clearTaskFilters() {
 <script>
 let _logTemplateId = null;
 
-function filterFreq(freq, btn) {
+let _rtFreq = 'all';
+function setFreq(freq, btn) {
+  _rtFreq = freq;
   document.querySelectorAll('.freq-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  document.querySelectorAll('.task-card').forEach(c => {
-    c.style.display = (freq === 'all' || c.dataset.freq === freq) ? '' : 'none';
+  filterRegular();
+}
+
+function filterRegular() {
+  const status = document.getElementById('rtStatus').value;
+  const user = document.getElementById('rtUser').value;
+  const sort = document.getElementById('rtSort').value;
+  const body = document.getElementById('regularBody');
+  if (!body) return;
+  const rows = Array.from(body.querySelectorAll('tr.rt-row'));
+
+  let visible = 0;
+  rows.forEach(row => {
+    let show = true;
+    if (_rtFreq !== 'all' && row.dataset.freq !== _rtFreq) show = false;
+    if (status && row.dataset.rtstatus !== status) show = false;
+    if (user && row.dataset.user !== user) show = false;
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
   });
+
+  // Sort (only the visible ordering; reorder all rows so it's stable)
+  const rank = {overdue:0, due:1, ok:2};
+  const sorted = rows.slice().sort((a, b) => {
+    if (sort === 'title') return a.dataset.title.localeCompare(b.dataset.title);
+    if (sort === 'nextdue') return (a.dataset.nextdue || '9999').localeCompare(b.dataset.nextdue || '9999');
+    if (sort === 'lastlogged') {
+      // most recent first; "Never" (empty) sinks to the bottom
+      const av = a.dataset.lastlogged || '', bv = b.dataset.lastlogged || '';
+      if (!av && !bv) return 0;
+      if (!av) return 1;
+      if (!bv) return -1;
+      return bv.localeCompare(av);
+    }
+    // default: status (overdue first), then most overdue count
+    const ra = rank[a.dataset.rtstatus] ?? 3, rb = rank[b.dataset.rtstatus] ?? 3;
+    if (ra !== rb) return ra - rb;
+    return (parseInt(b.dataset.overdue) || 0) - (parseInt(a.dataset.overdue) || 0);
+  });
+  sorted.forEach(r => body.appendChild(r));
+
+  const empty = document.getElementById('regularEmpty');
+  const hasTasks = rows.length > 0;
+  if (empty) empty.style.display = (hasTasks && visible === 0) ? 'block' : 'none';
+}
+
+function clearRegularFilters() {
+  _rtFreq = 'all';
+  document.querySelectorAll('.freq-btn').forEach(b => b.classList.remove('active'));
+  const allBtn = document.querySelector('.freq-btn[data-freq="all"]');
+  if (allBtn) allBtn.classList.add('active');
+  ['rtStatus','rtUser'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const sortEl = document.getElementById('rtSort'); if (sortEl) sortEl.value = 'status';
+  filterRegular();
 }
 
 function openLogModal(id, title, overdue) {
@@ -1049,6 +1072,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const tab = new URLSearchParams(window.location.search).get('tab') || 'temp';
   document.getElementById('btnNewTask').style.display = tab === 'temp' ? '' : 'none';
   document.getElementById('btnNewRegular').style.display = tab === 'regular' ? '' : 'none';
+
+  // Apply default sort/order to the regular-tasks list
+  if (document.getElementById('regularBody')) filterRegular();
 
   // Auto-set current datetime for additional task modal
   function setNowDatetime() {

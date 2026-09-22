@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Task History - Zewer AML{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div class="page-title">📝 Completed Task History</div>
+  <a href="{{ url_for('tasks', tab='regular') }}" class="btn btn-ghost btn-sm">← Back to Tasks</a>
+</div>
+
+<div style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">Every logged update for regular tasks — done, partial and skipped.</div>
+
+<!-- FILTERS -->
+<div class="search-bar" style="margin-bottom:16px;">
+  {% if user_role in ['admin','compliance'] %}
+  <div class="form-group" style="min-width:160px;">
+    <label>STAFF</label>
+    <select id="hFilterUser" onchange="filterHistory()">
+      <option value="">Everyone</option>
+      {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endif %}
+  <div class="form-group" style="min-width:140px;">
+    <label>FREQUENCY</label>
+    <select id="hFilterFreq" onchange="filterHistory()">
+      <option value="">All</option>
+      <option value="daily">Daily</option>
+      <option value="weekly">Weekly</option>
+      <option value="monthly">Monthly</option>
+    </select>
+  </div>
+  <div class="form-group" style="min-width:130px;">
+    <label>STATUS</label>
+    <select id="hFilterStatus" onchange="filterHistory()">
+      <option value="">All</option>
+      <option value="done">Done</option>
+      <option value="partial">Partial</option>
+      <option value="skipped">Skipped</option>
+    </select>
+  </div>
+  <div class="form-group" style="min-width:130px;">
+    <label>FROM DATE</label>
+    <input type="date" id="hFilterFrom" onchange="filterHistory()">
+  </div>
+  <div class="form-group" style="min-width:130px;">
+    <label>TO DATE</label>
+    <input type="date" id="hFilterTo" onchange="filterHistory()">
+  </div>
+  <div class="form-group" style="min-width:80px;display:flex;align-items:flex-end;">
+    <button class="btn btn-ghost btn-sm" onclick="clearHistoryFilters()">Clear</button>
+  </div>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Task</th>
+          <th>Freq</th>
+          <th>Staff</th>
+          <th>Status</th>
+          <th>Notes</th>
+          <th>Logged At</th>
+        </tr>
+      </thead>
+      <tbody id="historyBody">
+        {% for l in logs %}
+        <tr data-user="{{ l.user_id }}" data-freq="{{ l.frequency }}" data-status="{{ l.status }}" data-date="{{ l.logged_at[:10] }}">
+          <td style="font-weight:500;color:var(--text);">{{ l.task_title }}</td>
+          <td>
+            {% if l.frequency == 'daily' %}📅
+            {% elif l.frequency == 'weekly' %}📆
+            {% else %}🗓️{% endif %}
+            <span style="font-size:11px;color:var(--text-dim);">{{ (l.frequency or '').upper() }}</span>
+          </td>
+          <td style="color:var(--text-muted);">{{ l.staff_name }}</td>
+          <td>
+            {% if l.status == 'done' %}<span class="badge badge-active">✅ Done</span>
+            {% elif l.status == 'partial' %}<span class="badge badge-compliance">⚠️ Partial</span>
+            {% else %}<span class="badge" style="background:var(--surface3);color:var(--text-muted);">⏭️ Skipped</span>{% endif %}
+          </td>
+          <td style="font-size:12px;color:var(--text-dim);">{{ l.notes or '—' }}</td>
+          <td style="font-size:12px;color:var(--text-muted);">{{ l.logged_at }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-dim);">No completed tasks logged yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+function filterHistory() {
+  const u = document.getElementById('hFilterUser') ? document.getElementById('hFilterUser').value : '';
+  const f = document.getElementById('hFilterFreq').value;
+  const s = document.getElementById('hFilterStatus').value;
+  const from = document.getElementById('hFilterFrom').value;
+  const to = document.getElementById('hFilterTo').value;
+  document.querySelectorAll('#historyBody tr[data-status]').forEach(row => {
+    let show = true;
+    if (u && row.dataset.user !== u) show = false;
+    if (f && row.dataset.freq !== f) show = false;
+    if (s && row.dataset.status !== s) show = false;
+    const d = row.dataset.date;
+    if (from && d && d < from) show = false;
+    if (to && d && d > to) show = false;
+    row.style.display = show ? '' : 'none';
+  });
+}
+function clearHistoryFilters() {
+  ['hFilterUser','hFilterFreq','hFilterStatus','hFilterFrom','hFilterTo'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  filterHistory();
+}
+</script>
+{% endblock %}

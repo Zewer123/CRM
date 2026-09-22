@@ -3624,6 +3624,30 @@ def regular_tasks():
     return redirect(url_for('tasks', tab='regular'))
 
 
+# ── TASK HISTORY (completed / logged regular tasks) ──────────
+@app.route('/task-history')
+@login_required
+def task_history():
+    conn = get_db(); uid = session.get('user_id'); role = session.get('user_role')
+    try:
+        if role in ['admin', 'compliance']:
+            logs = all_(conn, """SELECT l.*,u.name as staff_name,rt.title as task_title,rt.frequency
+                FROM regular_task_logs l JOIN users u ON l.user_id=u.id
+                JOIN regular_task_templates rt ON l.template_id=rt.id
+                ORDER BY l.logged_at DESC LIMIT 1000""")
+        else:
+            logs = all_(conn, """SELECT l.*,u.name as staff_name,rt.title as task_title,rt.frequency
+                FROM regular_task_logs l JOIN users u ON l.user_id=u.id
+                JOIN regular_task_templates rt ON l.template_id=rt.id
+                WHERE l.user_id=? ORDER BY l.logged_at DESC LIMIT 500""", (uid,))
+    except Exception:
+        logs = []
+    logs = [{**l, 'logged_at': str(l['logged_at'])[:16] if l.get('logged_at') else ''} for l in logs]
+    users = all_(conn, 'SELECT id,name FROM users WHERE is_active=1 ORDER BY name')
+    conn.close()
+    return render_template('task_history.html', logs=logs, all_users=users)
+
+
 @app.route('/api/regular-task/add', methods=['POST'])
 @compliance_required
 def api_add_regular_task():
