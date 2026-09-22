@@ -3648,6 +3648,172 @@ def task_history():
     return render_template('task_history.html', logs=logs, all_users=users)
 
 
+# ════════════════════════════════════════════════════════════
+# ANALYTICS DASHBOARD (on-screen; Reports page keeps the exports)
+# ════════════════════════════════════════════════════════════
+@app.route('/analytics')
+@login_required
+def analytics():
+    conn = get_db(); today = dubai_today()
+    def c(sql, p=None): return cnt(conn, sql, p or [])
+    ND = ' AND disabled IS NOT TRUE'
+    NDU = ' AND company_id NOT IN (SELECT id FROM companies WHERE disabled IS TRUE)'
+
+    # ── Period (affects "new" records + logged activity; snapshots ignore it) ──
+    period = request.args.get('period', 'this_month')
+    if period == 'last_month':
+        first_this = today.replace(day=1)
+        end_p = first_this - timedelta(days=1)
+        start_p = end_p.replace(day=1)
+        period_label = start_p.strftime('%B %Y')
+    elif period == 'this_year':
+        start_p = today.replace(month=1, day=1); end_p = today
+        period_label = today.strftime('%Y')
+    else:
+        period = 'this_month'
+        start_p = today.replace(day=1); end_p = today
+        period_label = today.strftime('%B %Y')
+    ps, pe = str(start_p), str(end_p)
+
+    def risk_map(rows):
+        m = {'High': 0, 'Medium': 0, 'Low': 0, 'Unrated': 0}
+        for r in rows:
+            k = (r['risk_status'] or '').strip().title()
+            if k in ('High', 'Medium', 'Low'): m[k] += r['c']
+            else: m['Unrated'] += r['c']
+        return m
+
+    # ── OVERVIEW ──
+    total_co = c('SELECT COUNT(*) FROM companies WHERE 1=1' + ND)
+    total_ind = c('SELECT COUNT(*) FROM clients WHERE 1=1' + ND)
+    active_co = c('SELECT COUNT(*) FROM companies WHERE ac_status=?' + ND, ('Active',))
+    pep_co = c("SELECT COUNT(*) FROM companies WHERE pep='Yes'" + ND)
+    pep_ind = c("SELECT COUNT(*) FROM clients WHERE pep_status='Yes'" + ND)
+    co_risk = risk_map(all_(conn, 'SELECT risk_status,COUNT(*) c FROM companies WHERE 1=1' + ND + ' GROUP BY risk_status'))
+    ind_risk = risk_map(all_(conn, 'SELECT risk_status,COUNT(*) c FROM clients WHERE 1=1' + ND + ' GROUP BY risk_status'))
+    risk_dist = {k: co_risk[k] + ind_risk[k] for k in co_risk}
+    high_risk = risk_dist['High']
+
+    def expcount(col, tbl, lo, hi, nd):
+        if lo is None:
+            return c(f'SELECT COUNT(*) FROM {tbl} WHERE {col}<?' + nd, (str(today),))
+        return c(f'SELECT COUNT(*) FROM {tbl} WHERE {col} BETWEEN ? AND ?' + nd, (str(today + timedelta(days=lo)), str(today + timedelta(days=hi))))
+
+    def docs_exp(days):
+        return (expcount('trade_license_expiry', 'companies', 0, days, ND)
+                + expcount('address_proof_expiry', 'companies', 0, days, ND)
+                + expcount('passport_expiry', 'ubos', 0, days, NDU)
+                + expcount('emirates_id_expiry', 'ubos', 0, days, NDU))
+    docs_exp_30 = docs_exp(30)
+
+    open_tasks = c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done')")
+    new_co = c('SELECT COUNT(*) FROM companies WHERE created_at BETWEEN ? AND ?' + ND, (ps, pe + ' 23:59:59'))
+    new_ind = c('SELECT COUNT(*) FROM clients WHERE created_at BETWEEN ? AND ?' + ND, (ps, pe + ' 23:59:59'))
+
+    # KYC status breakdown (companies + individuals combined)
+    def merge_counts(rows_a, rows_b, key):
+        m = {}
+        for r in list(rows_a) + list(rows_b):
+            k = (r[key] or 'Not set').strip() or 'Not set'
+            m[k] = m.get(k, 0) + r['c']
+        return sorted(m.items(), key=lambda kv: -kv[1])
+    kyc_dist = merge_counts(
+        all_(conn, 'SELECT kyc_status,COUNT(*) c FROM companies WHERE 1=1' + ND + ' GROUP BY kyc_status'),
+        all_(conn, 'SELECT kyc_status,COUNT(*) c FROM clients WHERE 1=1' + ND + ' GROUP BY kyc_status'),
+        'kyc_status')
+    region_dist = [(r['region'] or 'Not set', r['c']) for r in
+                   all_(conn, 'SELECT region,COUNT(*) c FROM companies WHERE 1=1' + ND + ' GROUP BY region ORDER BY c DESC')][:8]
+
+    # ── COMPLIANCE ──
+    screening_dist = [( (r['screening_status'] or 'Not set'), r['c']) for r in
+                      all_(conn, 'SELECT screening_status,COUNT(*) c FROM clients WHERE 1=1' + ND + ' GROUP BY screening_status ORDER BY c DESC')]
+    doc_status_dist = merge_counts(
+        all_(conn, 'SELECT doc_status,COUNT(*) c FROM companies WHERE 1=1' + ND + ' GROUP BY doc_status'),
+        [], 'doc_status')
+    try:
+        assess_co = c('SELECT COUNT(*) FROM company_risk_assessments')
+        assess_ind = c('SELECT COUNT(*) FROM individual_risk_assessments')
+    except Exception:
+        assess_co = assess_ind = 0
+    recent_assessments = []
+    try:
+        ra = all_(conn, """SELECT a.risk_rating, a.assessment_date, c.client_name AS name, 'Company' AS kind
+                 FROM company_risk_assessments a LEFT JOIN companies c ON a.company_id=c.id
+                 ORDER BY a.created_at DESC LIMIT 6""")
+        rb = all_(conn, """SELECT a.risk_rating, a.assessment_date, cl.name AS name, 'Individual' AS kind
+                 FROM individual_risk_assessments a LEFT JOIN clients cl ON a.individual_id=cl.id
+                 ORDER BY a.created_at DESC LIMIT 6""")
+        recent_assessments = sorted(
+            [{'name': r['name'] or '—', 'rating': r['risk_rating'] or '—',
+              'date': str(r['assessment_date'])[:10] if r['assessment_date'] else '—', 'kind': r['kind']}
+             for r in list(ra) + list(rb)],
+            key=lambda x: x['date'], reverse=True)[:8]
+    except Exception:
+        recent_assessments = []
+
+    # ── EXPIRIES pipelines ──
+    def pipeline(col, tbl, nd):
+        return {
+            'expired': expcount(col, tbl, None, None, nd),
+            'd30': expcount(col, tbl, 0, 30, nd),
+            'd60': expcount(col, tbl, 31, 60, nd),
+            'd90': expcount(col, tbl, 61, 90, nd),
+        }
+    expiries = {
+        'Trade License': pipeline('trade_license_expiry', 'companies', ND),
+        'Address Proof': pipeline('address_proof_expiry', 'companies', ND),
+        'UBO Passport': pipeline('passport_expiry', 'ubos', NDU),
+        'UBO Emirates ID': pipeline('emirates_id_expiry', 'ubos', NDU),
+        'Client KYC': pipeline('kyc_expiry_date', 'clients', ND),
+    }
+
+    # ── TASKS ──
+    t_open = open_tasks
+    t_overdue = c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done','pending_close') AND due_date<?", (str(today),))
+    t_due = c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done') AND due_date=?", (str(today),))
+    t_done = c("SELECT COUNT(*) FROM tasks WHERE status='done'")
+    try:
+        reg_total = c('SELECT COUNT(*) FROM regular_task_templates')
+        logs_period = c('SELECT COUNT(*) FROM regular_task_logs WHERE logged_at BETWEEN ? AND ?', (ps, pe + ' 23:59:59'))
+    except Exception:
+        reg_total = logs_period = 0
+    try:
+        add_period = c('SELECT COUNT(*) FROM additional_tasks WHERE from_datetime BETWEEN ? AND ?', (ps, pe + ' 23:59:59'))
+    except Exception:
+        add_period = 0
+    try:
+        staff_task_load = all_(conn, """SELECT u.name,
+              SUM(CASE WHEN t.status NOT IN ('done') THEN 1 ELSE 0 END) AS open_c,
+              SUM(CASE WHEN t.status NOT IN ('done','pending_close') AND t.due_date<? THEN 1 ELSE 0 END) AS overdue_c
+            FROM users u LEFT JOIN tasks t ON t.assigned_to=u.id
+            WHERE u.is_active=1 GROUP BY u.id,u.name
+            HAVING SUM(CASE WHEN t.status NOT IN ('done') THEN 1 ELSE 0 END) > 0
+            ORDER BY open_c DESC""", (str(today),))
+        staff_task_load = [{'name': r['name'], 'open': r['open_c'] or 0, 'overdue': r['overdue_c'] or 0} for r in staff_task_load]
+    except Exception:
+        staff_task_load = []
+
+    conn.close()
+    return render_template('analytics.html',
+        tab=request.args.get('tab', 'overview'), period=period, period_label=period_label,
+        # overview
+        total_co=total_co, total_ind=total_ind, active_co=active_co,
+        pep_co=pep_co, pep_ind=pep_ind, high_risk=high_risk, docs_exp_30=docs_exp_30,
+        open_tasks=open_tasks, new_co=new_co, new_ind=new_ind,
+        risk_dist=risk_dist, kyc_dist=kyc_dist, region_dist=region_dist,
+        # compliance
+        screening_dist=screening_dist, doc_status_dist=doc_status_dist,
+        co_risk=co_risk, ind_risk=ind_risk,
+        assess_co=assess_co, assess_ind=assess_ind, recent_assessments=recent_assessments,
+        # expiries
+        expiries=expiries,
+        # tasks
+        t_open=t_open, t_overdue=t_overdue, t_due=t_due, t_done=t_done,
+        reg_total=reg_total, logs_period=logs_period, add_period=add_period,
+        staff_task_load=staff_task_load,
+    )
+
+
 @app.route('/api/regular-task/add', methods=['POST'])
 @compliance_required
 def api_add_regular_task():

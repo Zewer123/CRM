@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}Analytics - Zewer AML{% endblock %}
+{% block content %}
+<style>
+  .an-kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;border-top:3px solid var(--primary);}
+  .an-kpi-label{font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+  .an-kpi-val{font-size:26px;font-weight:800;color:var(--text);line-height:1;}
+  .an-kpi-sub{font-size:11px;color:var(--text-dim);margin-top:6px;}
+  .an-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px;}
+  .an-card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;}
+  .an-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .an-bar-label{font-size:12px;color:var(--text-muted);width:130px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .an-bar-track{flex:1;height:9px;background:var(--surface2);border-radius:20px;overflow:hidden;}
+  .an-bar-fill{height:100%;border-radius:20px;background:var(--primary);}
+  .an-bar-val{font-size:12px;font-weight:700;color:var(--text);width:34px;text-align:right;flex-shrink:0;}
+  .an-tab-nav{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;}
+  .an-tab-btn{padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;color:var(--text-muted);border:1px solid var(--border);background:var(--surface);}
+  .an-tab-btn.active{background:var(--primary);color:#1c1917;border-color:var(--primary);}
+  .an-grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;}
+  .an-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px;}
+  .an-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+  .an-chip{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;}
+  .an-exp-row{display:grid;grid-template-columns:150px repeat(4,1fr);gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--surface2);}
+  .an-exp-cell{text-align:center;border-radius:8px;padding:8px 4px;}
+  .an-exp-num{font-size:18px;font-weight:800;}
+  .an-exp-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim);margin-top:2px;}
+  .an-empty{text-align:center;padding:36px;color:var(--text-dim);font-size:13px;}
+  @media(max-width:820px){.an-grid4,.an-grid3,.an-grid2{grid-template-columns:1fr 1fr;}}
+  @media(max-width:520px){.an-grid4,.an-grid3,.an-grid2{grid-template-columns:1fr;}.an-exp-row{grid-template-columns:1fr;}}
+</style>
+
+<div class="page-header" style="align-items:flex-start;">
+  <div>
+    <div class="page-title">📈 Analytics</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Compliance performance — {{ period_label }}</div>
+  </div>
+  <div style="display:flex;gap:6px;">
+    <button class="btn btn-sm {% if period=='this_month' %}btn-primary{% else %}btn-ghost{% endif %}" onclick="setPeriod('this_month')">This Month</button>
+    <button class="btn btn-sm {% if period=='last_month' %}btn-primary{% else %}btn-ghost{% endif %}" onclick="setPeriod('last_month')">Last Month</button>
+    <button class="btn btn-sm {% if period=='this_year' %}btn-primary{% else %}btn-ghost{% endif %}" onclick="setPeriod('this_year')">This Year</button>
+  </div>
+</div>
+
+<!-- SUB-TABS -->
+<div class="an-tab-nav">
+  <button class="an-tab-btn" data-tab="overview" onclick="switchAnTab('overview',this)">📊 Overview</button>
+  <button class="an-tab-btn" data-tab="compliance" onclick="switchAnTab('compliance',this)">🛡️ Compliance</button>
+  <button class="an-tab-btn" data-tab="expiries" onclick="switchAnTab('expiries',this)">⏰ Expiries</button>
+  <button class="an-tab-btn" data-tab="tasks" onclick="switchAnTab('tasks',this)">✅ Tasks</button>
+</div>
+
+{% macro bar(label, val, mx, color) %}
+<div class="an-bar-row">
+  <div class="an-bar-label">{{ label }}</div>
+  <div class="an-bar-track"><div class="an-bar-fill" style="width:{{ (100 * val / mx) if mx else 0 }}%;{% if color %}background:{{ color }};{% endif %}"></div></div>
+  <div class="an-bar-val">{{ val }}</div>
+</div>
+{% endmacro %}
+
+{% set risk_colors = {'High':'#ef4444','Medium':'#f59e0b','Low':'#22c55e','Unrated':'#78716c'} %}
+
+<!-- ═══════════ OVERVIEW ═══════════ -->
+<div class="an-tab-pane" id="an-overview">
+  <div class="an-grid4">
+    <div class="an-kpi"><div class="an-kpi-label">Companies</div><div class="an-kpi-val">{{ total_co }}</div><div class="an-kpi-sub">{{ active_co }} active · {{ new_co }} new this period</div></div>
+    <div class="an-kpi" style="border-top-color:#3b82f6;"><div class="an-kpi-label">Individuals</div><div class="an-kpi-val">{{ total_ind }}</div><div class="an-kpi-sub">{{ new_ind }} new this period</div></div>
+    <div class="an-kpi" style="border-top-color:#ef4444;"><div class="an-kpi-label">High-Risk Entities</div><div class="an-kpi-val" style="color:#fca5a5;">{{ high_risk }}</div><div class="an-kpi-sub">across companies + individuals</div></div>
+    <div class="an-kpi" style="border-top-color:#f59e0b;"><div class="an-kpi-label">Docs Expiring ≤30d</div><div class="an-kpi-val" style="color:#fcd34d;">{{ docs_exp_30 }}</div><div class="an-kpi-sub">license, address, passport, EID</div></div>
+  </div>
+  <div class="an-grid3">
+    <div class="an-kpi" style="border-top-color:#8b5cf6;"><div class="an-kpi-label">PEP Flagged</div><div class="an-kpi-val">{{ pep_co + pep_ind }}</div><div class="an-kpi-sub">{{ pep_co }} companies · {{ pep_ind }} individuals</div></div>
+    <div class="an-kpi" style="border-top-color:#22c55e;"><div class="an-kpi-label">Open Tasks</div><div class="an-kpi-val">{{ open_tasks }}</div><div class="an-kpi-sub">not yet closed</div></div>
+    <div class="an-kpi"><div class="an-kpi-label">Total Records</div><div class="an-kpi-val">{{ total_co + total_ind }}</div><div class="an-kpi-sub">whole client base</div></div>
+  </div>
+  <div class="an-grid2">
+    <div class="an-card">
+      <div class="an-card-title">Risk Distribution</div>
+      {% set rmax = risk_dist.values()|max %}
+      {% for k in ['High','Medium','Low','Unrated'] %}{{ bar(k, risk_dist[k], rmax, risk_colors[k]) }}{% endfor %}
+    </div>
+    <div class="an-card">
+      <div class="an-card-title">KYC Status</div>
+      {% if kyc_dist %}{% set kmax = kyc_dist|map(attribute=1)|max %}
+      {% for label, val in kyc_dist %}{{ bar(label, val, kmax, '#3b82f6') }}{% endfor %}
+      {% else %}<div class="an-empty">No KYC data.</div>{% endif %}
+    </div>
+  </div>
+  <div class="an-card">
+    <div class="an-card-title">Companies by Region</div>
+    {% if region_dist %}{% set gmax = region_dist|map(attribute=1)|max %}
+    {% for label, val in region_dist %}{{ bar(label, val, gmax, '#d97706') }}{% endfor %}
+    {% else %}<div class="an-empty">No region data.</div>{% endif %}
+  </div>
+</div>
+
+<!-- ═══════════ COMPLIANCE ═══════════ -->
+<div class="an-tab-pane" id="an-compliance" style="display:none;">
+  <div class="an-grid4">
+    <div class="an-kpi" style="border-top-color:#ef4444;"><div class="an-kpi-label">High Risk</div><div class="an-kpi-val" style="color:#fca5a5;">{{ risk_dist['High'] }}</div></div>
+    <div class="an-kpi" style="border-top-color:#f59e0b;"><div class="an-kpi-label">Medium Risk</div><div class="an-kpi-val" style="color:#fcd34d;">{{ risk_dist['Medium'] }}</div></div>
+    <div class="an-kpi" style="border-top-color:#22c55e;"><div class="an-kpi-label">Low Risk</div><div class="an-kpi-val" style="color:#86efac;">{{ risk_dist['Low'] }}</div></div>
+    <div class="an-kpi"><div class="an-kpi-label">Not Yet Rated</div><div class="an-kpi-val">{{ risk_dist['Unrated'] }}</div></div>
+  </div>
+  <div class="an-grid3">
+    <div class="an-kpi" style="border-top-color:#8b5cf6;"><div class="an-kpi-label">PEP Flagged</div><div class="an-kpi-val">{{ pep_co + pep_ind }}</div><div class="an-kpi-sub">{{ pep_co }} co · {{ pep_ind }} ind</div></div>
+    <div class="an-kpi" style="border-top-color:#3b82f6;"><div class="an-kpi-label">Risk Assessments Done</div><div class="an-kpi-val">{{ assess_co + assess_ind }}</div><div class="an-kpi-sub">{{ assess_co }} co · {{ assess_ind }} ind</div></div>
+    <div class="an-kpi" style="border-top-color:#22c55e;"><div class="an-kpi-label">Records</div><div class="an-kpi-val">{{ total_co + total_ind }}</div></div>
+  </div>
+  <div class="an-grid2">
+    <div class="an-card">
+      <div class="an-card-title">Company Risk</div>
+      {% set cmax = co_risk.values()|max %}
+      {% for k in ['High','Medium','Low','Unrated'] %}{{ bar(k, co_risk[k], cmax, risk_colors[k]) }}{% endfor %}
+    </div>
+    <div class="an-card">
+      <div class="an-card-title">Individual Risk</div>
+      {% set imax = ind_risk.values()|max %}
+      {% for k in ['High','Medium','Low','Unrated'] %}{{ bar(k, ind_risk[k], imax, risk_colors[k]) }}{% endfor %}
+    </div>
+  </div>
+  <div class="an-grid2">
+    <div class="an-card">
+      <div class="an-card-title">Individual Screening Status</div>
+      {% if screening_dist %}{% set smax = screening_dist|map(attribute=1)|max %}
+      {% for label, val in screening_dist %}{{ bar(label, val, smax, '#8b5cf6') }}{% endfor %}
+      {% else %}<div class="an-empty">No screening data.</div>{% endif %}
+    </div>
+    <div class="an-card">
+      <div class="an-card-title">Company Document Status</div>
+      {% if doc_status_dist %}{% set dmax = doc_status_dist|map(attribute=1)|max %}
+      {% for label, val in doc_status_dist %}{{ bar(label, val, dmax, '#3b82f6') }}{% endfor %}
+      {% else %}<div class="an-empty">No document-status data.</div>{% endif %}
+    </div>
+  </div>
+  <div class="an-card">
+    <div class="an-card-title">Recent Risk Assessments</div>
+    {% if recent_assessments %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Entity</th><th>Type</th><th>Rating</th><th>Date</th></tr></thead>
+      <tbody>
+        {% for a in recent_assessments %}
+        <tr>
+          <td style="color:var(--text);">{{ a.name }}</td>
+          <td style="color:var(--text-muted);font-size:12px;">{{ a.kind }}</td>
+          <td><span class="an-chip" style="background:{% if a.rating|lower=='high' %}rgba(239,68,68,.15);color:#fca5a5{% elif a.rating|lower=='medium' %}rgba(245,158,11,.15);color:#fcd34d{% elif a.rating|lower=='low' %}rgba(34,197,94,.12);color:#86efac{% else %}var(--surface3);color:var(--text-muted){% endif %};">{{ a.rating }}</span></td>
+          <td style="color:var(--text-muted);font-size:12px;">{{ a.date }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<div class="an-empty">No risk assessments recorded yet.</div>{% endif %}
+  </div>
+</div>
+
+<!-- ═══════════ EXPIRIES ═══════════ -->
+<div class="an-tab-pane" id="an-expiries" style="display:none;">
+  <div class="an-card">
+    <div class="an-card-title">Document Expiry Pipeline</div>
+    <div class="an-exp-row" style="border-bottom:2px solid var(--border);">
+      <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;">Document</div>
+      <div class="an-exp-lbl" style="text-align:center;">Expired</div>
+      <div class="an-exp-lbl" style="text-align:center;">≤ 30 days</div>
+      <div class="an-exp-lbl" style="text-align:center;">31–60 days</div>
+      <div class="an-exp-lbl" style="text-align:center;">61–90 days</div>
+    </div>
+    {% for name, p in expiries.items() %}
+    <div class="an-exp-row">
+      <div style="font-weight:600;color:var(--text);font-size:13px;">{{ name }}</div>
+      <div class="an-exp-cell" style="background:rgba(239,68,68,.12);"><div class="an-exp-num" style="color:#fca5a5;">{{ p.expired }}</div><div class="an-exp-lbl">Expired</div></div>
+      <div class="an-exp-cell" style="background:rgba(245,158,11,.12);"><div class="an-exp-num" style="color:#fcd34d;">{{ p.d30 }}</div><div class="an-exp-lbl">≤30d</div></div>
+      <div class="an-exp-cell" style="background:rgba(217,119,6,.10);"><div class="an-exp-num" style="color:#fbbf24;">{{ p.d60 }}</div><div class="an-exp-lbl">≤60d</div></div>
+      <div class="an-exp-cell" style="background:var(--surface2);"><div class="an-exp-num" style="color:var(--text-muted);">{{ p.d90 }}</div><div class="an-exp-lbl">≤90d</div></div>
+    </div>
+    {% endfor %}
+  </div>
+  <div style="font-size:12px;color:var(--text-dim);">Expired and ≤30-day items need action first. Passport and Emirates ID track UBOs (beneficial owners); Client KYC tracks individual clients' review dates.</div>
+</div>
+
+<!-- ═══════════ TASKS ═══════════ -->
+<div class="an-tab-pane" id="an-tasks" style="display:none;">
+  <div class="an-grid4">
+    <div class="an-kpi" style="border-top-color:#3b82f6;"><div class="an-kpi-label">Open Tasks</div><div class="an-kpi-val">{{ t_open }}</div></div>
+    <div class="an-kpi" style="border-top-color:#ef4444;"><div class="an-kpi-label">Overdue</div><div class="an-kpi-val" style="color:#fca5a5;">{{ t_overdue }}</div></div>
+    <div class="an-kpi" style="border-top-color:#f59e0b;"><div class="an-kpi-label">Due Today</div><div class="an-kpi-val" style="color:#fcd34d;">{{ t_due }}</div></div>
+    <div class="an-kpi" style="border-top-color:#22c55e;"><div class="an-kpi-label">Closed (all time)</div><div class="an-kpi-val" style="color:#86efac;">{{ t_done }}</div></div>
+  </div>
+  <div class="an-grid3">
+    <div class="an-kpi"><div class="an-kpi-label">Regular Tasks</div><div class="an-kpi-val">{{ reg_total }}</div><div class="an-kpi-sub">recurring templates</div></div>
+    <div class="an-kpi" style="border-top-color:#3b82f6;"><div class="an-kpi-label">Updates Logged</div><div class="an-kpi-val">{{ logs_period }}</div><div class="an-kpi-sub">this period</div></div>
+    <div class="an-kpi" style="border-top-color:#8b5cf6;"><div class="an-kpi-label">Additional Tasks</div><div class="an-kpi-val">{{ add_period }}</div><div class="an-kpi-sub">field/bank visits this period</div></div>
+  </div>
+  <div class="an-card">
+    <div class="an-card-title">Task Load by Staff (open · overdue)</div>
+    {% if staff_task_load %}
+    {% set lmax = staff_task_load|map(attribute='open')|max %}
+    {% for s in staff_task_load %}
+    <div class="an-bar-row">
+      <div class="an-bar-label">{{ s.name }}</div>
+      <div class="an-bar-track"><div class="an-bar-fill" style="width:{{ (100 * s.open / lmax) if lmax else 0 }}%;background:#3b82f6;"></div></div>
+      <div class="an-bar-val">{{ s.open }}</div>
+      <div style="width:70px;text-align:right;font-size:11px;color:{% if s.overdue %}#fca5a5{% else %}var(--text-dim){% endif %};">{{ s.overdue }} overdue</div>
+    </div>
+    {% endfor %}
+    {% else %}<div class="an-empty">No open tasks assigned.</div>{% endif %}
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+function switchAnTab(name, btn) {
+  document.querySelectorAll('.an-tab-pane').forEach(p => p.style.display = 'none');
+  const pane = document.getElementById('an-' + name);
+  if (pane) pane.style.display = '';
+  document.querySelectorAll('.an-tab-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  else { const d = document.querySelector('.an-tab-btn[data-tab="'+name+'"]'); if (d) d.classList.add('active'); }
+  try { history.replaceState(null, '', '?period={{ period }}&tab=' + name); } catch(e){}
+}
+function setPeriod(p) {
+  const tab = new URLSearchParams(window.location.search).get('tab') || 'overview';
+  window.location.search = '?period=' + p + '&tab=' + tab;
+}
+document.addEventListener('DOMContentLoaded', function() {
+  const tab = new URLSearchParams(window.location.search).get('tab') || 'overview';
+  switchAnTab(tab);
+});
+</script>
+{% endblock %}
