@@ -253,6 +253,11 @@ def _pg_ensure_columns():
         "CREATE TABLE IF NOT EXISTS risk_questions (id SERIAL PRIMARY KEY, applies_to TEXT DEFAULT 'both', question TEXT NOT NULL, sort_order INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS risk_answer_options (id SERIAL PRIMARY KEY, question_id INTEGER NOT NULL, label TEXT NOT NULL, score INTEGER NOT NULL DEFAULT 1, sort_order INTEGER DEFAULT 0)",
         "CREATE TABLE IF NOT EXISTS risk_responses (id SERIAL PRIMARY KEY, assessment_type TEXT, assessment_id INTEGER, question_id INTEGER, question_text TEXT, answer_label TEXT, score INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        # Additional-task completion state (explicit Complete button)
+        "CREATE TABLE IF NOT EXISTS additional_tasks (id SERIAL PRIMARY KEY, title TEXT NOT NULL, task_details TEXT, remarks TEXT, from_datetime TIMESTAMP NOT NULL, to_datetime TIMESTAMP NOT NULL, created_by INTEGER NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "ALTER TABLE additional_tasks ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'open'",
+        "ALTER TABLE additional_tasks ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP",
+        "ALTER TABLE additional_tasks ADD COLUMN IF NOT EXISTS completed_by INTEGER",
     ]
     # (risk_questions seeding for PG happens in _run_migrations via _seed_risk_questions)
     try:
@@ -301,7 +306,7 @@ def _run_migrations(conn):
         "regular_task_logs (id {pk}, template_id INTEGER NOT NULL, user_id INTEGER NOT NULL, notes TEXT, status TEXT DEFAULT 'done', logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "internal_documents (id {pk}, doc_name TEXT NOT NULL, doc_category TEXT DEFAULT 'Staff', person_name TEXT, issuing_authority TEXT, issue_date DATE, expiry_date DATE, notes TEXT, added_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "client_documents (id {pk}, client_id INTEGER NOT NULL, doc_type TEXT NOT NULL, file_name TEXT NOT NULL, file_url TEXT NOT NULL, public_id TEXT, uploaded_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
-        "additional_tasks (id {pk}, title TEXT NOT NULL, task_details TEXT, remarks TEXT, from_datetime TIMESTAMP NOT NULL, to_datetime TIMESTAMP NOT NULL, created_by INTEGER NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "additional_tasks (id {pk}, title TEXT NOT NULL, task_details TEXT, remarks TEXT, from_datetime TIMESTAMP NOT NULL, to_datetime TIMESTAMP NOT NULL, created_by INTEGER NOT NULL, status TEXT DEFAULT 'open', completed_at TIMESTAMP, completed_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "aml_tracker (id {pk}, company_id INTEGER, individual_id INTEGER, transaction_date DATE NOT NULL, period TEXT, due_date DATE, vc_no TEXT, payment_mode TEXT, ac_type TEXT, client_name TEXT, transaction_currency TEXT, usd_amount NUMERIC, aed_amount NUMERIC, payment_remarks TEXT, invoice_no TEXT, invoice_amount NUMERIC, invoice_currency TEXT, goaml_submission_date DATE, goaml_status TEXT DEFAULT 'pending', goaml_ref_no TEXT, submitted_by INTEGER NOT NULL, checked_by INTEGER, comment TEXT, verified_ledger BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "company_risk_assessments (id {pk}, company_id INTEGER NOT NULL, jurisdiction_score NUMERIC, ownership_score NUMERIC, delivery_channel_score NUMERIC, payment_method_score NUMERIC, transaction_volume_score NUMERIC, product_score NUMERIC, pep_status_score NUMERIC, nationality_score NUMERIC, years_relationship_score NUMERIC, years_operation_score NUMERIC, third_party_score NUMERIC, sanctions_score NUMERIC, final_score NUMERIC, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "individual_risk_assessments (id {pk}, individual_id INTEGER NOT NULL, nationality_score NUMERIC, residence_status_score NUMERIC, pep_status_score NUMERIC, profession_score NUMERIC, product_score NUMERIC, delivery_channel_score NUMERIC, payment_method_score NUMERIC, transaction_amount_score NUMERIC, years_relationship_score NUMERIC, place_of_birth_score NUMERIC, third_party_score NUMERIC, sanctions_score NUMERIC, final_score NUMERIC, risk_rating TEXT, assessment_date DATE, notes TEXT, assessed_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
@@ -368,6 +373,10 @@ def _run_migrations(conn):
     safe_alter('internal_documents', 'public_id')
     # Logout timestamp on login history
     safe_alter('login_history', 'logout_at', 'TIMESTAMP')
+    # Additional-task completion state (explicit Complete button)
+    safe_alter('additional_tasks', 'status', "TEXT DEFAULT 'open'")
+    safe_alter('additional_tasks', 'completed_at', 'TIMESTAMP')
+    safe_alter('additional_tasks', 'completed_by', 'INTEGER')
     # Force-insert new dropdown values on existing DBs
     new_dd = [
         ('ID TYPE','National ID'),('ID TYPE','Passport'),('ID TYPE','Emirates ID'),('ID TYPE','Visa No'),('ID TYPE','Other'),
@@ -3632,7 +3641,6 @@ def task_history():
        completed one-off tasks, and finished additional-task activities — merged."""
     conn = get_db(); uid = session.get('user_id'); role = session.get('user_role')
     is_mgr = role in ['admin', 'compliance']
-    today = str(dubai_today())
     rows = []
 
     # 1) Regular task logs (recurring completions)
@@ -3678,28 +3686,26 @@ def task_history():
             'when': str(t.get('updated_at'))[:16] if t.get('updated_at') else '',
         })
 
-    # 3) Additional-task activities whose end time has passed (completed)
+    # 3) Additional tasks explicitly marked complete
     try:
         if is_mgr:
             adds = all_(conn, """SELECT a.*,u.name AS staff_name
                 FROM additional_tasks a LEFT JOIN users u ON a.created_by=u.id
-                ORDER BY a.to_datetime DESC LIMIT 1000""")
+                WHERE a.status='completed' ORDER BY a.completed_at DESC LIMIT 1000""")
         else:
             adds = all_(conn, """SELECT a.*,u.name AS staff_name
                 FROM additional_tasks a LEFT JOIN users u ON a.created_by=u.id
-                WHERE a.created_by=? ORDER BY a.to_datetime DESC LIMIT 500""", (uid,))
+                WHERE a.status='completed' AND a.created_by=? ORDER BY a.completed_at DESC LIMIT 500""", (uid,))
     except Exception:
         adds = []
     for a in adds:
-        to_dt = str(a.get('to_datetime') or '')
-        if to_dt[:10] and to_dt[:10] > today:
-            continue  # still upcoming — not done yet
+        when = str(a.get('completed_at') or a.get('to_datetime') or '')
         details = a.get('task_details') or a.get('remarks') or ''
         rows.append({
             'kind': 'Additional', 'title': a.get('title') or '—', 'freq': '',
             'user_id': a.get('created_by'), 'staff_name': a.get('staff_name') or '—',
             'status': 'completed', 'notes': details,
-            'when': to_dt[:16],
+            'when': when[:16],
         })
 
     rows.sort(key=lambda r: r['when'], reverse=True)
@@ -4019,6 +4025,28 @@ def api_delete_additional_task(id):
         if role != 'admin' and task['created_by'] != uid:
             return jsonify({'success': False, 'error': 'Not allowed'}), 403
         x(conn, 'DELETE FROM additional_tasks WHERE id=?', (id,))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return _fail(e)
+
+@app.route('/api/additional-task/<int:id>/complete', methods=['POST'])
+@login_required
+def api_complete_additional_task(id):
+    """Mark an additional task complete, or reopen it. Body: {completed: true|false}."""
+    d = request.get_json(silent=True) or {}
+    completed = d.get('completed', True)
+    try:
+        conn = get_db()
+        uid = session.get('user_id'); role = session.get('user_role')
+        task = one(conn, 'SELECT created_by FROM additional_tasks WHERE id=?', (id,))
+        if not task: return jsonify({'success': False, 'error': 'Not found'}), 404
+        if role not in ('admin', 'compliance') and task['created_by'] != uid:
+            return jsonify({'success': False, 'error': 'Not allowed'}), 403
+        if completed:
+            x(conn, "UPDATE additional_tasks SET status='completed', completed_at=CURRENT_TIMESTAMP, completed_by=? WHERE id=?", (uid, id))
+        else:
+            x(conn, "UPDATE additional_tasks SET status='open', completed_at=NULL, completed_by=NULL WHERE id=?", (id,))
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:

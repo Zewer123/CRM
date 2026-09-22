@@ -483,6 +483,14 @@
   </div>
   {% endif %}
   <div class="form-group" style="min-width:130px;">
+    <label>STATUS</label>
+    <select id="atFilterStatus" onchange="filterAdditional()">
+      <option value="">All</option>
+      <option value="open">Open</option>
+      <option value="completed">Completed</option>
+    </select>
+  </div>
+  <div class="form-group" style="min-width:130px;">
     <label>FROM DATE</label>
     <input type="date" id="atFilterFrom" onchange="filterAdditional()">
   </div>
@@ -512,13 +520,15 @@
           <th>FROM</th>
           <th>TO</th>
           {% if user_role == 'admin' %}<th>STAFF</th>{% endif %}
+          <th>STATUS</th>
           <th>LOGGED</th>
           <th>ACTIONS</th>
         </tr>
       </thead>
       <tbody id="additionalList">
         {% for t in add_tasks %}
-        <tr class="at-row" data-user="{{ t.created_by }}" data-from="{{ t.from_datetime[:10] }}">
+        {% set is_done = t.status == 'completed' %}
+        <tr class="at-row" data-user="{{ t.created_by }}" data-from="{{ t.from_datetime[:10] }}" data-status="{{ t.status or 'open' }}">
           <td><div style="font-weight:600;color:var(--text);">🚗 {{ t.title }}</div></td>
           <td style="font-size:12px;color:var(--text-muted);max-width:280px;">
             {% if t.task_details %}<div>{{ t.task_details[:90] }}{% if t.task_details|length > 90 %}…{% endif %}</div>{% endif %}
@@ -528,15 +538,28 @@
           <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">{{ t.from_datetime }}</td>
           <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">{{ t.to_datetime }}</td>
           {% if user_role == 'admin' %}<td style="font-size:12px;color:var(--text-muted);">{{ t.staff_name or '—' }}</td>{% endif %}
+          <td>
+            {% if is_done %}<span class="badge badge-active">✅ Completed</span>
+            {% else %}<span class="badge" style="background:var(--surface3);color:var(--text-muted);">○ Open</span>{% endif %}
+          </td>
           <td style="font-size:11px;color:var(--text-dim);white-space:nowrap;">{{ t.created_at }}</td>
           <td>
-            {% if user_role == 'admin' or t.created_by == current_user_id %}
-            <button class="btn btn-danger btn-sm btn-icon" onclick="deleteAdditionalTask({{ t.id }})">🗑️</button>
+            <div style="display:flex;gap:6px;">
+            {% if user_role in ['admin','compliance'] or t.created_by == current_user_id %}
+              {% if is_done %}
+              <button class="btn btn-ghost btn-sm" onclick="completeAdditionalTask({{ t.id }}, false)" title="Reopen">↩ Reopen</button>
+              {% else %}
+              <button class="btn btn-primary btn-sm" onclick="completeAdditionalTask({{ t.id }}, true)" title="Mark complete">✓ Complete</button>
+              {% endif %}
             {% endif %}
+            {% if user_role == 'admin' or t.created_by == current_user_id %}
+              <button class="btn btn-danger btn-sm btn-icon" onclick="deleteAdditionalTask({{ t.id }})">🗑️</button>
+            {% endif %}
+            </div>
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="{% if user_role == 'admin' %}7{% else %}6{% endif %}" style="text-align:center;padding:50px;color:var(--text-dim);">No additional tasks logged yet. <a href="#" onclick="openModal('addAdditionalModal');return false;" style="color:var(--primary);">Log one now?</a></td></tr>
+        <tr><td colspan="{% if user_role == 'admin' %}8{% else %}7{% endif %}" style="text-align:center;padding:50px;color:var(--text-dim);">No additional tasks logged yet. <a href="#" onclick="openModal('addAdditionalModal');return false;" style="color:var(--primary);">Log one now?</a></td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -1109,6 +1132,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function filterAdditional() {
   const userFilter = document.getElementById('atFilterUser') ? document.getElementById('atFilterUser').value : '';
+  const statusFilter = document.getElementById('atFilterStatus') ? document.getElementById('atFilterStatus').value : '';
   const fromFilter = document.getElementById('atFilterFrom').value;
   const toFilter = document.getElementById('atFilterTo').value;
 
@@ -1122,6 +1146,7 @@ function filterAdditional() {
     const rowFrom = row.dataset.from;
     let show = true;
     if (userFilter && rowUser !== userFilter) show = false;
+    if (statusFilter && (row.dataset.status || 'open') !== statusFilter) show = false;
     if (fromFilter && rowFrom < fromFilter) show = false;
     if (toFilter && rowFrom > toFilter) show = false;
     row.style.display = show ? '' : 'none';
@@ -1137,9 +1162,22 @@ function filterAdditional() {
 function clearAtFilters() {
   const uf = document.getElementById('atFilterUser');
   if (uf) uf.value = '';
+  const sf = document.getElementById('atFilterStatus');
+  if (sf) sf.value = '';
   document.getElementById('atFilterFrom').value = '';
   document.getElementById('atFilterTo').value = '';
   filterAdditional();
+}
+
+function completeAdditionalTask(id, completed) {
+  fetch(`/api/additional-task/${id}/complete`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({completed: completed})
+  }).then(r => r.json()).then(d => {
+    if (d.success) location.reload();
+    else alert('Error: ' + (d.error || 'could not update'));
+  });
 }
 
 function submitAdditionalTask() {
