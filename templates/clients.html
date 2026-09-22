@@ -376,7 +376,9 @@
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('addClientModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitAddClient()">💾 Save Client</button>
+      <button class="btn btn-ghost" data-role="back" style="display:none;" onclick="clientNavPersonal('a', this)">← Back</button>
+      <button class="btn btn-primary" data-role="next" onclick="clientNavCompliance('a', this)">Save &amp; Next →</button>
+      <button class="btn btn-primary" data-role="save" style="display:none;" onclick="submitAddClient()">💾 Save Client</button>
     </div>
   </div>
 </div>
@@ -554,7 +556,9 @@
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('editClientModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitEditClient()">💾 Save</button>
+      <button class="btn btn-ghost" data-role="back" style="display:none;" onclick="clientNavPersonal('e', this)">← Back</button>
+      <button class="btn btn-primary" data-role="next" onclick="clientNavCompliance('e', this)">Save &amp; Next →</button>
+      <button class="btn btn-primary" data-role="save" style="display:none;" onclick="submitEditClient()">💾 Save</button>
     </div>
   </div>
 </div>
@@ -666,6 +670,39 @@ function switchClientTab(name, btn) {
   btn.classList.add('active');
   modal.querySelectorAll('[id^="ctab-"]').forEach(t => t.style.display = 'none');
   document.getElementById('ctab-' + name).style.display = '';
+  updateClientFooter(modal, name);
+}
+
+// Footer buttons follow the active tab: Personal shows "Save & Next →",
+// Compliance shows "← Back" + the final Save button.
+function updateClientFooter(modal, name) {
+  const isPersonal = (name === 'personal' || name === 'epersonal');
+  const next = modal.querySelector('[data-role="next"]');
+  const back = modal.querySelector('[data-role="back"]');
+  const save = modal.querySelector('[data-role="save"]');
+  if (next) next.style.display = isPersonal ? '' : 'none';
+  if (back) back.style.display = isPersonal ? 'none' : '';
+  if (save) save.style.display = isPersonal ? 'none' : '';
+}
+
+// "Save & Next →": validate the Personal fields, then move to Compliance.
+// (No DB write happens here — the client is created by the final Save.)
+function clientNavCompliance(prefix, btn) {
+  const nm = document.getElementById(prefix + '_name');
+  if (nm && !nm.value.trim()) { alert('Full Name is required'); return; }
+  if (prefix === 'a') {
+    const ph = document.getElementById('a_phone');
+    if (ph && !ph.value.trim()) { alert('Phone number is required'); return; }
+  }
+  const modal = btn.closest('.modal-box');
+  const tabBtns = modal.querySelectorAll('.tab-btn');
+  switchClientTab(prefix === 'a' ? 'compliance' : 'ecompliance', tabBtns[1]);
+}
+
+function clientNavPersonal(prefix, btn) {
+  const modal = btn.closest('.modal-box');
+  const tabBtns = modal.querySelectorAll('.tab-btn');
+  switchClientTab(prefix === 'a' ? 'personal' : 'epersonal', tabBtns[0]);
 }
 
 function handleResidentChange() {
