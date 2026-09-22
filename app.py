@@ -134,6 +134,15 @@ def _open_db():
             c = psycopg2.connect(url, connect_timeout=10,
                                  cursor_factory=psycopg2.extras.RealDictCursor)
             c.autocommit = False
+            # Railway Postgres runs in UTC, so CURRENT_TIMESTAMP (used as the
+            # DEFAULT on created_at/updated_at/logged_at/completed_at) recorded
+            # times ~4h behind Dubai. Pin the session to Dubai so every
+            # auto-timestamp is written as local wall-clock, matching dubai_today().
+            try:
+                cur = c.cursor(); cur.execute("SET TIME ZONE 'Asia/Dubai'"); cur.close(); c.commit()
+            except Exception:
+                try: c.rollback()
+                except Exception: pass
             return c
         except ImportError:
             print("psycopg2 not installed, using SQLite")
