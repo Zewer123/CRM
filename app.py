@@ -2962,6 +2962,18 @@ def get_local_docs_path():
     """Admin-configured folder to also save a local copy of documents (on-prem installs only)."""
     return (get_setting('local_docs_path') or '').strip()
 
+def cld_destroy(public_id):
+    """Delete a file from Cloudinary. Uploads use resource_type='auto', so PDFs/images are
+    stored as 'image', videos as 'video', everything else as 'raw' — try each until one hits."""
+    if not public_id or not HAS_CLD or not os.getenv('CLOUDINARY_CLOUD_NAME'):
+        return
+    for rt in ('image', 'raw', 'video'):
+        try:
+            if cloudinary.uploader.destroy(public_id, resource_type=rt).get('result') == 'ok':
+                return
+        except Exception as e:
+            logger.warning(f'Cloudinary destroy failed ({rt}) for {public_id}: {e}')
+
 def save_local_copy(file_bytes, subfolder, filename):
     """Best-effort local copy of an uploaded document, alongside the Cloudinary copy.
     Only runs if an admin has configured a local path. Never raises — a missing/
@@ -3338,9 +3350,7 @@ def api_upload_document(cid):
 def api_delete_document(did):
     try:
         conn=get_db(); doc=one(conn,'SELECT public_id FROM documents WHERE id=?',(did,))
-        if doc and doc.get('public_id') and HAS_CLD and os.getenv('CLOUDINARY_CLOUD_NAME'):
-            try: cloudinary.uploader.destroy(doc['public_id'],resource_type='raw')
-            except: pass
+        if doc: cld_destroy(doc.get('public_id'))
         x(conn,'DELETE FROM documents WHERE id=?',(did,))
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e:
@@ -4379,9 +4389,7 @@ def api_edit_internal_doc(id):
         conn = get_db()
         if file_url:  # a new file was uploaded — replace, and remove the old one
             old = one(conn, 'SELECT public_id FROM internal_documents WHERE id=?', (id,))
-            if old and old.get('public_id') and HAS_CLD and os.getenv('CLOUDINARY_CLOUD_NAME'):
-                try: cloudinary.uploader.destroy(old['public_id'], resource_type='raw')
-                except: pass
+            if old: cld_destroy(old.get('public_id'))
             x(conn, '''UPDATE internal_documents SET doc_name=?,doc_category=?,person_name=?,
                 issuing_authority=?,issue_date=?,expiry_date=?,notes=?,file_url=?,file_name=?,public_id=?,
                 updated_at=CURRENT_TIMESTAMP WHERE id=?''',
@@ -4409,9 +4417,7 @@ def api_delete_internal_doc(id):
     try:
         conn = get_db()
         doc = one(conn, 'SELECT public_id FROM internal_documents WHERE id=?', (id,))
-        if doc and doc.get('public_id') and HAS_CLD and os.getenv('CLOUDINARY_CLOUD_NAME'):
-            try: cloudinary.uploader.destroy(doc['public_id'], resource_type='raw')
-            except: pass
+        if doc: cld_destroy(doc.get('public_id'))
         x(conn, 'DELETE FROM internal_documents WHERE id=?', (id,))
         commit(conn); conn.close()
         return jsonify({'success': True})
@@ -5081,9 +5087,7 @@ def api_delete_client_document(did):
     try:
         conn = get_db()
         doc = one(conn, 'SELECT public_id FROM client_documents WHERE id=?', (did,))
-        if doc and doc.get('public_id') and HAS_CLD and os.getenv('CLOUDINARY_CLOUD_NAME'):
-            try: cloudinary.uploader.destroy(doc['public_id'], resource_type='raw')
-            except: pass
+        if doc: cld_destroy(doc.get('public_id'))
         x(conn, 'DELETE FROM client_documents WHERE id=?', (did,))
         commit(conn); conn.close()
         return jsonify({'success':True})
