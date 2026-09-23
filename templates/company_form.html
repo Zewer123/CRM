@@ -466,7 +466,7 @@
             <div class="form-group">
               <label>Position</label>
               <select name="ubo_position[]">
-                {% for v in dropdown_data.get('POSITION', ['UBO','Authorized Person','Director','Manager','Partner']) %}
+                {% for v in dropdown_data.get('POSITION', ['UBO','Authorized Person','Director','Manager','Partner','Shareholder','Company']) %}
                 <option value="{{ v }}" {% if u.position == v %}selected{% endif %}>{{ v }}</option>
                 {% endfor %}
               </select>
@@ -566,7 +566,7 @@
       <div class="form-group">
         <label>Position</label>
         <select name="ubo_position[]">
-          {% for v in dropdown_data.get('POSITION', ['UBO','Authorized Person','Director','Manager','Partner']) %}
+          {% for v in dropdown_data.get('POSITION', ['UBO','Authorized Person','Director','Manager','Partner','Shareholder','Company']) %}
           <option value="{{ v }}">{{ v }}</option>
           {% endfor %}
         </select>

@@ -419,6 +419,9 @@ def _run_migrations(conn):
         ('CLIENT DOCUMENT TYPE','Address Proof'),('CLIENT DOCUMENT TYPE','Other'),
         ('INTERNAL DOC CATEGORY','Zewer'),('INTERNAL DOC CATEGORY','Staff'),('INTERNAL DOC CATEGORY','Management'),
         ('INTERNAL DOC CATEGORY','License'),('INTERNAL DOC CATEGORY','Other'),
+        # UBO / authorized-person position (admin-managed; "Company" added for corporate owners)
+        ('POSITION','UBO'),('POSITION','Authorized Person'),('POSITION','Director'),
+        ('POSITION','Manager'),('POSITION','Partner'),('POSITION','Shareholder'),('POSITION','Company'),
     ]
     for field, val in new_dd:
         try:
@@ -724,7 +727,7 @@ def _seed(conn):
         'VAT DECLARATION':['Yes','No','Not Required'],
         'MOA':['Yes','No'], 'PEP':['Yes','No'],
         'UNDERTAKING':['Yes','No'], 'SOURCE OF FUND':['Yes','No'],
-        'POSITION':['UBO','Authorized Person','Director','Manager','Partner'],
+        'POSITION':['UBO','Authorized Person','Director','Manager','Partner','Shareholder','Company'],
         'RESIDENTIAL STATUS':['Resident','Non Resident'],
         'COUNTRY':['United Arab Emirates','Saudi Arabia','Kuwait','Qatar','Bahrain','Oman','India','Pakistan','Bangladesh','Sri Lanka','Philippines','Malaysia','Singapore','China','Hong Kong','Jordan','Lebanon','Syria','Iraq','Yemen','Egypt','Libya','Nigeria','Ethiopia','Republic Of Congo','Turkey','Iran','Afghanistan','Algeria','Canada','United Kingdom','United States of America','France','Ireland','Italy','Germany','Armenia','Belize'],
         'TASK TEMPLATE':['Collect Updated Trade License','KYC Update Required','Address Proof Renewal','Passport Renewal Follow-up','Emirates ID Update','VAT Certificate Collection','Screening Review','MOA Collection','Undertaking Form','Source of Funds Verification','Risk Assessment Review','Annual KYC Review'],
