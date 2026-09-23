@@ -327,9 +327,10 @@
     </div>
     {% endif %}
     <div class="card">
-      <div class="card-title" style="margin-bottom:16px;">📥 Data Backup</div>
+      <div class="card-title" style="margin-bottom:16px;">📊 Excel Snapshot</div>
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:20px;">
-        Downloads a full Excel backup of all CRM data — companies, UBOs, tasks, clients, documents, users, dropdowns, groups, and task logs.
+        Downloads a readable Excel copy of your CRM data — companies, UBOs, tasks, clients, documents, users, dropdowns, groups, and task logs.
+        <span style="color:var(--text-dim);">This is a human-readable snapshot, not a restore file — the automatic daily database backup is what rebuilds the system.</span>
       </div>
       <div style="background:var(--surface2);border-radius:8px;padding:14px;margin-bottom:16px;font-size:12px;color:var(--text-dim);">
         📊 Includes:<br>
@@ -338,7 +339,7 @@
         Users · Groups · Dropdowns
       </div>
       <a href="{{ url_for('admin_backup') }}" class="btn btn-primary" style="display:inline-block;text-decoration:none;">
-        📥 Download Full Backup
+        📥 Download Excel Snapshot
       </a>
     </div>
 
