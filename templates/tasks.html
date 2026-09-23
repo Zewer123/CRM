@@ -381,6 +381,14 @@
       <option value="lastlogged">Last logged</option>
     </select>
   </div>
+  <div class="form-group" style="min-width:140px;">
+    <label>LOGGED FROM</label>
+    <input type="date" id="rtDateFrom" onchange="filterRegular()">
+  </div>
+  <div class="form-group" style="min-width:140px;">
+    <label>LOGGED TO</label>
+    <input type="date" id="rtDateTo" onchange="filterRegular()">
+  </div>
   <div class="form-group" style="min-width:80px;display:flex;align-items:flex-end;">
     <button class="btn btn-ghost btn-sm" onclick="clearRegularFilters()">Clear</button>
   </div>
@@ -668,6 +676,12 @@
     <div class="modal-title">✅ Log Update</div>
     <div id="logTaskTitle" style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;"></div>
     <div id="logOverdueNote" style="font-size:12px;color:#fca5a5;margin-bottom:16px;display:none;"></div>
+    <div id="logCatchupBox" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;">📅 Pending days <span id="logMissedCount" style="color:#fca5a5;"></span></div>
+      <div id="logMissedList" style="font-size:11px;color:var(--text-dim);max-height:96px;overflow:auto;line-height:1.7;margin-bottom:10px;"></div>
+      <button type="button" class="btn btn-sm" style="width:100%;justify-content:center;background:#f59e0b;color:#1c1917;font-weight:600;" onclick="catchUpTask()">⚡ Catch up all — mark every pending day as done</button>
+      <div style="font-size:10px;color:var(--text-dim);margin-top:6px;">Writes one dated "done" record for each day above. Use only if the work really was done.</div>
+    </div>
     <div class="form-group">
       <label>Status</label>
       <select id="logStatus">
@@ -690,6 +704,14 @@
 {% endblock %}
 
 {% block scripts %}
+
+<script>
+// Missed (pending) dates per regular-task template, for the catch-up panel
+window._rtMissed = {
+  {% for t in rt_templates %}"{{ t.id }}": {{ (task_status.get(t.id, {}).get('missed_all') or []) | tojson }}{% if not loop.last %},{% endif %}
+  {% endfor %}
+};
+</script>
 
 <script>
 // Build task lookup for view modal
@@ -941,6 +963,8 @@ function filterRegular() {
   const status = document.getElementById('rtStatus').value;
   const user = document.getElementById('rtUser').value;
   const sort = document.getElementById('rtSort').value;
+  const dFrom = (document.getElementById('rtDateFrom') || {}).value || '';
+  const dTo = (document.getElementById('rtDateTo') || {}).value || '';
   const body = document.getElementById('regularBody');
   if (!body) return;
   const rows = Array.from(body.querySelectorAll('tr.rt-row'));
@@ -952,6 +976,15 @@ function filterRegular() {
     if (status === 'done') { if (!row.dataset.lastlogged) show = false; }
     else if (status && row.dataset.rtstatus !== status) show = false;
     if (user && row.dataset.user !== user) show = false;
+    // date range filters on last-logged date
+    if (dFrom || dTo) {
+      const ll = row.dataset.lastlogged || '';
+      if (!ll) show = false;
+      else {
+        if (dFrom && ll < dFrom) show = false;
+        if (dTo && ll > dTo) show = false;
+      }
+    }
     row.style.display = show ? '' : 'none';
     if (show) visible++;
   });
@@ -986,7 +1019,7 @@ function clearRegularFilters() {
   document.querySelectorAll('.freq-btn').forEach(b => b.classList.remove('active'));
   const allBtn = document.querySelector('.freq-btn[data-freq="all"]');
   if (allBtn) allBtn.classList.add('active');
-  ['rtStatus','rtUser'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['rtStatus','rtUser','rtDateFrom','rtDateTo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const sortEl = document.getElementById('rtSort'); if (sortEl) sortEl.value = 'status';
   filterRegular();
 }
@@ -998,12 +1031,36 @@ function openLogModal(id, title, overdue) {
   document.getElementById('logStatus').value = 'done';
   const note = document.getElementById('logOverdueNote');
   if (overdue > 0) {
-    note.textContent = '⚠️ ' + overdue + ' overdue occurrence' + (overdue > 1 ? 's' : '') + ' — logging once marks today as done. Each log covers one occurrence.';
+    note.textContent = '⚠️ ' + overdue + ' overdue occurrence' + (overdue > 1 ? 's' : '') + ' — "Save Log" marks only today. Use "Catch up all" below to clear the whole backlog.';
     note.style.display = 'block';
   } else {
     note.style.display = 'none';
   }
+  // Populate the pending-days / catch-up panel
+  const box = document.getElementById('logCatchupBox');
+  const missed = (window._rtMissed && window._rtMissed[String(id)]) || [];
+  if (missed.length > 0) {
+    document.getElementById('logMissedCount').textContent = '(' + missed.length + ')';
+    // newest first, chip style
+    document.getElementById('logMissedList').innerHTML = missed.slice().reverse()
+      .map(d => '<span style="display:inline-block;background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:1px 6px;margin:0 4px 4px 0;">' + d + '</span>').join('');
+    box.style.display = 'block';
+  } else {
+    box.style.display = 'none';
+  }
   openModal('logModal');
+}
+
+function catchUpTask() {
+  if (!_logTemplateId) return;
+  const missed = (window._rtMissed && window._rtMissed[String(_logTemplateId)]) || [];
+  const n = missed.length;
+  if (!confirm('Mark all ' + n + ' pending day' + (n === 1 ? '' : 's') + ' as DONE?\n\nThis writes one dated "done" record for each day. Only do this if the work was actually completed on those days.')) return;
+  fetch(`/api/regular-task/${_logTemplateId}/catchup`, { method: 'POST', headers: {'Content-Type':'application/json'} })
+    .then(r => r.json()).then(d => {
+      if (d.success) { closeModal('logModal'); location.reload(); }
+      else alert('Error: ' + (d.error || 'could not catch up'));
+    }).catch(() => alert('Network error'));
 }
 
 function submitLog() {

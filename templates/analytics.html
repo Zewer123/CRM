@@ -324,14 +324,17 @@
 <!-- ═══════════ STAFF ═══════════ -->
 <div class="an-tab-pane" id="an-staff" style="display:none;">
   <div class="an-card" style="padding:0;overflow:hidden;">
-    <div class="an-card-title" style="padding:18px 18px 0;">Staff Activity — {{ period_label }}</div>
+    <div class="an-card-title" style="padding:18px 18px 0;">Staff Task Summary — {{ period_label }}</div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
             <th>Staff</th><th>Role</th>
-            <th>Open Tasks</th><th>Overdue</th><th>Closed</th>
-            <th>Updates Logged</th><th>Additional Tasks</th>
+            <th title="Everything completed within the selected period (one-off + regular logs + additional)">✅ Done ({{ period_label }})</th>
+            <th title="Open one-off tasks assigned now">⏳ Pending</th>
+            <th title="Recurring occurrences not yet logged (the backlog)">🔁 Reg. Backlog</th>
+            <th title="Assigned tasks past their due date">⚠️ Overdue</th>
+            <th title="Assigned tasks due today">🔔 Due Today</th>
           </tr>
         </thead>
         <tbody>
@@ -339,11 +342,14 @@
           <tr>
             <td style="font-weight:600;color:var(--text);">{{ s.name }}</td>
             <td style="color:var(--text-muted);font-size:12px;">{{ s.role }}</td>
+            <td>
+              <span style="font-weight:700;color:#86efac;">{{ s.done }}</span>
+              <div style="font-size:10px;color:var(--text-dim);">{{ s.temp_done }} one-off · {{ s.logs }} regular · {{ s.add_done }} add'l</div>
+            </td>
             <td><span style="font-weight:700;color:var(--text);">{{ s.open }}</span></td>
+            <td>{% if s.reg_pending %}<span style="font-weight:700;color:#fcd34d;">{{ s.reg_pending }}</span>{% else %}<span style="color:var(--text-dim);">0</span>{% endif %}</td>
             <td>{% if s.overdue %}<span style="font-weight:700;color:#fca5a5;">{{ s.overdue }}</span>{% else %}<span style="color:var(--text-dim);">0</span>{% endif %}</td>
-            <td style="color:#86efac;">{{ s.done }}</td>
-            <td style="color:var(--text-muted);">{{ s.logs }}</td>
-            <td style="color:var(--text-muted);">{{ s.additional }}</td>
+            <td>{% if s.due_today %}<span style="font-weight:700;color:#fcd34d;">{{ s.due_today }}</span>{% else %}<span style="color:var(--text-dim);">0</span>{% endif %}</td>
           </tr>
           {% else %}
           <tr><td colspan="7" class="an-empty">No active staff.</td></tr>
@@ -352,7 +358,7 @@
       </table>
     </div>
   </div>
-  <div style="font-size:12px;color:var(--text-dim);">Open Tasks / Overdue / Closed count assigned temp tasks. Updates Logged and Additional Tasks are counted within the selected period.</div>
+  <div style="font-size:12px;color:var(--text-dim);"><strong>Done</strong> counts everything completed inside <strong>{{ period_label }}</strong> (one-off tasks closed + regular logs + additional tasks completed). <strong>Pending / Overdue / Due Today</strong> are the live position right now. <strong>Reg. Backlog</strong> is unlogged recurring occurrences — clear it from Tasks → Regular → Log → "Catch up all". Use the period buttons at the top to change the window.</div>
 </div>
 
 {% endblock %}

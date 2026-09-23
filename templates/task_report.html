@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Staff Task Report - Zewer AML{% endblock %}
+{% block content %}
+<style>
+  .tr-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;overflow:hidden;}
+  .tr-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;cursor:pointer;flex-wrap:wrap;}
+  .tr-head:hover{background:var(--surface2);}
+  .tr-name{font-size:15px;font-weight:700;color:var(--text);}
+  .tr-role{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;}
+  .tr-chips{display:flex;gap:8px;flex-wrap:wrap;}
+  .tr-chip{font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;white-space:nowrap;}
+  .tr-body{border-top:1px solid var(--border);padding:16px 18px;display:none;}
+  .tr-body.open{display:block;}
+  .tr-sub{font-size:12px;font-weight:700;color:var(--text);margin:14px 0 8px;text-transform:uppercase;letter-spacing:.4px;}
+  .tr-sub:first-child{margin-top:0;}
+  .tr-table{width:100%;border-collapse:collapse;}
+  .tr-table th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim);padding:6px 8px;border-bottom:1px solid var(--border);}
+  .tr-table td{font-size:12px;color:var(--text-muted);padding:6px 8px;border-bottom:1px solid var(--surface2);}
+  .tr-none{font-size:12px;color:var(--text-dim);padding:4px 0;}
+  .b-done{background:rgba(34,197,94,0.14);color:#86efac;}
+  .b-pend{background:rgba(59,130,246,0.14);color:#93c5fd;}
+  .b-over{background:rgba(239,68,68,0.14);color:#fca5a5;}
+  .b-back{background:rgba(245,158,11,0.14);color:#fcd34d;}
+  @media print{.no-print{display:none!important;}.tr-body{display:block!important;}.tr-head{cursor:default;}}
+</style>
+
+<div class="page-header">
+  <div class="page-title">✅ Staff Task Report</div>
+  <a href="{{ url_for('reports') }}" class="btn btn-ghost btn-sm no-print">← Back to Reports</a>
+</div>
+<div style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">Every task each staff member completed, has pending, or is overdue on — one-off, regular (recurring), and additional — for the selected date range.</div>
+
+<!-- FILTER -->
+<div class="card no-print" style="margin-bottom:20px;">
+  <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;">
+    <div class="form-group" style="min-width:150px;">
+      <label>STAFF</label>
+      <select id="trStaff">
+        <option value="">All staff</option>
+        {% for u in all_users %}<option value="{{ u.id }}" {% if staff_id==u.id|string %}selected{% endif %}>{{ u.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="min-width:150px;">
+      <label>FROM</label>
+      <input type="date" id="trFrom" value="{{ date_from }}">
+    </div>
+    <div class="form-group" style="min-width:150px;">
+      <label>TO</label>
+      <input type="date" id="trTo" value="{{ date_to }}">
+    </div>
+    <div style="display:flex;gap:8px;padding-bottom:2px;flex-wrap:wrap;">
+      <button class="btn btn-ghost btn-sm" onclick="trRange('month')">This Month</button>
+      <button class="btn btn-ghost btn-sm" onclick="trRange('last')">Last Month</button>
+      <button class="btn btn-ghost btn-sm" onclick="trRange('year')">This Year</button>
+      <button class="btn btn-primary btn-sm" onclick="trApply()">Apply</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Print</button>
+    </div>
+  </div>
+</div>
+
+{% for s in report %}
+<div class="tr-card">
+  <div class="tr-head" onclick="this.parentElement.querySelector('.tr-body').classList.toggle('open')">
+    <div>
+      <div class="tr-name">{{ s.name }}</div>
+      <div class="tr-role">{{ s.role }}</div>
+    </div>
+    <div class="tr-chips">
+      <span class="tr-chip b-done">✅ {{ s.done_total }} done</span>
+      <span class="tr-chip b-pend">⏳ {{ s.temp_pending|length + s.add_open }} pending</span>
+      <span class="tr-chip b-over">⚠️ {{ s.temp_overdue|length }} overdue</span>
+      <span class="tr-chip b-back">🔁 {{ s.reg_pending }} backlog</span>
+    </div>
+  </div>
+  <div class="tr-body">
+
+    <div class="tr-sub">✅ Done in range — one-off ({{ s.temp_done|length }})</div>
+    {% if s.temp_done %}
+    <table class="tr-table"><thead><tr><th>Task</th><th>Company</th><th>Due</th></tr></thead><tbody>
+      {% for t in s.temp_done %}<tr><td style="color:var(--text);">{{ t.title }}</td><td>{{ t.company or '—' }}</td><td>{{ t.due or '—' }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% else %}<div class="tr-none">None closed in this range.</div>{% endif %}
+
+    <div class="tr-sub">🔁 Regular logs in range ({{ s.reg_list|length }})</div>
+    {% if s.reg_list %}
+    <table class="tr-table"><thead><tr><th>Task</th><th>Date</th><th>Status</th><th>Notes</th></tr></thead><tbody>
+      {% for r in s.reg_list %}<tr><td style="color:var(--text);">{{ r.title }}</td><td>{{ r.date }}</td><td>{{ r.status }}</td><td>{{ r.notes or '—' }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% else %}<div class="tr-none">No regular-task logs in this range.</div>{% endif %}
+
+    <div class="tr-sub">➕ Additional tasks in range ({{ s.add_list|length }})</div>
+    {% if s.add_list %}
+    <table class="tr-table"><thead><tr><th>Task</th><th>From</th><th>To</th><th>Status</th></tr></thead><tbody>
+      {% for a in s.add_list %}<tr><td style="color:var(--text);">{{ a.title }}</td><td>{{ a.from }}</td><td>{{ a.to }}</td><td>{% if a.status=='completed' %}✅ Completed{% else %}○ Open{% endif %}</td></tr>{% endfor %}
+    </tbody></table>
+    {% else %}<div class="tr-none">No additional tasks in this range.</div>{% endif %}
+
+    <div class="tr-sub">⏳ Currently pending / overdue (one-off)</div>
+    {% if s.temp_pending or s.temp_overdue %}
+    <table class="tr-table"><thead><tr><th>Task</th><th>Company</th><th>Due</th><th>State</th></tr></thead><tbody>
+      {% for t in s.temp_overdue %}<tr><td style="color:var(--text);">{{ t.title }}</td><td>{{ t.company or '—' }}</td><td>{{ t.due or '—' }}</td><td><span style="color:#fca5a5;">Overdue</span></td></tr>{% endfor %}
+      {% for t in s.temp_pending %}<tr><td style="color:var(--text);">{{ t.title }}</td><td>{{ t.company or '—' }}</td><td>{{ t.due or '—' }}</td><td><span style="color:#93c5fd;">Pending</span></td></tr>{% endfor %}
+    </tbody></table>
+    {% else %}<div class="tr-none">Nothing pending.</div>{% endif %}
+    {% if s.reg_pending %}<div class="tr-none" style="color:#fcd34d;margin-top:8px;">🔁 Plus {{ s.reg_pending }} unlogged recurring occurrence(s) — clear from Tasks → Regular → Log → "Catch up all".</div>{% endif %}
+
+  </div>
+</div>
+{% else %}
+<div class="card"><div style="text-align:center;padding:40px;color:var(--text-dim);">No active staff to report on.</div></div>
+{% endfor %}
+
+{% endblock %}
+{% block scripts %}
+<script>
+function trRange(type) {
+  const now = new Date();
+  let from, to = now.toISOString().split('T')[0];
+  if (type === 'month') from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  else if (type === 'last') { const d = new Date(now.getFullYear(), now.getMonth()-1, 1); from = d.toISOString().split('T')[0]; to = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0]; }
+  else if (type === 'year') from = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+  document.getElementById('trFrom').value = from || '';
+  document.getElementById('trTo').value = to || '';
+  trApply();
+}
+function trApply() {
+  const staff = document.getElementById('trStaff').value;
+  const from = document.getElementById('trFrom').value;
+  const to = document.getElementById('trTo').value;
+  let url = '{{ url_for("task_report") }}?';
+  const p = [];
+  if (staff) p.push('staff=' + encodeURIComponent(staff));
+  if (from) p.push('from=' + from);
+  if (to) p.push('to=' + to);
+  window.location.href = url + p.join('&');
+}
+</script>
+{% endblock %}

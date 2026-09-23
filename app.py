@@ -2165,6 +2165,95 @@ def reports():
         expiring_90=cnt(conn,'SELECT COUNT(*) FROM companies WHERE trade_license_expiry BETWEEN ? AND ? AND disabled IS NOT TRUE',(today,today+timedelta(days=90))))
     conn.close(); return res
 
+
+@app.route('/reports/tasks')
+@require_perm('reports')
+def task_report():
+    """On-screen detailed task report: per staff, every task done / pending / overdue
+       within the selected date range (one-off + regular + additional)."""
+    conn = get_db(); today = dubai_today()
+    df = request.args.get('from', ''); dt = request.args.get('to', '')
+    staff_id = request.args.get('staff', '')
+    if not df and not dt:                       # default = this month
+        df = str(today.replace(day=1)); dt = str(today)
+    ps = df or '1900-01-01'; pe = (dt or str(today)) + ' 23:59:59'
+
+    all_users = all_(conn, 'SELECT id,name,role FROM users WHERE is_active=1 ORDER BY name')
+    users = [u for u in all_users if (not staff_id or str(u['id']) == str(staff_id))]
+
+    report = []
+    for u in users:
+        uid = u['id']; urole = (u['role'] or '').lower()
+
+        # ── one-off tasks assigned to this staff ──
+        temp = all_(conn, """SELECT t.title,t.status,t.priority,t.due_date,t.updated_at,c.client_name AS company
+            FROM tasks t LEFT JOIN companies c ON t.company_id=c.id
+            WHERE t.assigned_to=? ORDER BY t.due_date""", (uid,))
+        temp_done = []; temp_pending = []; temp_overdue = []
+        for t in temp:
+            st = (t['status'] or 'todo')
+            due = str(t['due_date']) if t['due_date'] else ''
+            item = {'title': t['title'], 'status': st, 'due': due,
+                    'company': t.get('company') or '', 'priority': t.get('priority') or 'normal'}
+            if st == 'done':
+                upd = str(t['updated_at'] or '')[:10]
+                if (not df or upd >= df) and (not dt or upd <= dt):
+                    temp_done.append(item)                 # closed within range
+            elif due and due < str(today):
+                temp_overdue.append(item)
+            else:
+                temp_pending.append(item)
+
+        # ── regular-task logs within range ──
+        try:
+            reg = all_(conn, """SELECT rt.title,l.status,DATE(l.logged_at) AS d,l.notes
+                FROM regular_task_logs l JOIN regular_task_templates rt ON l.template_id=rt.id
+                WHERE l.user_id=? AND l.logged_at BETWEEN ? AND ? ORDER BY l.logged_at DESC""", (uid, ps, pe))
+        except Exception:
+            reg = []
+        reg_list = [{'title': r['title'], 'status': r['status'] or 'done',
+                     'date': str(r['d']), 'notes': r['notes'] or ''} for r in reg]
+
+        # ── regular-task backlog (unlogged occurrences) ──
+        reg_pending = 0
+        try:
+            if urole in ('admin', 'compliance'):
+                tmpls = all_(conn, "SELECT id,frequency,created_at FROM regular_task_templates WHERE assigned_user_id=?", (uid,))
+            else:
+                tmpls = all_(conn, "SELECT id,frequency,created_at FROM regular_task_templates WHERE assigned_role='all' OR assigned_user_id=? OR assigned_role=?", (uid, urole))
+            for tm in tmpls:
+                reg_pending += len(_regular_missed_dates(conn, tm['id'], uid, tm['frequency'], tm.get('created_at'), today))
+        except Exception:
+            reg_pending = 0
+
+        # ── additional tasks touching the range ──
+        try:
+            adds = all_(conn, """SELECT title,status,from_datetime,to_datetime,completed_at,task_details
+                FROM additional_tasks
+                WHERE created_by=? AND ((from_datetime BETWEEN ? AND ?) OR (completed_at BETWEEN ? AND ?))
+                ORDER BY from_datetime DESC""", (uid, ps, pe, ps, pe))
+        except Exception:
+            adds = []
+        add_list = [{'title': a['title'], 'status': a['status'] or 'open',
+                     'from': str(a['from_datetime'])[:16], 'to': str(a['to_datetime'])[:16],
+                     'details': a.get('task_details') or ''} for a in adds]
+        add_done = len([a for a in add_list if a['status'] == 'completed'])
+        add_open = len(add_list) - add_done
+
+        report.append({
+            'name': u['name'], 'role': (u['role'] or '').title(),
+            'temp_done': temp_done, 'temp_pending': temp_pending, 'temp_overdue': temp_overdue,
+            'reg_list': reg_list, 'reg_pending': reg_pending,
+            'add_list': add_list, 'add_done': add_done, 'add_open': add_open,
+            'done_total': len(temp_done) + len(reg_list) + add_done,
+            'pending_total': len(temp_pending) + len(temp_overdue) + reg_pending + add_open,
+        })
+    report.sort(key=lambda r: (-r['done_total'], r['name']))
+    conn.close()
+    return render_template('task_report.html', report=report, all_users=all_users,
+                           date_from=df, date_to=dt, staff_id=staff_id)
+
+
 # ──────────── AML TRACKER ────────────
 @app.route('/aml-tracker')
 @compliance_required
@@ -3107,7 +3196,8 @@ def tasks():
             task_status[t['id']]={
                 'overdue_count':len(missed),'is_due_today':is_due_today,
                 'next_due':str(next_due),'last_logged':user_logs[-1]['log_date'] if user_logs else None,
-                'missed_dates':[str(d) for d in missed[-3:]]
+                'missed_dates':[str(d) for d in missed[-3:]],
+                'missed_all':[str(d) for d in missed[-180:]]
             }
         except: task_status[t['id']]={'overdue_count':0,'is_due_today':False,'next_due':str(today),'last_logged':None,'missed_dates':[]}
 
@@ -3921,26 +4011,48 @@ def analytics():
     ind_resident = c('SELECT COUNT(*) FROM clients WHERE is_resident IS TRUE' + ND)
     ind_nonresident = total_ind - ind_resident
 
-    # ── STAFF tab ──
+    # ── STAFF tab (period-aware: Done in period · Pending now · Due) ──
     staff_full = []
+    pe_end = pe + ' 23:59:59'
     try:
         for u in all_(conn, 'SELECT id,name,role FROM users WHERE is_active=1 ORDER BY name'):
-            uid = u['id']
+            uid = u['id']; urole = (u['role'] or '').lower()
+            # live snapshot (now)
             open_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status NOT IN ('done')", (uid,))
             overdue_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status NOT IN ('done','pending_close') AND due_date<?", (uid, str(today)))
-            done_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status='done'", (uid,))
+            due_today_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status NOT IN ('done') AND due_date=?", (uid, str(today)))
+            # completed within the selected period
+            temp_done_p = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status='done' AND updated_at BETWEEN ? AND ?", (uid, ps, pe_end))
             try:
-                logs_c = c('SELECT COUNT(*) FROM regular_task_logs WHERE user_id=? AND logged_at BETWEEN ? AND ?', (uid, ps, pe + ' 23:59:59'))
+                logs_c = c('SELECT COUNT(*) FROM regular_task_logs WHERE user_id=? AND logged_at BETWEEN ? AND ?', (uid, ps, pe_end))
             except Exception:
                 logs_c = 0
             try:
-                add_c = c('SELECT COUNT(*) FROM additional_tasks WHERE created_by=? AND from_datetime BETWEEN ? AND ?', (uid, ps, pe + ' 23:59:59'))
+                add_done_p = c("SELECT COUNT(*) FROM additional_tasks WHERE created_by=? AND status='completed' AND completed_at BETWEEN ? AND ?", (uid, ps, pe_end))
+            except Exception:
+                add_done_p = 0
+            try:
+                add_c = c('SELECT COUNT(*) FROM additional_tasks WHERE created_by=? AND from_datetime BETWEEN ? AND ?', (uid, ps, pe_end))
             except Exception:
                 add_c = 0
+            # regular-task pending backlog (missed occurrences this user still owes)
+            reg_pending = 0
+            try:
+                if urole in ('admin', 'compliance'):
+                    tmpls = all_(conn, "SELECT id,frequency,created_at FROM regular_task_templates WHERE assigned_user_id=?", (uid,))
+                else:
+                    tmpls = all_(conn, "SELECT id,frequency,created_at FROM regular_task_templates WHERE assigned_role='all' OR assigned_user_id=? OR assigned_role=?", (uid, urole))
+                for tm in tmpls:
+                    reg_pending += len(_regular_missed_dates(conn, tm['id'], uid, tm['frequency'], tm.get('created_at'), today))
+            except Exception:
+                reg_pending = 0
+            done_period = (temp_done_p or 0) + (logs_c or 0) + (add_done_p or 0)
             staff_full.append({'name': u['name'], 'role': (u['role'] or '').title(),
-                               'open': open_c, 'overdue': overdue_c, 'done': done_c,
-                               'logs': logs_c, 'additional': add_c})
-        staff_full.sort(key=lambda s: (-(s['open'] + s['logs'] + s['additional']), s['name']))
+                               'open': open_c, 'overdue': overdue_c, 'due_today': due_today_c,
+                               'done': done_period, 'temp_done': temp_done_p or 0,
+                               'logs': logs_c, 'add_done': add_done_p or 0,
+                               'reg_pending': reg_pending, 'additional': add_c})
+        staff_full.sort(key=lambda s: (-(s['done'] + s['open'] + s['reg_pending']), s['name']))
     except Exception:
         staff_full = []
 
@@ -4004,6 +4116,73 @@ def api_delete_regular_task(id):
         try: conn.close()
         except: pass
         return _fail(e)
+
+# ── Shared regular-task date helpers (module-level, reused by catch-up + reports) ──
+def _regular_due_dates(freq, since_date, today):
+    """Every due date for a recurring task between since_date and today (inclusive)."""
+    dates = []
+    if freq == 'daily':
+        d = since_date
+        while d <= today:
+            dates.append(d); d += timedelta(days=1)
+    elif freq == 'weekly':
+        d = since_date
+        days_ahead = (4 - d.weekday()) % 7   # Fridays
+        d = d + timedelta(days=days_ahead)
+        while d <= today:
+            dates.append(d); d += timedelta(weeks=1)
+    elif freq == 'monthly':
+        d = since_date.replace(day=1)
+        while True:
+            try: due = d.replace(day=25)
+            except ValueError: due = None
+            if due and due >= since_date and due <= today:
+                dates.append(due)
+            if d.month == 12: d = d.replace(year=d.year + 1, month=1)
+            else: d = d.replace(month=d.month + 1)
+            if d > today: break
+    return dates
+
+def _regular_missed_dates(conn, template_id, user_id, frequency, created_at, today):
+    """Due dates for this template/user that have no log yet (the backlog)."""
+    try:
+        user_logs = all_(conn, """SELECT DATE(logged_at) as log_date FROM regular_task_logs
+            WHERE template_id=? AND user_id=? ORDER BY logged_at ASC""", (template_id, user_id))
+        logged = set(str(r['log_date']) for r in user_logs)
+        try: start = datetime.strptime(str(created_at)[:10], '%Y-%m-%d').date()
+        except Exception: start = today
+        due = _regular_due_dates(frequency, start, today)
+        return [d for d in due if str(d) not in logged]
+    except Exception:
+        return []
+
+
+@app.route('/api/regular-task/<int:id>/catchup', methods=['POST'])
+@require_perm('regular_tasks_log')
+def api_catchup_regular_task(id):
+    """Backdate a 'done' log for every missed occurrence of this task, up to today.
+       Clears the overdue backlog in one action (each missed day gets its own dated log)."""
+    conn = None
+    try:
+        conn = get_db()
+        uid = session.get('user_id'); today = dubai_today()
+        t = one(conn, 'SELECT id,title,frequency,created_at FROM regular_task_templates WHERE id=?', (id,))
+        if not t:
+            return jsonify({'success': False, 'error': 'Task not found'}), 404
+        missed = _regular_missed_dates(conn, id, uid, t['frequency'], t.get('created_at'), today)
+        n = 0
+        for d in missed:
+            x(conn, '''INSERT INTO regular_task_logs (template_id, user_id, notes, status, logged_at)
+                VALUES (?,?,?,?,?)''',
+              (id, uid, 'Catch-up (backdated)', 'done', str(d) + ' 12:00:00'))
+            n += 1
+        commit(conn); conn.close()
+        return jsonify({'success': True, 'count': n})
+    except Exception as e:
+        try: conn.close()
+        except Exception: pass
+        return _fail(e)
+
 
 @app.route('/api/regular-task/<int:id>/log', methods=['POST'])
 @require_perm('regular_tasks_log')
