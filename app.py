@@ -407,6 +407,18 @@ def _run_migrations(conn):
         ('ID TYPE','National ID'),('ID TYPE','Passport'),('ID TYPE','Emirates ID'),('ID TYPE','Visa No'),('ID TYPE','Other'),
         ('SCREENING REGISTRATION STATUS','Yes'),('SCREENING REGISTRATION STATUS','No'),
         ('SCREENING REGISTRATION STATUS','Not Required'),('SCREENING REGISTRATION STATUS','Pending'),
+        # Newly admin-managed dropdowns (previously hardcoded in the forms)
+        ('ADDRESS PROOF TYPE','Utility Bill'),('ADDRESS PROOF TYPE','Bank Statement'),
+        ('ADDRESS PROOF TYPE','Tenancy Contract'),('ADDRESS PROOF TYPE','Government Letter'),('ADDRESS PROOF TYPE','Other'),
+        ('COMPANY DOCUMENT TYPE','Trade License'),('COMPANY DOCUMENT TYPE','Address Proof (Ejari/Tenancy)'),
+        ('COMPANY DOCUMENT TYPE','Passport'),('COMPANY DOCUMENT TYPE','Emirates ID'),('COMPANY DOCUMENT TYPE','MOA'),
+        ('COMPANY DOCUMENT TYPE','VAT Certificate'),('COMPANY DOCUMENT TYPE','Undertaking'),
+        ('COMPANY DOCUMENT TYPE','Source of Funds'),('COMPANY DOCUMENT TYPE','KYC Form'),
+        ('COMPANY DOCUMENT TYPE','Screening Report'),('COMPANY DOCUMENT TYPE','Other'),
+        ('CLIENT DOCUMENT TYPE','Passport Copy'),('CLIENT DOCUMENT TYPE','Emirates ID'),
+        ('CLIENT DOCUMENT TYPE','Address Proof'),('CLIENT DOCUMENT TYPE','Other'),
+        ('INTERNAL DOC CATEGORY','Zewer'),('INTERNAL DOC CATEGORY','Staff'),('INTERNAL DOC CATEGORY','Management'),
+        ('INTERNAL DOC CATEGORY','License'),('INTERNAL DOC CATEGORY','Other'),
     ]
     for field, val in new_dd:
         try:
@@ -1302,6 +1314,7 @@ def company_detail(id):
                    'emirates_id_expiry':str(u['emirates_id_expiry']) if u['emirates_id_expiry'] else None})
     return render_template('company_detail.html',company=co,ubos=ul,
         tl_days=tl,tl_status=exp_status(tl),ap_days=ap,ap_status=exp_status(ap),
+        company_doc_types=dropdowns().get('COMPANY DOCUMENT TYPE', ['Trade License','Address Proof (Ejari/Tenancy)','Passport','Emirates ID','MOA','VAT Certificate','Undertaking','Source of Funds','KYC Form','Screening Report','Other']),
         today=str(dubai_today()))
 
 @app.route('/company/<int:id>/edit')
@@ -4122,7 +4135,8 @@ def internal_docs():
     users = all_(conn, 'SELECT id,name FROM users WHERE is_active=1 ORDER BY name')
     conn.close()
     return render_template('internal_docs.html', docs=doc_list, today=str(today), all_users=users,
-                           stats=stats, grouped=grouped, cat_counts=cat_counts)
+                           stats=stats, grouped=grouped, cat_counts=cat_counts,
+                           doc_categories=dropdowns().get('INTERNAL DOC CATEGORY', ['Zewer','Staff','Management','License','Other']))
 
 def _internal_doc_file(existing_public_id=None):
     """Upload an attached file to Cloudinary if present. Returns (file_url, file_name, public_id) or (None,None,None)."""
@@ -4386,6 +4400,7 @@ def clients():
         modes=dd.get('MODE OF AC',[]), ac_statuses=dd.get('AC STATUS',[]), id_types=dd.get('ID TYPE',[]),
         kyc_statuses=dd.get('KYC STATUS',[]), risk_statuses=dd.get('RISK STATUS',[]),
         screening_statuses=dd.get('SCREENING REGISTRATION STATUS',[]),
+        addr_proof_types=dd.get('ADDRESS PROOF TYPE', ['Utility Bill','Bank Statement','Tenancy Contract','Government Letter','Other']),
         search=s, resident_filter=resident_f, mode_filter=mode_f, status_filter=status_f,
         page=page, total_pages=total_pages, total_count=total_count, per_page=per_page)
 
@@ -4896,7 +4911,8 @@ def client_detail(id):
     sd = c.get('screening_date')
     c['screening_date'] = str(sd)[:10] if sd else None
     c['kyc_expiry_status'] = exp_status(days_left(ke)) if ke else 'unknown'
-    return render_template('client_detail.html', client=c, documents=docs)
+    return render_template('client_detail.html', client=c, documents=docs,
+        client_doc_types=dropdowns().get('CLIENT DOCUMENT TYPE', ['Passport Copy','Emirates ID','Address Proof','Other']))
 
 
 

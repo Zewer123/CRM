@@ -227,11 +227,7 @@
           <div class="form-group form-full">
             <label>Document Type *</label>
             <select id="fUploadDocType">
-              <option>Trade License</option><option>Address Proof (Ejari/Tenancy)</option>
-              <option>Passport</option><option>Emirates ID</option><option>MOA</option>
-              <option>VAT Certificate</option><option>Undertaking</option>
-              <option>Source of Funds</option><option>KYC Form</option>
-              <option>Screening Report</option><option>Other</option>
+              {% for v in dropdown_data.get('COMPANY DOCUMENT TYPE', ['Trade License','Address Proof (Ejari/Tenancy)','Passport','Emirates ID','MOA','VAT Certificate','Undertaking','Source of Funds','KYC Form','Screening Report','Other']) %}<option>{{ v }}</option>{% endfor %}
             </select>
           </div>
           <div class="form-group form-full">

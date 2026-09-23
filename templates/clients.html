@@ -299,11 +299,7 @@
               <label>Address Proof Type</label>
               <select id="a_addr_proof">
                 <option value="">— Select —</option>
-                <option>Utility Bill</option>
-                <option>Bank Statement</option>
-                <option>Tenancy Contract</option>
-                <option>Government Letter</option>
-                <option>Other</option>
+                {% for v in addr_proof_types %}<option>{{ v }}</option>{% endfor %}
               </select>
             </div>
           </div>
@@ -483,11 +479,7 @@
               <label>Address Proof Type</label>
               <select id="e_addr_proof">
                 <option value="">— Select —</option>
-                <option>Utility Bill</option>
-                <option>Bank Statement</option>
-                <option>Tenancy Contract</option>
-                <option>Government Letter</option>
-                <option>Other</option>
+                {% for v in addr_proof_types %}<option>{{ v }}</option>{% endfor %}
               </select>
             </div>
           </div>

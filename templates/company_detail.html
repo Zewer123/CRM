@@ -253,11 +253,7 @@
       <div class="form-group form-full">
         <label>Document Type *</label>
         <select id="uploadDocType">
-          <option>Trade License</option><option>Address Proof (Ejari/Tenancy)</option>
-          <option>Passport</option><option>Emirates ID</option><option>MOA</option>
-          <option>VAT Certificate</option><option>Undertaking</option>
-          <option>Source of Funds</option><option>KYC Form</option>
-          <option>Screening Report</option><option>Other</option>
+          {% for v in company_doc_types %}<option>{{ v }}</option>{% endfor %}
         </select>
       </div>
       <div class="form-group form-full">
