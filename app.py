@@ -1070,7 +1070,7 @@ def logout():
     return redirect(url_for('login'))
 
 @app.route('/dashboard')
-@login_required
+@require_perm('dashboard')
 def dashboard():
     # Staff get their own task dashboard
     if session.get('user_role') == 'staff':
@@ -1227,7 +1227,7 @@ def dashboard():
         upcoming_birthdays=upcoming_birthdays,kyc_alerts=kyc_alerts)
 
 @app.route('/companies')
-@login_required
+@require_perm('companies_view')
 def companies():
     conn=get_db()
     s=request.args.get('search',''); sf=request.args.get('status','')
@@ -1298,7 +1298,7 @@ def company_new():
     return render_template('company_form.html',dropdown_data=dropdowns(),company=None,ubos=[],edit=False,staff_users=staff,max_kyc_date=max_kyc)
 
 @app.route('/company/<int:id>')
-@login_required
+@require_perm('companies_view')
 def company_detail(id):
     conn=get_db()
     co=one(conn,'SELECT * FROM companies WHERE id=?',(id,))
@@ -1318,7 +1318,7 @@ def company_detail(id):
         today=str(dubai_today()))
 
 @app.route('/company/<int:id>/edit')
-@admin_required
+@require_perm('companies_edit')
 def company_edit(id):
     conn=get_db()
     co=one(conn,'SELECT * FROM companies WHERE id=?',(id,))
@@ -1384,7 +1384,7 @@ def api_add_company():
         return _fail(e)
 
 @app.route('/api/company/<int:id>/edit', methods=['POST'])
-@admin_pw_required
+@require_perm('companies_edit')
 def api_edit_company(id):
     d=request.get_json()
     kyc_err = _validate_kyc_expiry(d.get('kyc_expiry_date'))
@@ -1410,6 +1410,7 @@ def api_edit_company(id):
         return _fail(e)
 
 @app.route('/api/company/<int:id>/delete', methods=['POST'])
+@require_perm('companies_delete')
 @admin_pw_required
 def api_delete_company(id):
     try:
@@ -1420,6 +1421,7 @@ def api_delete_company(id):
         return _fail(e)
 
 @app.route('/api/company/<int:id>/toggle-disable', methods=['POST'])
+@require_perm('companies_delete')
 @admin_pw_required
 def api_toggle_disable_company(id):
     """Mark a company as disabled (out of scope) or re-enable it."""
@@ -1435,6 +1437,7 @@ def api_toggle_disable_company(id):
         return _fail(e)
 
 @app.route('/api/client/<int:id>/toggle-disable', methods=['POST'])
+@require_perm('clients')
 @admin_pw_required
 def api_toggle_disable_client(id):
     """Mark an individual as disabled (out of scope) or re-enable it."""
@@ -1450,7 +1453,7 @@ def api_toggle_disable_client(id):
         return _fail(e)
 
 @app.route('/alerts')
-@login_required
+@require_perm('alerts')
 def alerts():
     conn=get_db(); today=dubai_today()
     # Build unified alert list from all document types
@@ -2140,7 +2143,7 @@ def risk_assessment_individual_result(id):
         factors=factors, calc=calc, responses=responses)
 
 @app.route('/reports')
-@login_required
+@require_perm('reports')
 def reports():
     conn=get_db(); today=dubai_today()
     df=request.args.get('from',''); dt=request.args.get('to','')
@@ -2921,7 +2924,7 @@ def api_browse_folder():
         return jsonify({'success': False, 'error': 'Folder picker not available here — type the path manually.'})
 
 @app.route('/api/user/add',methods=['POST'])
-@admin_required
+@require_perm('admin_users')
 def api_add_user():
     d=request.get_json()
     if len((d.get('password') or '')) < 8:
@@ -2940,7 +2943,7 @@ def api_add_user():
         return _fail(e)
 
 @app.route('/api/user/<int:id>/edit',methods=['POST'])
-@admin_required
+@require_perm('admin_users')
 def api_edit_user(id):
     d=request.get_json()
     try:
@@ -2963,7 +2966,7 @@ def api_edit_user(id):
         return _fail(e)
 
 @app.route('/api/user/<int:id>/toggle',methods=['POST'])
-@admin_required
+@require_perm('admin_users')
 def api_toggle_user(id):
     try:
         conn=get_db(); u=one(conn,'SELECT is_active FROM users WHERE id=?',(id,))
@@ -2974,7 +2977,7 @@ def api_toggle_user(id):
         return _fail(e)
 
 @app.route('/api/user/<int:id>/delete',methods=['POST'])
-@admin_required
+@require_perm('admin_users')
 def api_delete_user(id):
     try:
         conn=get_db(); x(conn,'DELETE FROM users WHERE id=?',(id,))
@@ -2984,7 +2987,7 @@ def api_delete_user(id):
         return _fail(e)
 
 @app.route('/api/dropdown/add',methods=['POST'])
-@admin_required
+@require_perm('admin_dropdowns')
 def api_add_dropdown():
     d=request.get_json()
     try:
@@ -2996,7 +2999,7 @@ def api_add_dropdown():
         return _fail(e)
 
 @app.route('/api/dropdown/<int:id>/delete',methods=['POST'])
-@admin_required
+@require_perm('admin_dropdowns')
 def api_delete_dropdown(id):
     try:
         conn=get_db(); x(conn,'DELETE FROM dropdowns WHERE id=?',(id,))
@@ -3151,7 +3154,7 @@ def tasks():
                            current_user_id=uid)
 
 @app.route('/api/task/add',methods=['POST'])
-@login_required
+@require_perm('tasks_create')
 def api_add_task():
     d=request.get_json()
     try:
@@ -3165,7 +3168,7 @@ def api_add_task():
         return _fail(e)
 
 @app.route('/api/task/<int:id>/edit',methods=['POST'])
-@login_required
+@require_perm('tasks_edit')
 def api_edit_task(id):
     d=request.get_json()
     try:
@@ -3179,7 +3182,7 @@ def api_edit_task(id):
         return _fail(e)
 
 @app.route('/api/task/<int:id>/status',methods=['POST'])
-@login_required
+@require_perm('tasks_edit')
 def api_task_status(id):
     d=request.get_json()
     try:
@@ -3191,7 +3194,7 @@ def api_task_status(id):
         return _fail(e)
 
 @app.route('/api/task/<int:id>/delete',methods=['POST'])
-@login_required
+@require_perm('tasks_delete')
 def api_delete_task(id):
     if session.get('user_role') == 'staff':
         return jsonify({'success':False,'error':'Staff cannot delete tasks'}),403
@@ -3203,7 +3206,7 @@ def api_delete_task(id):
         return _fail(e)
 
 @app.route('/api/company/<int:cid>/documents')
-@compliance_required
+@require_perm('companies_docs')
 def api_get_documents(cid):
     conn=get_db()
     docs=all_(conn,'''SELECT d.*,u.name as uploader_name FROM documents d
@@ -3211,7 +3214,7 @@ def api_get_documents(cid):
     conn.close(); return jsonify(docs)
 
 @app.route('/api/company/<int:cid>/upload',methods=['POST'])
-@compliance_required
+@require_perm('companies_docs')
 def api_upload_document(cid):
     if 'file' not in request.files: return jsonify({'success':False,'error':'No file'}),400
     file=request.files['file']
@@ -3669,14 +3672,14 @@ if __name__=='__main__':
 
 # ── REGULAR TASKS → redirects to /tasks?tab=regular ──────────
 @app.route('/regular-tasks')
-@login_required
+@require_perm('regular_tasks_view')
 def regular_tasks():
     return redirect(url_for('tasks', tab='regular'))
 
 
 # ── TASK HISTORY (completed / logged regular tasks) ──────────
 @app.route('/task-history')
-@login_required
+@require_perm('regular_tasks_view')
 def task_history():
     """Unified 'Completed Tasks' page: regular-task logs (daily/weekly/monthly),
        completed one-off tasks, and finished additional-task activities — merged."""
@@ -3970,7 +3973,7 @@ def analytics():
 
 
 @app.route('/api/regular-task/add', methods=['POST'])
-@compliance_required
+@require_perm('regular_tasks_manage')
 def api_add_regular_task():
     d = request.get_json()
     try:
@@ -3989,7 +3992,7 @@ def api_add_regular_task():
         return _fail(e)
 
 @app.route('/api/regular-task/<int:id>/delete', methods=['POST'])
-@compliance_required
+@require_perm('regular_tasks_manage')
 def api_delete_regular_task(id):
     try:
         conn = get_db()
@@ -4003,7 +4006,7 @@ def api_delete_regular_task(id):
         return _fail(e)
 
 @app.route('/api/regular-task/<int:id>/log', methods=['POST'])
-@login_required
+@require_perm('regular_tasks_log')
 def api_log_regular_task(id):
     d = request.get_json()
     try:
@@ -4101,7 +4104,7 @@ def _dl_url(url):
     return url
 
 @app.route('/internal-docs')
-@compliance_required
+@require_perm('zewer_docs_view')
 def internal_docs():
     conn = get_db()
     try:
@@ -4152,7 +4155,7 @@ def _internal_doc_file(existing_public_id=None):
     return r['secure_url'], f.filename, r['public_id']
 
 @app.route('/api/internal-doc/add', methods=['POST'])
-@compliance_required
+@require_perm('zewer_docs_edit')
 def api_add_internal_doc():
     d = request.form if request.form else (request.get_json(silent=True) or {})
     try:
@@ -4173,7 +4176,7 @@ def api_add_internal_doc():
         return _fail(e)
 
 @app.route('/api/internal-doc/<int:id>/edit', methods=['POST'])
-@admin_pw_required
+@require_perm('zewer_docs_edit')
 def api_edit_internal_doc(id):
     d = request.form if request.form else (request.get_json(silent=True) or {})
     try:
@@ -4205,6 +4208,7 @@ def api_edit_internal_doc(id):
         return _fail(e)
 
 @app.route('/api/internal-doc/<int:id>/delete', methods=['POST'])
+@require_perm('zewer_docs_edit')
 @admin_pw_required
 def api_delete_internal_doc(id):
     try:
@@ -4220,7 +4224,7 @@ def api_delete_internal_doc(id):
         return _fail(e)
 
 @app.route('/api/company/<int:cid>/docs-export')
-@login_required
+@require_perm('companies_docs')
 def api_export_company_docs(cid):
     if not HAS_XL:
         return "openpyxl not installed", 500
@@ -4323,7 +4327,7 @@ def api_save_role_permissions():
 # CLIENTS PAGE
 # ════════════════════════════════════════════════════════════
 @app.route('/clients')
-@login_required
+@require_perm('clients')
 def clients():
     conn = get_db()
     today = dubai_today()
@@ -4417,7 +4421,7 @@ def _validate_kyc_expiry(kyc_expiry):
     return None
 
 @app.route('/api/client/add', methods=['POST'])
-@login_required
+@require_perm('clients')
 def api_add_client():
     d = request.get_json()
     err = _validate_kyc_expiry(d.get('kyc_expiry_date'))
@@ -4452,7 +4456,7 @@ def api_add_client():
         return _fail(e)
 
 @app.route('/api/client/<int:id>/edit', methods=['POST'])
-@admin_pw_required
+@require_perm('clients')
 def api_edit_client(id):
     d = request.get_json()
     err = _validate_kyc_expiry(d.get('kyc_expiry_date'))
@@ -4484,6 +4488,7 @@ def api_edit_client(id):
         return _fail(e)
 
 @app.route('/api/client/<int:id>/delete', methods=['POST'])
+@require_perm('clients')
 @admin_pw_required
 def api_delete_client(id):
     try:
@@ -4847,7 +4852,7 @@ def api_groups_list():
 # CLIENT DOCUMENTS (Cloudinary)
 # ════════════════════════════════════════════════════════════
 @app.route('/api/client/<int:cid>/documents')
-@login_required
+@require_perm('clients')
 def api_client_documents(cid):
     conn = get_db()
     docs = all_(conn, 'SELECT * FROM client_documents WHERE client_id=? ORDER BY created_at DESC', (cid,))
@@ -4855,7 +4860,7 @@ def api_client_documents(cid):
     return jsonify(docs)
 
 @app.route('/api/client/<int:cid>/upload', methods=['POST'])
-@login_required
+@require_perm('clients')
 def api_client_upload_document(cid):
     if 'file' not in request.files: return jsonify({'success':False,'error':'No file'}),400
     file = request.files['file']
@@ -4876,7 +4881,7 @@ def api_client_upload_document(cid):
         return _fail(e)
 
 @app.route('/api/client-document/<int:did>/delete', methods=['POST'])
-@compliance_required
+@require_perm('clients')
 def api_delete_client_document(did):
     try:
         conn = get_db()
@@ -4891,7 +4896,7 @@ def api_delete_client_document(did):
         return _fail(e)
 
 @app.route('/client/<int:id>')
-@login_required
+@require_perm('clients')
 def client_detail(id):
     conn = get_db()
     c = one(conn, 'SELECT * FROM clients WHERE id=?', (id,))

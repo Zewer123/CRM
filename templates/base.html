@@ -13,29 +13,31 @@
     </a>
 
     <div class="navbar-menu">
-      <a href="{{ url_for('dashboard') }}" class="navbar-link {% if request.endpoint == 'dashboard' %}active{% endif %}">📊 Dashboard</a>
-      {# Companies + Individual, Alerts and Reports are available to all roles (view/export/import). #}
+      {% if has_perm('dashboard') %}<a href="{{ url_for('dashboard') }}" class="navbar-link {% if request.endpoint == 'dashboard' %}active{% endif %}">📊 Dashboard</a>{% endif %}
+      {# Nav links follow the role's permissions (Settings → Role Permissions). #}
+      {% if has_perm('companies_view') or has_perm('clients') %}
       <div class="navbar-dropdown">
         <a href="javascript:void(0)" class="navbar-link {% if request.endpoint in ['companies','company_detail','company_new','company_edit','clients'] %}active{% endif %}">👥 Clients</a>
         <div class="navbar-dropdown-menu">
           <div class="navbar-dropdown-menu-inner">
-            <a href="{{ url_for('companies') }}" class="navbar-dropdown-item {% if request.endpoint in ['companies','company_detail','company_new','company_edit'] %}active{% endif %}">🏢 Companies</a>
-            <a href="{{ url_for('clients') }}" class="navbar-dropdown-item {% if request.endpoint == 'clients' %}active{% endif %}">👤 Individual</a>
+            {% if has_perm('companies_view') %}<a href="{{ url_for('companies') }}" class="navbar-dropdown-item {% if request.endpoint in ['companies','company_detail','company_new','company_edit'] %}active{% endif %}">🏢 Companies</a>{% endif %}
+            {% if has_perm('clients') %}<a href="{{ url_for('clients') }}" class="navbar-dropdown-item {% if request.endpoint == 'clients' %}active{% endif %}">👤 Individual</a>{% endif %}
           </div>
         </div>
       </div>
-      <a href="{{ url_for('alerts') }}" class="navbar-link {% if request.endpoint == 'alerts' %}active{% endif %}">⚠️ Alerts</a>
+      {% endif %}
+      {% if has_perm('alerts') %}<a href="{{ url_for('alerts') }}" class="navbar-link {% if request.endpoint == 'alerts' %}active{% endif %}">⚠️ Alerts</a>{% endif %}
       {% if user_role in ['admin', 'compliance'] %}
       <a href="{{ url_for('health_check') }}" class="navbar-link {% if request.endpoint in ['health_check','health_check_detail'] %}active{% endif %}">🏥 Health Check</a>
       <a href="{{ url_for('risk_assessment_list') }}" class="navbar-link {% if request.endpoint in ['risk_assessment_list','risk_assessment','risk_assessment_company','risk_assessment_individual','risk_assessment_company_result','risk_assessment_individual_result'] %}active{% endif %}">⚠️ Risk Assessment</a>
       {% endif %}
       <a href="{{ url_for('analytics') }}" class="navbar-link {% if request.endpoint == 'analytics' %}active{% endif %}">📊 Analytics</a>
-      <a href="{{ url_for('reports') }}" class="navbar-link {% if request.endpoint == 'reports' %}active{% endif %}">📈 Reports</a>
+      {% if has_perm('reports') %}<a href="{{ url_for('reports') }}" class="navbar-link {% if request.endpoint == 'reports' %}active{% endif %}">📈 Reports</a>{% endif %}
       {% if user_role in ['admin', 'compliance'] %}
       <a href="{{ url_for('aml_tracker') }}" class="navbar-link {% if request.endpoint in ['aml_tracker', 'aml_tracker_add', 'aml_tracker_edit'] %}active{% endif %}">📋 DPMSR Report</a>
       {% endif %}
       <a href="{{ url_for('tasks') }}" class="navbar-link {% if request.endpoint in ['tasks','regular_tasks'] %}active{% endif %}">✅ Tasks</a>
-      {% if user_role in ['admin', 'compliance'] %}
+      {% if has_perm('zewer_docs_view') %}
       <a href="{{ url_for('internal_docs') }}" class="navbar-link {% if request.endpoint == 'internal_docs' %}active{% endif %}">🗂️ Zewer Docs</a>
       {% endif %}
     </div>
