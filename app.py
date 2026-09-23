@@ -4213,12 +4213,30 @@ def api_catchup_regular_task(id):
 @app.route('/api/regular-task/<int:id>/log', methods=['POST'])
 @require_perm('regular_tasks_log')
 def api_log_regular_task(id):
-    d = request.get_json()
+    d = request.get_json() or {}
     try:
         conn = get_db()
+        uid = session.get('user_id')
+        dates = d.get('dates') or []
+        if dates:
+            # Log specific pending days — only dates that are genuinely in this user's backlog
+            t = one(conn, 'SELECT id,frequency,created_at FROM regular_task_templates WHERE id=?', (id,))
+            if not t:
+                conn.close(); return jsonify({'success': False, 'error': 'Task not found'}), 404
+            pending = set(str(x_) for x_ in _regular_missed_dates(conn, id, uid, t['frequency'], t.get('created_at'), dubai_today()))
+            bad = [s for s in dates if str(s) not in pending]
+            if bad:
+                conn.close()
+                return jsonify({'success': False, 'error': 'Not pending (already logged or not a due day): ' + ', '.join(map(str, bad[:5]))}), 400
+            for s in sorted(set(map(str, dates))):
+                x(conn, '''INSERT INTO regular_task_logs (template_id, user_id, notes, status, logged_at)
+                    VALUES (?,?,?,?,?)''',
+                  (id, uid, d.get('notes', ''), d.get('status', 'done'), s + ' 12:00:00'))
+            commit(conn); conn.close()
+            return jsonify({'success': True, 'count': len(set(dates))})
         x(conn, '''INSERT INTO regular_task_logs (template_id, user_id, notes, status)
             VALUES (?,?,?,?)''',
-          (id, session.get('user_id'), d.get('notes', ''), d.get('status', 'done')))
+          (id, uid, d.get('notes', ''), d.get('status', 'done')))
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
