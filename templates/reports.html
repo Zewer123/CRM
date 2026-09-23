@@ -149,7 +149,7 @@
       </select>
     </div>
     <button class="btn btn-primary" style="width:100%;justify-content:center;background:#22c55e;color:#1c1917;" onclick="dl('tasks')">⬇ Export to Excel</button>
-    <a class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:8px;" href="{{ url_for('task_report') }}">👥 View detailed per-staff report →</a>
+    <div style="font-size:11px;color:var(--text-dim);margin-top:8px;text-align:center;">📊 For the detailed per-staff breakdown, see <a href="{{ url_for('analytics') }}?tab=staff" style="color:var(--primary);">Analytics → Staff</a>.</div>
   </div>
 
 </div>

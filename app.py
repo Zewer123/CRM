@@ -2169,18 +2169,10 @@ def reports():
     conn.close(); return res
 
 
-@app.route('/reports/tasks')
-@require_perm('reports')
-def task_report():
-    """On-screen detailed task report: per staff, every task done / pending / overdue
-       within the selected date range (one-off + regular + additional)."""
-    conn = get_db(); today = dubai_today()
-    df = request.args.get('from', ''); dt = request.args.get('to', '')
-    staff_id = request.args.get('staff', '')
-    if not df and not dt:                       # default = this month
-        df = str(today.replace(day=1)); dt = str(today)
+def _staff_task_report(conn, today, df, dt, staff_id=None):
+    """Build the per-staff detailed task report (one-off + regular + additional) for a
+       date range. Shared by the Reports page and the Analytics → Staff tab."""
     ps = df or '1900-01-01'; pe = (dt or str(today)) + ' 23:59:59'
-
     all_users = all_(conn, 'SELECT id,name,role FROM users WHERE is_active=1 ORDER BY name')
     users = [u for u in all_users if (not staff_id or str(u['id']) == str(staff_id))]
 
@@ -2252,6 +2244,20 @@ def task_report():
             'pending_total': len(temp_pending) + len(temp_overdue) + reg_pending + add_open,
         })
     report.sort(key=lambda r: (-r['done_total'], r['name']))
+    return report, all_users
+
+
+@app.route('/reports/tasks')
+@require_perm('reports')
+def task_report():
+    """On-screen detailed task report: per staff, every task done / pending / overdue
+       within the selected date range (one-off + regular + additional)."""
+    conn = get_db(); today = dubai_today()
+    df = request.args.get('from', ''); dt = request.args.get('to', '')
+    staff_id = request.args.get('staff', '')
+    if not df and not dt:                       # default = this month
+        df = str(today.replace(day=1)); dt = str(today)
+    report, all_users = _staff_task_report(conn, today, df, dt, staff_id)
     conn.close()
     return render_template('task_report.html', report=report, all_users=all_users,
                            date_from=df, date_to=dt, staff_id=staff_id)
@@ -4059,8 +4065,15 @@ def analytics():
     except Exception:
         staff_full = []
 
+    # Detailed per-staff drill-down (same builder as the Reports page), scoped to the period
+    try:
+        staff_report, _sr_users = _staff_task_report(conn, today, ps, pe, None)
+    except Exception:
+        staff_report = []
+
     conn.close()
     return render_template('analytics.html',
+        staff_report=staff_report,
         tab=request.args.get('tab', 'overview'), period=period, period_label=period_label,
         # overview
         total_co=total_co, total_ind=total_ind, active_co=active_co,
