@@ -5445,6 +5445,12 @@ def _regular_missed_dates(conn, t, user_id, today, own=True):
         aid = t.get('assigned_user_id')
         if aid and aid != user_id:
             cover = _leave_periods(conn, user_id=aid, cover_user_id=user_id)
+        if cover:
+            # A covered day the assigned person already did themselves is not owed by the cover
+            # (e.g. leave entered after the fact, starting on a day they had already logged).
+            logged |= set(str(r['log_date'])[:10] for r in all_(conn, """SELECT DATE(logged_at) as log_date
+                FROM regular_task_logs WHERE template_id=? AND user_id=? AND COALESCE(status,'done') <> 'reopened'""",
+                (t['id'], aid)))
         owed = [d for d in due
                 if (own and (not own_from or d >= own_from) and not _in_periods(d, own_leave))
                 or _in_periods(d, cover)]
