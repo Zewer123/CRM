@@ -215,6 +215,12 @@ function clearHistoryFilters() {
   });
   filterHistory();
 }
-document.addEventListener('DOMContentLoaded', filterHistory);
+document.addEventListener('DOMContentLoaded', function () {
+  // Deep links: ?status=@pending|@completed|@overdue &user=<id> &kind=Regular|One-off|Additional
+  const P = new URLSearchParams(window.location.search);
+  const set = (id, v) => { const el = document.getElementById(id); if (el && v && [...el.options].some(o => o.value === v)) el.value = v; };
+  set('hFilterStatus', P.get('status')); set('hFilterUser', P.get('user')); set('hFilterKind', P.get('kind'));
+  filterHistory();
+});
 </script>
 {% endblock %}
