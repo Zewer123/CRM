@@ -29,8 +29,9 @@
 .seg .cnt.alert{background:var(--warning-bg);color:var(--warning);}
 .stat-grid.tk{grid-template-columns:repeat(6,minmax(0,1fr));}
 .stat-grid.tk4{grid-template-columns:repeat(4,minmax(0,1fr));}
-@media (max-width:1000px){.stat-grid.tk{grid-template-columns:repeat(3,minmax(0,1fr));}}
-@media (max-width:560px){.stat-grid.tk,.stat-grid.tk4{grid-template-columns:repeat(2,minmax(0,1fr));}}
+.stat-grid.tk5{grid-template-columns:repeat(5,minmax(0,1fr));}
+@media (max-width:1000px){.stat-grid.tk,.stat-grid.tk5{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@media (max-width:560px){.stat-grid.tk,.stat-grid.tk4,.stat-grid.tk5{grid-template-columns:repeat(2,minmax(0,1fr));}}
 .stat-card.click{cursor:pointer;transition:transform .12s ease, box-shadow .12s ease;}
 .stat-card.click:hover{transform:translateY(-1px);box-shadow:var(--shadow-md);}
 .stat-card.click.sel{outline:2px solid var(--primary);outline-offset:-2px;}
@@ -413,17 +414,19 @@
 {% for t in rt_templates %}
   {% set s = task_status.get(t.id, {}) %}
   {% set ns.total = ns.total + 1 %}
-  {% if s.get('overdue_count', 0) > 0 %}{% set ns.overdue = ns.overdue + 1 %}
+  {% if s.get('late_count', 0) > 0 %}{% set ns.overdue = ns.overdue + 1 %}
   {% elif s.get('is_due_today', false) %}{% set ns.due_today = ns.due_today + 1 %}
   {% else %}{% set ns.ok = ns.ok + 1 %}{% endif %}
 {% endfor %}
 {% set fc = namespace(daily=0, weekly=0, monthly=0) %}
 {% for t in rt_templates %}{% if t.frequency == 'daily' %}{% set fc.daily = fc.daily + 1 %}{% elif t.frequency == 'weekly' %}{% set fc.weekly = fc.weekly + 1 %}{% else %}{% set fc.monthly = fc.monthly + 1 %}{% endif %}{% endfor %}
-<div class="stat-grid tk4" style="margin-bottom:16px;">
-  <div class="stat-card click" data-rcard="" onclick="rtCard('')"><div class="stat-label">All Recurring</div><div class="stat-value" style="color:var(--text);">{{ ns.total }}</div></div>
-  <div class="stat-card danger click" data-rcard="overdue" onclick="rtCard('overdue')"><div class="stat-label">Behind (missed days)</div><div class="stat-value">{{ ns.overdue }}</div></div>
-  <div class="stat-card warning click" data-rcard="due" onclick="rtCard('due')"><div class="stat-label">Due Today</div><div class="stat-value">{{ ns.due_today }}</div></div>
-  <div class="stat-card success click" data-rcard="ok" onclick="rtCard('ok')"><div class="stat-label">Up to Date</div><div class="stat-value">{{ ns.ok }}</div></div>
+{% set hold = namespace(n=0) %}{% for t in rt_templates %}{% if task_status.get(t.id, {}).get('state', 'active') != 'active' and task_status.get(t.id, {}).get('late_count', 0) == 0 %}{% set hold.n = hold.n + 1 %}{% endif %}{% endfor %}
+<div class="stat-grid tk5" style="margin-bottom:16px;">
+  <div class="stat-card danger click" data-rcard="overdue" onclick="rtCard('overdue')"><div class="stat-label">Overdue</div><div class="stat-value">{{ ns.overdue }}</div><div class="stat-sub">missed days</div></div>
+  <div class="stat-card click" data-rcard="due" onclick="rtCard('due')"><div class="stat-label">Pending</div><div class="stat-value">{{ ns.due_today }}</div><div class="stat-sub">due today</div></div>
+  <div class="stat-card click" style="border-left-color:#a855f7;" data-rcard="paused" onclick="rtCard('paused')"><div class="stat-label">On Hold</div><div class="stat-value" style="color:#a855f7;">{{ hold.n }}</div><div class="stat-sub">paused / ended</div></div>
+  <div class="stat-card success click" data-rcard="ok" onclick="rtCard('ok')"><div class="stat-label">Done</div><div class="stat-value">{{ ns.ok - hold.n }}</div><div class="stat-sub">up to date</div></div>
+  <div class="stat-card click" data-rcard="" onclick="rtCard('')"><div class="stat-label">All</div><div class="stat-value" style="color:var(--text);">{{ ns.total }}</div></div>
 </div>
 
 <!-- FREQUENCY -->
@@ -439,12 +442,11 @@
   <div class="form-group" style="min-width:150px;">
     <label>STATUS</label>
     <select id="rtStatus" onchange="filterRegular()">
-      <option value="">All</option>
-      <option value="overdue">Overdue</option>
-      <option value="due">Due Today</option>
-      <option value="ok">Up to Date</option>
-      <option value="paused">Paused / Ended</option>
-      <option value="done">Done (logged)</option>
+      <option value="">Any</option>
+      <option value="due">Pending (due today)</option>
+      <option value="overdue">Overdue (missed days)</option>
+      <option value="paused">On Hold (paused / ended)</option>
+      <option value="ok">Done (up to date)</option>
     </select>
   </div>
   <div class="form-group" style="min-width:160px;">
@@ -497,7 +499,7 @@
       <tbody id="regularBody">
         {% for t in rt_templates %}
         {% set s = task_status.get(t.id, {}) %}
-        {% set overdue = s.get('overdue_count', 0) %}
+        {% set overdue = s.get('late_count', 0) %}
         {% set is_due = s.get('is_due_today', false) %}
         <tr class="rt-row"
             data-freq="{{ t.frequency }}"
@@ -523,7 +525,7 @@
           <td>
             <a href="#" onclick="openHistory({{ t.id }});return false;" style="font-weight:600;color:var(--text);text-decoration:none;">{{ t.title }}</a>
             {% if t.description %}<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">{{ t.description[:70] }}{% if t.description|length > 70 %}…{% endif %}</div>{% endif %}
-            {% if overdue > 0 and s.get('missed_dates') %}<div style="font-size:10px;color:#fca5a5;margin-top:2px;">Missed: {{ s.missed_dates | join(', ') }}{% if overdue > 3 %} +{{ overdue - 3 }}{% endif %}</div>{% endif %}
+            {% if overdue > 0 and s.get('missed_dates') %}<div style="font-size:10px;color:#fca5a5;margin-top:2px;">Missed: {{ s.missed_dates | reject('equalto', today) | join(', ') }}{% if overdue > 3 %} +{{ overdue - 3 }}{% endif %}</div>{% endif %}
           </td>
           <td>
             {% if t.frequency == 'daily' %}<span style="font-size:11px;color:#93c5fd;">📅 DAILY</span>
@@ -546,7 +548,7 @@
           <td style="font-size:12px;color:var(--text-muted);">{{ s.get('next_due') or '—' }}</td>
           <td>
             <div style="display:flex;gap:6px;align-items:center;">
-              <button class="btn btn-primary btn-sm" onclick="openLogModal({{ t.id }},'{{ t.title|replace("'","\\'") }}',{{ overdue }})">✅ Log</button>
+              <button class="btn btn-primary btn-sm" onclick="openLogModal({{ t.id }},'{{ t.title|replace("'","\\'") }}',{{ s.get('overdue_count', 0) }})">✅ Log</button>
               <button class="btn btn-ghost btn-sm btn-icon" onclick="openHistory({{ t.id }})" title="History">📊</button>
               {% if has_perm('regular_tasks_manage') and not t.get('_cover_only') %}
               <button class="btn btn-ghost btn-sm btn-icon" onclick="openTemplateModal({{ t.id }})" title="Edit">✏️</button>
@@ -593,9 +595,10 @@
   <div class="form-group" style="min-width:130px;">
     <label>STATUS</label>
     <select id="atFilterStatus" onchange="filterAdditional()">
-      <option value="">All</option>
-      <option value="open">Open</option>
-      <option value="completed">Completed</option>
+      <option value="">Any</option>
+      <option value="open">Pending (open)</option>
+      <option value="overdue">Overdue (past end time)</option>
+      <option value="completed">Done (completed)</option>
     </select>
   </div>
   <div class="form-group" style="min-width:130px;">
@@ -636,7 +639,7 @@
       <tbody id="additionalList">
         {% for t in add_tasks %}
         {% set is_done = t.status == 'completed' %}
-        <tr class="at-row" data-user="{{ t.created_by }}" data-from="{{ t.from_datetime[:10] }}" data-status="{{ t.status or 'open' }}">
+        <tr class="at-row" data-user="{{ t.created_by }}" data-from="{{ t.from_datetime[:10] }}" data-to="{{ t.to_datetime[:16] }}" data-status="{{ t.status or 'open' }}">
           <td><div style="font-weight:600;color:var(--text);">🚗 {{ t.title }}</div></td>
           <td style="font-size:12px;color:var(--text-muted);max-width:280px;">
             {% if t.task_details %}<div>{{ t.task_details[:90] }}{% if t.task_details|length > 90 %}…{% endif %}</div>{% endif %}
@@ -647,8 +650,9 @@
           <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">{{ t.to_datetime }}</td>
           {% if user_role == 'admin' %}<td style="font-size:12px;color:var(--text-muted);">{{ t.staff_name or '—' }}</td>{% endif %}
           <td>
-            {% if is_done %}<span class="badge badge-active">✅ Completed</span>
-            {% else %}<span class="badge" style="background:var(--surface3);color:var(--text-muted);">○ Open</span>{% endif %}
+            {% if is_done %}<span class="badge badge-active">✅ Done</span>
+            {% else %}<span class="badge" style="background:var(--surface3);color:var(--text-muted);">○ Pending</span>
+            <div class="at-late" style="display:none;font-size:10px;color:var(--danger);font-weight:700;margin-top:2px;">⚠️ overdue</div>{% endif %}
           </td>
           <td style="font-size:11px;color:var(--text-dim);white-space:nowrap;">{{ t.created_at }}</td>
           <td>
@@ -1380,9 +1384,7 @@ function filterRegular() {
   rows.forEach(row => {
     let show = true;
     if (_rtFreq !== 'all' && row.dataset.freq !== _rtFreq) show = false;
-    if (status === 'done') { if (!row.dataset.lastlogged) show = false; }
-    else if (status === 'paused') { if (row.dataset.state === 'active') show = false; }
-    else if (status && row.dataset.rtstatus !== status) show = false;
+    if (status && row.dataset.rtstatus !== status) show = false;
     if (user && row.dataset.user !== user) show = false;
     // date range filters on last-logged date
     if (dFrom || dTo) {
@@ -1730,8 +1732,12 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   const el = document.getElementById('at-month');
   if (el) el.textContent = monthCount;
+  if (document.getElementById('atFilterStatus')) filterAdditional();   // shows the "overdue" flags
 });
 
+// "YYYY-MM-DD HH:MM" in the browser's local time (Dubai), to compare with the job's end time
+const _atNow = (() => { const d = new Date(), z = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; })();
 function filterAdditional() {
   const userFilter = document.getElementById('atFilterUser') ? document.getElementById('atFilterUser').value : '';
   const statusFilter = document.getElementById('atFilterStatus') ? document.getElementById('atFilterStatus').value : '';
@@ -1748,7 +1754,11 @@ function filterAdditional() {
     const rowFrom = row.dataset.from;
     let show = true;
     if (userFilter && rowUser !== userFilter) show = false;
-    if (statusFilter && (row.dataset.status || 'open') !== statusFilter) show = false;
+    const st = row.dataset.status || 'open';
+    const late = st !== 'completed' && (row.dataset.to || '') !== '' && row.dataset.to.replace('T', ' ') < _atNow;
+    const lateEl = row.querySelector('.at-late'); if (lateEl) lateEl.style.display = late ? '' : 'none';
+    if (statusFilter === 'overdue') { if (!late) show = false; }
+    else if (statusFilter && st !== statusFilter) show = false;
     if (fromFilter && rowFrom < fromFilter) show = false;
     if (toFilter && rowFrom > toFilter) show = false;
     row.style.display = show ? '' : 'none';

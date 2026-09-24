@@ -3556,6 +3556,8 @@ def tasks():
             is_due_today=str(today) in [str(d) for d in missed]
             task_status[t['id']]={
                 'overdue_count':len(missed),'is_due_today':is_due_today,
+                # days actually past due (today's due day is 'Pending', not overdue)
+                'late_count':len([d for d in missed if str(d) != str(today)]),
                 'next_due':str(next_due) if next_due else '','last_logged':str(user_logs[-1]['log_date'])[:10] if user_logs else None,
                 'missed_dates':[str(d) for d in missed[-3:]],
                 'missed_all':[str(d) for d in missed[-180:]],
