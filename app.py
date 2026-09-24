@@ -930,11 +930,13 @@ def _check_action_pw(pw):
     except Exception:
         return False
 
-def _require_admin_pw():
-    """Guard for edit/delete: caller must be admin AND supply a valid action password.
+def _require_admin_pw(admin_only=False):
+    """Guard for destructive actions: a valid action password is always required.
+    Who may act is decided by the route's require_perm (admin-configurable role
+    permissions); admin_only=True additionally restricts it to the admin role.
     Returns an error (response, status) tuple to return, or None if allowed."""
-    if session.get('user_role') != 'admin':
-        return jsonify({'success': False, 'error': 'Only an admin can edit or delete records.'}), 403
+    if admin_only and session.get('user_role') != 'admin':
+        return jsonify({'success': False, 'error': 'Only an admin can do this.'}), 403
     if request.is_json:
         pw = (request.get_json(silent=True) or {}).get('action_password')
     else:
@@ -944,12 +946,23 @@ def _require_admin_pw():
     return None
 
 def admin_pw_required(f):
-    """Decorator form of _require_admin_pw for JSON edit/delete endpoints."""
+    """Action password required; access is governed by the route's require_perm."""
     @wraps(f)
     def d(*a, **k):
         if 'user_id' not in session:
             return jsonify({'success': False, 'error': 'Not signed in'}), 401
         err = _require_admin_pw()
+        if err: return err
+        return f(*a, **k)
+    return d
+
+def admin_only_pw_required(f):
+    """Admin role AND action password (for actions with no separate role permission)."""
+    @wraps(f)
+    def d(*a, **k):
+        if 'user_id' not in session:
+            return jsonify({'success': False, 'error': 'Not signed in'}), 401
+        err = _require_admin_pw(admin_only=True)
         if err: return err
         return f(*a, **k)
     return d
@@ -2639,7 +2652,7 @@ def aml_tracker_edit(id):
         return _fail(e)
 
 @app.route('/api/aml-tracker/<int:id>/delete', methods=['POST'])
-@admin_pw_required
+@admin_only_pw_required
 def api_aml_tracker_delete(id):
     """Delete AML Tracker record"""
     try:
@@ -5401,7 +5414,7 @@ def api_edit_internal_doc(id):
 
 @app.route('/api/internal-doc/<int:id>/delete', methods=['POST'])
 @require_perm('zewer_docs_edit')
-@admin_pw_required
+@admin_only_pw_required
 def api_delete_internal_doc(id):
     try:
         conn = get_db()
