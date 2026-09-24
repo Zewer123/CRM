@@ -214,8 +214,10 @@
          class="btn btn-wa btn-sm btn-icon" title="WhatsApp">💬</a>
       {% endif %}
       <a href="{{ url_for('company_detail', id=c.id) }}" class="btn btn-ghost btn-sm btn-icon" title="View">👁️</a>
-      {% if user_role == 'admin' %}
+      {% if has_perm('companies_edit') %}
       <a href="#" onclick="editCompanySecure({{ c.id }});return false;" class="btn btn-ghost btn-sm btn-icon" title="Edit">✏️</a>
+      {% endif %}
+      {% if has_perm('companies_delete') %}
       <button class="btn btn-danger btn-sm btn-icon" onclick="deleteCompany({{ c.id }}, '{{ c.client_name|replace("'","\\'") }}')" title="Delete">🗑️</button>
       {% endif %}
     </div>
