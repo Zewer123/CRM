@@ -281,6 +281,20 @@ def _pg_ensure_columns():
         "ALTER TABLE regular_task_logs ADD COLUMN IF NOT EXISTS reopened_by INTEGER",
         "ALTER TABLE regular_task_logs ADD COLUMN IF NOT EXISTS reopened_at TIMESTAMP",
         "ALTER TABLE regular_task_logs ADD COLUMN IF NOT EXISTS reopen_reason TEXT",
+        # Risk model 2026 (real answers, country-list questions, override rules)
+        "ALTER TABLE risk_questions ADD COLUMN IF NOT EXISTS code TEXT",
+        "ALTER TABLE risk_questions ADD COLUMN IF NOT EXISTS rule_key TEXT",
+        "ALTER TABLE risk_questions ADD COLUMN IF NOT EXISTS answer_source TEXT DEFAULT 'options'",
+        "ALTER TABLE risk_questions ADD COLUMN IF NOT EXISTS allow_na INTEGER DEFAULT 0",
+        "ALTER TABLE risk_answer_options ADD COLUMN IF NOT EXISTS force_high INTEGER DEFAULT 0",
+        "ALTER TABLE risk_answer_options ADD COLUMN IF NOT EXISTS combo_high INTEGER DEFAULT 0",
+        "ALTER TABLE risk_answer_options ADD COLUMN IF NOT EXISTS excluded INTEGER DEFAULT 0",
+        "ALTER TABLE risk_country_scores ADD COLUMN IF NOT EXISTS force_high INTEGER DEFAULT 0",
+        "ALTER TABLE risk_responses ADD COLUMN IF NOT EXISTS counted INTEGER DEFAULT 1",
+        "ALTER TABLE risk_responses ADD COLUMN IF NOT EXISTS note TEXT",
+        "ALTER TABLE company_risk_assessments ADD COLUMN IF NOT EXISTS rating_note TEXT",
+        "ALTER TABLE individual_risk_assessments ADD COLUMN IF NOT EXISTS rating_note TEXT",
+        "ALTER TABLE walkin_risk_assessments ADD COLUMN IF NOT EXISTS rating_note TEXT",
         "CREATE TABLE IF NOT EXISTS regular_task_pauses (id SERIAL PRIMARY KEY, template_id INTEGER NOT NULL, start_date DATE NOT NULL, end_date DATE, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS regular_task_rule_history (id SERIAL PRIMARY KEY, template_id INTEGER NOT NULL, from_date DATE NOT NULL, to_date DATE NOT NULL, frequency TEXT, weekday INTEGER, month_day INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
     ]
@@ -416,6 +430,20 @@ def _run_migrations(conn):
     safe_alter('regular_task_logs', 'reopened_by', 'INTEGER')
     safe_alter('regular_task_logs', 'reopened_at', 'TIMESTAMP')
     safe_alter('regular_task_logs', 'reopen_reason', 'TEXT')
+    # Risk model 2026: real answers, country-list questions, override rules
+    safe_alter('risk_questions', 'code', "TEXT")
+    safe_alter('risk_questions', 'rule_key', "TEXT")
+    safe_alter('risk_questions', 'answer_source', "TEXT DEFAULT 'options'")
+    safe_alter('risk_questions', 'allow_na', "INTEGER DEFAULT 0")
+    safe_alter('risk_answer_options', 'force_high', "INTEGER DEFAULT 0")
+    safe_alter('risk_answer_options', 'combo_high', "INTEGER DEFAULT 0")
+    safe_alter('risk_answer_options', 'excluded', "INTEGER DEFAULT 0")
+    safe_alter('risk_country_scores', 'force_high', "INTEGER DEFAULT 0")
+    safe_alter('risk_responses', 'counted', "INTEGER DEFAULT 1")
+    safe_alter('risk_responses', 'note', "TEXT")
+    safe_alter('company_risk_assessments', 'rating_note', "TEXT")
+    safe_alter('individual_risk_assessments', 'rating_note', "TEXT")
+    safe_alter('walkin_risk_assessments', 'rating_note', "TEXT")
     # One-time backfill: close out all additional tasks that existed before the
     # Complete button shipped. They were records of activity that already
     # happened, so we mark them complete with completed_at = their own end time.
@@ -466,8 +494,14 @@ def _run_migrations(conn):
             # connection (including the risk-questionnaire seeding below).
             if pg: conn.rollback()
 
-    # Seed editable country risk scores from the built-in defaults (first run only)
-    for country, score in RISK_LOOKUPS.get('countries', {}).items():
+    # Seed editable country risk scores from the built-in defaults (first run only —
+    # an existing list is never topped up, or removed/renamed countries would come back)
+    try:
+        _has_countries = int(cnt(conn, 'SELECT COUNT(*) FROM risk_country_scores') or 0) > 0
+    except Exception:
+        if pg: conn.rollback()
+        _has_countries = True
+    for country, score in ({} if _has_countries else RISK_LOOKUPS.get('countries', {})).items():
         try:
             if use_pg():
                 x(conn, "INSERT INTO risk_country_scores (country,score) VALUES (%s,%s) ON CONFLICT (country) DO NOTHING", (country, score))
@@ -481,6 +515,8 @@ def _run_migrations(conn):
 
     # Seed the editable risk questionnaire (first run only)
     _seed_risk_questions(conn)
+    # Switch to the official questionnaire + country scores (once; see _apply_risk_model)
+    _apply_risk_model(conn)
 
 # Default questionnaire content, shared by the startup seeder and the admin
 # "Load Default Questions" recovery action (/api/risk-questions/load-defaults).
@@ -530,6 +566,72 @@ def _insert_question_set(conn, applies_to, factors):
             logger.warning(f'seed risk question skipped ({q}): {e}')
             if is_pg(conn): conn.rollback()
     return inserted
+
+RISK_MODEL_VERSION = '2026-v1'
+
+def _risk_seed():
+    """Official questionnaire + country scores (built from the client's DPMS risk Excel,
+       country scores from the 2026 AML/KYC country master list PDF)."""
+    import json
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'risk_seed_2026.json')
+    with open(path, encoding='utf-8') as f:
+        return json.load(f)
+
+def _insert_questions_json(conn, applies_to, questions):
+    """Insert questions + answer options (multi-row inserts: professions has ~1,250 answers)."""
+    for order, q in enumerate(questions):
+        x(conn, """INSERT INTO risk_questions (applies_to,question,sort_order,is_active,code,rule_key,answer_source,allow_na)
+            VALUES (?,?,?,1,?,?,?,?)""", (applies_to, q['question'], order, q.get('code'), q.get('rule_key'),
+                                          q.get('answer_source') or 'options', int(q.get('allow_na') or 0)))
+        qid = lastid(conn)
+        opts = q.get('options') or []
+        for i in range(0, len(opts), 200):
+            chunk = opts[i:i + 200]
+            vals, params = [], []
+            for j, o in enumerate(chunk):
+                vals.append('(?,?,?,?,?,?,?)')
+                params += [qid, o['label'], int(o.get('score') or 0), i + j,
+                           int(o.get('force_high') or 0), int(o.get('combo_high') or 0), int(o.get('excluded') or 0)]
+            x(conn, 'INSERT INTO risk_answer_options (question_id,label,score,sort_order,force_high,combo_high,excluded) VALUES '
+              + ','.join(vals), tuple(params))
+
+def _apply_risk_model(conn, force=False):
+    """One-time switch to the official model: replaces the country scores and the company /
+       individual questionnaires. Guarded by app_settings.risk_model_version (so later admin
+       edits are never overwritten) and a Postgres advisory lock (several workers start at once).
+       Old assessments keep their stored question/answer/score text untouched."""
+    pg = is_pg(conn)
+    try:
+        if pg:
+            conn.rollback()
+            x(conn, 'SELECT pg_advisory_xact_lock(726201)')
+        cur = one(conn, "SELECT value FROM app_settings WHERE key='risk_model_version'")
+        if cur and cur.get('value') == RISK_MODEL_VERSION and not force:
+            if pg: conn.rollback()
+            return False
+        seed = _risk_seed()
+        x(conn, 'DELETE FROM risk_country_scores')
+        force_c = set(seed.get('force_high_countries') or [])
+        items = list(seed['countries'].items())
+        for i in range(0, len(items), 200):
+            chunk = items[i:i + 200]
+            x(conn, 'INSERT INTO risk_country_scores (country,score,force_high) VALUES ' + ','.join(['(?,?,?)'] * len(chunk)),
+              tuple(v for c, sc in chunk for v in (c, int(sc), 1 if c in force_c else 0)))
+        for applies_to in ('company', 'individual'):
+            x(conn, "UPDATE risk_questions SET is_active=0 WHERE applies_to=?", (applies_to,))
+            _insert_questions_json(conn, applies_to, seed[applies_to])
+        x(conn, "DELETE FROM app_settings WHERE key='risk_model_version'")
+        x(conn, "INSERT INTO app_settings (key,value) VALUES ('risk_model_version',?)", (RISK_MODEL_VERSION,))
+        commit(conn)
+        RISK_LOOKUPS['countries'] = {c: int(sc) for c, sc in seed['countries'].items()}
+        logger.info(f'Risk model {RISK_MODEL_VERSION} applied: {len(items)} countries, '
+                    f"{len(seed['company'])} company + {len(seed['individual'])} individual questions")
+        return True
+    except Exception as e:
+        logger.error(f'Applying risk model failed (nothing changed): {e}')
+        try: conn.rollback()
+        except Exception: pass
+        return False
 
 def _seed_risk_questions(conn):
     """Populate the configurable questionnaire with the default factors + graded
@@ -1005,7 +1107,7 @@ def healthz():
         conn = get_db()
         for tbl, col in [('companies', 'disabled'), ('clients', 'disabled'), ('clients', 'pep'),
                          ('ubos', 'pep_status'), ('aml_tracker', 'exchange_rate'),
-                         ('internal_documents', 'file_url'), ('regular_task_templates', 'month_day'), ('regular_task_logs', 'reopen_reason')]:
+                         ('internal_documents', 'file_url'), ('regular_task_templates', 'month_day'), ('regular_task_logs', 'reopen_reason'), ('risk_answer_options', 'force_high'), ('risk_responses', 'counted')]:
             try:
                 x(conn, f'SELECT {col} FROM {tbl} LIMIT 1').fetchone()
                 checks[f'{tbl}.{col}'] = 'ok'
@@ -1772,39 +1874,139 @@ def calculate_risk_score(scores):
     else:
         return round(avg, 2), 'High'
 
+def _risk_country_names(conn):
+    return [r['country'] for r in all_(conn, 'SELECT country FROM risk_country_scores ORDER BY country')]
+
+def _risk_prefill(questions, countries, company=None, individual=None):
+    """Pre-select answers we already know from the client record (staff can change them)."""
+    pre = {}
+    cmap = {re.sub(r'[^a-z]', '', c.lower()): c for c in countries}
+    for q in questions:
+        rk = q.get('rule_key')
+        if company and rk == 'incorporation_country' and company.get('country_of_incorporation'):
+            c = cmap.get(re.sub(r'[^a-z]', '', str(company['country_of_incorporation']).lower()))
+            if c: pre[q['id']] = c
+        if company and rk == 'mainland_freezone' and company.get('type_of_client'):
+            t = re.sub(r'[^a-z]', '', str(company['type_of_client']).lower())
+            o = next((o for o in q.get('options', []) if re.sub(r'[^a-z]', '', o['label'].lower()) == t), None)
+            if o: pre[q['id']] = str(o['id'])
+        if individual is not None and 'residence' in q['question'].lower() and individual.get('is_resident') is not None:
+            want = 'resident' if individual.get('is_resident') in (1, True, '1', 't', 'true') else 'nonresident'
+            o = next((o for o in q.get('options', []) if re.sub(r'[^a-z]', '', o['label'].lower()) == want), None)
+            if o: pre[q['id']] = str(o['id'])
+    return pre
+
+class RiskFormError(ValueError):
+    """Submitted risk form is incomplete / stale — shown to the user, nothing is saved."""
+
+def _rating_band(avg):
+    """Same bands as the official Excel: <=1.00 Low, 1.01-2.00 Medium, >=2.01 High."""
+    if avg is None: return 'Unspecified'
+    if avg <= 1.0: return 'Low'
+    if avg < 2.01: return 'Medium'
+    return 'High'
+
 def _dynamic_assessment_responses(conn, question_type, form):
-    """From a submitted dynamic risk form, return (final_score, risk_rating, responses).
-    `question_type` is which question set to load ('company' or 'individual').
-    responses = [{'question_id','question_text','answer_label','score'}] for the
-    answers the user actually selected. Scores come from the DB (never trusted
-    from the client)."""
+    """From a submitted risk form return (final_score, risk_rating, responses, rating_note).
+    Staff pick real answers; every score comes from the DB (answer option or country list),
+    never from the browser. Rules mirror the official Excel:
+      - 'Not Applicable' / excluded answers are not counted in the average;
+      - company: parent-company country replaces the incorporation country (and the
+        Mainland/Freezone answer) when it is riskier; Mainland/Freezone counts only for UAE;
+      - automatic High Risk for flagged answers / countries (e.g. Iran, Myanmar, North Korea,
+        foreign PEP, crypto) and for a 'combo' payment (cash/crypto) with the top volume."""
     questions = _load_risk_questions(conn, question_type)
-    responses, scores = [], []
+    try:
+        crows = all_(conn, 'SELECT country, score, force_high FROM risk_country_scores')
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+        crows = all_(conn, 'SELECT country, score FROM risk_country_scores')
+    countries = {r['country']: r for r in crows}
+    answers = []
     for q in questions:
         sel = form.get(f"q_{q['id']}")
         if not sel:
             continue
-        opt = next((o for o in q.get('options', []) if str(o['id']) == str(sel)), None)
-        if not opt:
-            continue
-        responses.append({'question_id': q['id'], 'question_text': q['question'],
-                          'answer_label': opt['label'], 'score': int(opt['score'])})
-        scores.append(float(opt['score']))
-    final_score, risk_rating = calculate_risk_score(scores)
-    return final_score, risk_rating, responses
+        a_ = {'q': q, 'rule_key': q.get('rule_key'), 'excluded': False, 'force': False, 'combo': False, 'note': ''}
+        if (q.get('answer_source') or 'options') == 'countries':
+            if sel == '__NA__' and q.get('allow_na'):
+                a_.update(label='Not Applicable', score=None, excluded=True, note='Not applicable — not counted')
+            else:
+                c = countries.get(sel)
+                if not c:
+                    continue
+                a_.update(label=sel, score=int(c['score']), force=bool(c.get('force_high')))
+        else:
+            opt = next((o for o in q.get('options', []) if str(o['id']) == str(sel)), None)
+            if not opt:
+                continue
+            a_.update(label=opt['label'], score=int(opt['score']) if opt.get('score') is not None else None,
+                      excluded=bool(opt.get('excluded')), force=bool(opt.get('force_high')), combo=bool(opt.get('combo_high')))
+            if a_['excluded']:
+                a_['note'] = 'Not applicable — not counted'
+        answers.append(a_)
+
+    if len(answers) < len(questions):
+        # Every question must be answered (as in the official sheet). This also catches a form
+        # opened before an admin changed the questionnaire — never save a partial assessment.
+        raise RiskFormError(f'{len(questions) - len(answers)} question(s) were not answered — '
+                            'the questionnaire may have been updated while the form was open. Please fill it in again.')
+    by_key = {a_['rule_key']: a_ for a_ in answers if a_['rule_key']}
+    inc, par, mf = by_key.get('incorporation_country'), by_key.get('parent_country'), by_key.get('mainland_freezone')
+    if par and not par['excluded'] and inc and (par['score'] or 0) > (inc['score'] or 0):
+        inc.update(excluded=True, note='Not counted — parent company country is higher risk')
+        if mf and not mf['excluded']:
+            mf.update(excluded=True, note='Not counted — parent company country used instead')
+    else:
+        if par and not par['excluded']:
+            par.update(excluded=True, note='Not counted — not higher risk than the incorporation country')
+        if mf and not mf['excluded'] and inc and re.sub(r'[^a-z]', '', inc['label'].lower()) != 'unitedarabemirates':
+            mf.update(excluded=True, note='Not counted — only applies to UAE-registered businesses')
+
+    reasons = []
+    for a_ in answers:
+        if a_['force']:
+            reasons.append(f"{a_['q'].get('code') or ''} {a_['q']['question']}: \"{a_['label']}\"".strip())
+            a_['note'] = (a_['note'] + '; ' if a_['note'] else '') + 'Automatic High Risk'
+    vol = by_key.get('volume')
+    if vol:
+        top = max((int(o['score']) for o in vol['q'].get('options', []) if not o.get('excluded')), default=None)
+        for a_ in answers:
+            if a_['combo'] and top is not None and vol['score'] == top:
+                reasons.append(f"Payment \"{a_['label']}\" with the highest volume \"{vol['label']}\"")
+                a_['note'] = (a_['note'] + '; ' if a_['note'] else '') + 'Automatic High Risk (with highest volume)'
+
+    counted = [a_['score'] for a_ in answers if not a_['excluded'] and a_['score']]
+    avg = round(sum(counted) / len(counted), 2) if counted else None
+    rating = 'High' if reasons else _rating_band(avg)
+    note = ('Automatic High Risk: ' + ' · '.join(reasons)) if reasons else ''
+    responses = [{'question_id': a_['q']['id'],
+                  'question_text': ((a_['q'].get('code') + '. ') if a_['q'].get('code') else '') + a_['q']['question'],
+                  'answer_label': a_['label'], 'score': a_['score'],
+                  'counted': 0 if a_['excluded'] else 1, 'note': a_['note'] or None} for a_ in answers]
+    return avg, rating, responses, note
 
 def _save_responses(conn, assessment_type, assessment_id, responses):
     for r in responses:
         x(conn, '''INSERT INTO risk_responses
-           (assessment_type, assessment_id, question_id, question_text, answer_label, score)
-           VALUES (?,?,?,?,?,?)''',
-          (assessment_type, assessment_id, r['question_id'], r['question_text'], r['answer_label'], r['score']))
+           (assessment_type, assessment_id, question_id, question_text, answer_label, score, counted, note)
+           VALUES (?,?,?,?,?,?,?,?)''',
+          (assessment_type, assessment_id, r['question_id'], r['question_text'], r['answer_label'], r['score'],
+           r.get('counted', 1), r.get('note')))
 
 def _load_responses(conn, assessment_type, assessment_id):
     """Return stored per-question responses for an assessment (new DB-driven ones)."""
-    return all_(conn, '''SELECT question_text, answer_label, score FROM risk_responses
-                         WHERE assessment_type=? AND assessment_id=? ORDER BY id''',
-                (assessment_type, assessment_id))
+    try:
+        return all_(conn, '''SELECT question_text, answer_label, score, counted, note FROM risk_responses
+                             WHERE assessment_type=? AND assessment_id=? ORDER BY id''',
+                    (assessment_type, assessment_id))
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+        return all_(conn, '''SELECT question_text, answer_label, score FROM risk_responses
+                             WHERE assessment_type=? AND assessment_id=? ORDER BY id''',
+                    (assessment_type, assessment_id))
 
 def _responses_to_factors(responses):
     """Shape stored responses into the (factors, calc) the result/print template uses,
@@ -1813,10 +2015,11 @@ def _responses_to_factors(responses):
     for r in responses:
         try: sc = float(r['score']) if r.get('score') is not None else 0
         except (TypeError, ValueError): sc = 0
-        level = 'Low' if sc <= 1 else ('Medium' if sc <= 2 else 'High')
+        counted = r.get('counted', 1) not in (0, False, '0')
+        level = '' if not sc else ('Low' if sc <= 1 else ('Medium' if sc <= 2 else 'High'))
         factors.append({'label': r['question_text'], 'answer': r['answer_label'],
-                        'score': sc, 'level': level})
-        if sc > 0: considered.append(sc)
+                        'score': sc, 'level': level, 'counted': counted, 'note': r.get('note') or ''})
+        if sc > 0 and counted: considered.append(sc)
     calc = {'count': len(considered), 'total': round(sum(considered), 2),
             'average': round(sum(considered) / len(considered), 2) if considered else 0}
     return factors, calc
@@ -1993,17 +2196,22 @@ def risk_assessment_walkin():
         conn = get_db()
         try:
             qtype = 'individual' if data.get('entity_type') == 'individual' else 'company'
-            final_score, risk_rating, responses = _dynamic_assessment_responses(conn, qtype, data)
+            final_score, risk_rating, responses, rating_note = _dynamic_assessment_responses(conn, qtype, data)
             x(conn, '''INSERT INTO walkin_risk_assessments
-               (entity_name, entity_type, final_score, risk_rating, assessment_date, notes, assessed_by)
-               VALUES (?,?,?,?,?,?,?)''',
+               (entity_name, entity_type, final_score, risk_rating, assessment_date, notes, assessed_by, rating_note)
+               VALUES (?,?,?,?,?,?,?,?)''',
                (data.get('entity_name', ''), qtype, final_score, risk_rating,
-                dubai_today(), data.get('notes', ''), session.get('user_id')))
+                dubai_today(), data.get('notes', ''), session.get('user_id'), rating_note or None))
             aid = lastid(conn)
             _save_responses(conn, 'walkin', aid, responses)
             commit(conn)
             conn.close()
             return redirect(url_for('risk_assessment_walkin_result', id=aid))
+        except RiskFormError as e:
+            try: conn.close()
+            except Exception: pass
+            flash(str(e))
+            return redirect(url_for('risk_assessment_walkin', type=qtype))
         except Exception as e:
             logger.error(f'Walk-in assessment error: {e}', exc_info=True)
             try: conn.close()
@@ -2013,8 +2221,9 @@ def risk_assessment_walkin():
     qtype = 'individual' if request.args.get('type') == 'individual' else 'company'
     conn = get_db()
     questions = _load_risk_questions(conn, qtype)
+    countries = _risk_country_names(conn)
     conn.close()
-    return render_template('risk_assessment_form.html', questions=questions,
+    return render_template('risk_assessment_form.html', questions=questions, countries=countries, prefill={},
                            entity_name='', entity_kind='Walk-in ' + qtype.title(),
                            form_action=url_for('risk_assessment_walkin'), is_walkin=True,
                            walkin_type=qtype)
@@ -2026,6 +2235,9 @@ def risk_assessment_walkin_result(id):
     conn = get_db()
     assessment = one(conn, 'SELECT * FROM walkin_risk_assessments WHERE id=?', (id,))
     responses = _load_responses(conn, 'walkin', id) if assessment else []
+    if assessment and assessment.get('assessed_by'):
+        _u = one(conn, 'SELECT name FROM users WHERE id=?', (assessment['assessed_by'],))
+        assessment = {**assessment, 'assessed_by_name': _u['name'] if _u else assessment['assessed_by']}
     conn.close()
     if not assessment:
         return redirect(url_for('risk_assessment_list'))
@@ -2079,16 +2291,21 @@ def risk_assessment_company(id):
     if request.method == 'POST':
         data = request.form
         try:
-            final_score, risk_rating, responses = _dynamic_assessment_responses(conn, 'company', data)
+            final_score, risk_rating, responses, rating_note = _dynamic_assessment_responses(conn, 'company', data)
             x(conn, '''INSERT INTO company_risk_assessments
-               (company_id, final_score, risk_rating, assessment_date, notes, assessed_by)
-               VALUES (?,?,?,?,?,?)''',
-               (id, final_score, risk_rating, dubai_today(), data.get('notes', ''), session.get('user_id')))
+               (company_id, final_score, risk_rating, assessment_date, notes, assessed_by, rating_note)
+               VALUES (?,?,?,?,?,?,?)''',
+               (id, final_score, risk_rating, dubai_today(), data.get('notes', ''), session.get('user_id'), rating_note or None))
             aid = lastid(conn)
             _save_responses(conn, 'company', aid, responses)
             commit(conn)
             conn.close()
             return redirect(url_for('risk_assessment_company_result', id=id))
+        except RiskFormError as e:
+            try: conn.close()
+            except Exception: pass
+            flash(str(e))
+            return redirect(url_for('risk_assessment_company', id=id))
         except Exception as e:
             logger.error(f'Error saving company risk assessment: {e}', exc_info=True)
             try: conn.close()
@@ -2096,8 +2313,10 @@ def risk_assessment_company(id):
             return redirect(url_for('risk_assessment'))
 
     questions = _load_risk_questions(conn, 'company')
+    countries = _risk_country_names(conn)
     conn.close()
-    return render_template('risk_assessment_form.html', questions=questions,
+    return render_template('risk_assessment_form.html', questions=questions, countries=countries,
+                           prefill=_risk_prefill(questions, countries, company=co),
                            entity_name=co['client_name'], entity_kind='Company',
                            form_action=url_for('risk_assessment_company', id=id), is_walkin=False)
 
@@ -2108,8 +2327,11 @@ def risk_assessment_company_result(id):
     conn = get_db()
     co = one(conn, 'SELECT * FROM companies WHERE id=?', (id,))
     assessment = one(conn, '''SELECT * FROM company_risk_assessments
-                             WHERE company_id=? ORDER BY created_at DESC LIMIT 1''', (id,))
+                             WHERE company_id=? ORDER BY created_at DESC, id DESC LIMIT 1''', (id,))
     responses = _load_responses(conn, 'company', assessment['id']) if assessment else []
+    if assessment and assessment.get('assessed_by'):
+        _u = one(conn, 'SELECT name FROM users WHERE id=?', (assessment['assessed_by'],))
+        assessment = {**assessment, 'assessed_by_name': _u['name'] if _u else assessment['assessed_by']}
     conn.close()
 
     if not co or not assessment:
@@ -2141,16 +2363,21 @@ def risk_assessment_individual(id):
     if request.method == 'POST':
         data = request.form
         try:
-            final_score, risk_rating, responses = _dynamic_assessment_responses(conn, 'individual', data)
+            final_score, risk_rating, responses, rating_note = _dynamic_assessment_responses(conn, 'individual', data)
             x(conn, '''INSERT INTO individual_risk_assessments
-               (individual_id, final_score, risk_rating, assessment_date, notes, assessed_by)
-               VALUES (?,?,?,?,?,?)''',
-               (id, final_score, risk_rating, dubai_today(), data.get('notes', ''), session.get('user_id')))
+               (individual_id, final_score, risk_rating, assessment_date, notes, assessed_by, rating_note)
+               VALUES (?,?,?,?,?,?,?)''',
+               (id, final_score, risk_rating, dubai_today(), data.get('notes', ''), session.get('user_id'), rating_note or None))
             aid = lastid(conn)
             _save_responses(conn, 'individual', aid, responses)
             commit(conn)
             conn.close()
             return redirect(url_for('risk_assessment_individual_result', id=id))
+        except RiskFormError as e:
+            try: conn.close()
+            except Exception: pass
+            flash(str(e))
+            return redirect(url_for('risk_assessment_individual', id=id))
         except Exception as e:
             logger.error(f'Error saving individual risk assessment: {e}', exc_info=True)
             try: conn.close()
@@ -2158,8 +2385,10 @@ def risk_assessment_individual(id):
             return redirect(url_for('risk_assessment'))
 
     questions = _load_risk_questions(conn, 'individual')
+    countries = _risk_country_names(conn)
     conn.close()
-    return render_template('risk_assessment_form.html', questions=questions,
+    return render_template('risk_assessment_form.html', questions=questions, countries=countries,
+                           prefill=_risk_prefill(questions, countries, individual=ind),
                            entity_name=ind['name'], entity_kind='Individual',
                            form_action=url_for('risk_assessment_individual', id=id), is_walkin=False)
 
@@ -2170,8 +2399,11 @@ def risk_assessment_individual_result(id):
     conn = get_db()
     ind = one(conn, 'SELECT * FROM clients WHERE id=?', (id,))
     assessment = one(conn, '''SELECT * FROM individual_risk_assessments
-                             WHERE individual_id=? ORDER BY created_at DESC LIMIT 1''', (id,))
+                             WHERE individual_id=? ORDER BY created_at DESC, id DESC LIMIT 1''', (id,))
     responses = _load_responses(conn, 'individual', assessment['id']) if assessment else []
+    if assessment and assessment.get('assessed_by'):
+        _u = one(conn, 'SELECT name FROM users WHERE id=?', (assessment['assessed_by'],))
+        assessment = {**assessment, 'assessed_by_name': _u['name'] if _u else assessment['assessed_by']}
     conn.close()
 
     if not ind or not assessment:
@@ -2833,7 +3065,12 @@ def login_history():
 def country_scores():
     """Admin editor for risk-assessment country scores (change periodically)."""
     conn = get_db()
-    rows = all_(conn, 'SELECT country, score FROM risk_country_scores ORDER BY country')
+    try:
+        rows = all_(conn, 'SELECT country, score, force_high FROM risk_country_scores ORDER BY country')
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+        rows = all_(conn, 'SELECT country, score FROM risk_country_scores ORDER BY country')
     if not rows:
         # Fallback to in-memory defaults if table somehow empty
         rows = [{'country': k, 'score': v} for k, v in sorted(RISK_LOOKUPS['countries'].items())]
@@ -2846,8 +3083,10 @@ def api_save_country_scores():
     """Save edited country scores and refresh the in-memory lookup."""
     d = request.get_json() or {}
     scores = d.get('scores', {})  # { 'COUNTRY NAME': 1|2|3 }
-    if not scores:
-        return jsonify({'success': False, 'error': 'No scores provided'}), 400
+    force = d.get('force_high', {})  # { 'COUNTRY NAME': 0|1 }
+    scores = {str(k).strip().upper(): v for k, v in scores.items() if str(k).strip()}
+    if not scores and not force:
+        return jsonify({'success': False, 'error': 'No changes provided'}), 400
     try:
         conn = get_db()
         for country, score in scores.items():
@@ -2867,10 +3106,13 @@ def api_save_country_scores():
                                 VALUES (?,?,CURRENT_TIMESTAMP)
                                 ON CONFLICT(country) DO UPDATE SET score=excluded.score, updated_at=CURRENT_TIMESTAMP''',
                              (country, sc))
+        for country, fh in force.items():
+            x(conn, 'UPDATE risk_country_scores SET force_high=?, updated_at=CURRENT_TIMESTAMP WHERE country=?',
+              (1 if fh else 0, str(country).strip().upper()))
         commit(conn)
         refresh_country_scores(conn)
         conn.close()
-        return jsonify({'success': True, 'updated': len(scores)})
+        return jsonify({'success': True, 'updated': len(scores) + len(force)})
     except Exception as e:
         logger.error(f'Error saving country scores: {e}')
         return _fail(e)
@@ -2890,7 +3132,9 @@ def _load_risk_questions(conn, applies_to=None):
     opts = all_(conn, f"SELECT * FROM risk_answer_options WHERE question_id IN ({ph}) ORDER BY sort_order, id", qids)
     by_q = {}
     for o in opts:
-        by_q.setdefault(o['question_id'], []).append({'id': o['id'], 'label': o['label'], 'score': o['score']})
+        by_q.setdefault(o['question_id'], []).append({'id': o['id'], 'label': o['label'], 'score': o['score'],
+                                                      'excluded': o.get('excluded') or 0, 'force_high': o.get('force_high') or 0,
+                                                      'combo_high': o.get('combo_high') or 0})
     for q in questions:
         q['options'] = by_q.get(q['id'], [])
     return questions
@@ -2917,13 +3161,14 @@ def api_load_default_risk_questions():
         return jsonify({'success': False, 'error': 'Invalid entity type'}), 400
     try:
         conn = get_db()
-        existing = cnt(conn, "SELECT COUNT(*) FROM risk_questions WHERE applies_to=?", (applies_to,))
+        existing = cnt(conn, "SELECT COUNT(*) FROM risk_questions WHERE applies_to=? AND is_active=1", (applies_to,))
         if existing and int(existing) > 0:
             conn.close()
             return jsonify({'success': False, 'error': 'Questions already exist for this type.'}), 400
-        inserted = _insert_question_set(conn, applies_to, DEFAULT_RISK_QUESTIONS[applies_to])
-        conn.close()
-        return jsonify({'success': True, 'inserted': inserted})
+        seed = _risk_seed()[applies_to]          # the official questionnaire (Excel)
+        _insert_questions_json(conn, applies_to, seed)
+        commit(conn); conn.close()
+        return jsonify({'success': True, 'inserted': len(seed)})
     except Exception as e:
         return _fail(e)
 
@@ -2931,34 +3176,44 @@ def api_load_default_risk_questions():
 @admin_required
 def api_save_risk_questions():
     """Replace the whole questionnaire for one entity type from posted JSON.
-    Payload: {applies_to:'company'|'individual', questions:[{question, options:[{label,score}]}]}"""
+    Payload: {applies_to, questions:[{code, question, rule_key, answer_source, allow_na,
+              options:[{label, score, excluded, force_high, combo_high}]}]}
+    Old assessments are unaffected (they store their own question/answer/score text)."""
     d = request.get_json() or {}
     applies_to = d.get('applies_to')
     questions = d.get('questions', [])
     if applies_to not in ('company', 'individual'):
         return jsonify({'success': False, 'error': 'Invalid entity type'}), 400
+    clean = []
+    for q in questions:
+        qtext = (q.get('question') or '').strip()
+        if not qtext:
+            continue
+        src = 'countries' if q.get('answer_source') == 'countries' else 'options'
+        opts = []
+        for o in (q.get('options') or []) if src == 'options' else []:
+            label = (o.get('label') or '').strip()
+            if not label:
+                continue
+            try: score = int(o.get('score', 1))
+            except (TypeError, ValueError): score = 1
+            excluded = 1 if o.get('excluded') else 0
+            if not excluded and score not in (1, 2, 3):
+                return jsonify({'success': False, 'error': f'"{qtext[:40]}": score for "{label}" must be 1, 2 or 3'}), 400
+            opts.append({'label': label, 'score': 0 if excluded else score, 'excluded': excluded,
+                         'force_high': 1 if o.get('force_high') else 0, 'combo_high': 1 if o.get('combo_high') else 0})
+        if src == 'options' and not opts:
+            return jsonify({'success': False, 'error': f'"{qtext[:40]}" has no answers'}), 400
+        clean.append({'code': (q.get('code') or '').strip() or None, 'question': qtext,
+                      'rule_key': q.get('rule_key') or None, 'answer_source': src,
+                      'allow_na': 1 if q.get('allow_na') else 0, 'options': opts})
     try:
         conn = get_db()
-        # Wipe existing questions (+ their options) for this entity type, then re-insert
         old = all_(conn, "SELECT id FROM risk_questions WHERE applies_to=?", (applies_to,))
         for o in old:
             x(conn, "DELETE FROM risk_answer_options WHERE question_id=?", (o['id'],))
         x(conn, "DELETE FROM risk_questions WHERE applies_to=?", (applies_to,))
-        for order, q in enumerate(questions):
-            qtext = (q.get('question') or '').strip()
-            if not qtext:
-                continue
-            x(conn, "INSERT INTO risk_questions (applies_to,question,sort_order,is_active) VALUES (?,?,?,1)",
-              (applies_to, qtext, order))
-            qid = lastid(conn)
-            for aorder, opt in enumerate(q.get('options', [])):
-                label = (opt.get('label') or '').strip()
-                if not label:
-                    continue
-                try: score = int(opt.get('score', 1))
-                except (TypeError, ValueError): score = 1
-                x(conn, "INSERT INTO risk_answer_options (question_id,label,score,sort_order) VALUES (?,?,?,?)",
-                  (qid, label, score, aorder))
+        _insert_questions_json(conn, applies_to, clean)
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:

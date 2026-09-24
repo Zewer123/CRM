@@ -1,13 +1,37 @@
 {% extends "base.html" %}
 {% block title %}Risk Questionnaire - Zewer AML{% endblock %}
 {% block content %}
-<div style="max-width:1000px;margin:0 auto;">
+<style>
+.rq{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px;}
+.rq input[type=text],.rq input[type=number],.rq select{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:13px;font-family:inherit;}
+.rq input:focus,.rq select:focus{outline:none;border-color:var(--primary);}
+.rq input:disabled{opacity:.4;}
+.rq-top{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;}
+.rq-code{width:70px !important;text-align:center;font-weight:700;}
+.rq-src{width:170px !important;}
+.rq-rule{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--blue-bg);color:var(--blue);white-space:nowrap;}
+.rq-opt{display:grid;grid-template-columns:1fr 62px auto;gap:8px;align-items:center;margin-bottom:6px;}
+.rq-flags{display:flex;gap:10px;align-items:center;font-size:11px;color:var(--text-muted);white-space:nowrap;}
+.rq-flags label{display:flex;gap:4px;align-items:center;cursor:pointer;margin:0;font-size:11px;text-transform:none;letter-spacing:0;font-weight:500;color:var(--text-muted);}
+.rq-note{font-size:12px;color:var(--text-dim);background:var(--surface2);border:1px dashed var(--border);border-radius:8px;padding:10px 12px;}
+.rq-legend{font-size:12px;color:var(--text-dim);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:14px;line-height:1.7;}
+@media (max-width:640px){.rq-opt{grid-template-columns:1fr 56px;}.rq-flags{grid-column:1/-1;}}
+</style>
+<div style="max-width:1050px;margin:0 auto;">
   <div class="page-header">
     <div>
-      <div class="page-breadcrumb"><a href="{{ url_for('settings') }}">← Settings</a></div>
+      <div class="page-breadcrumb"><a href="{{ url_for('settings') }}">← Back</a></div>
       <div class="page-title">🎯 Risk Assessment Questionnaire</div>
-      <div style="font-size:13px;color:var(--text-dim);">Add / edit questions and set the score for each answer. Applies to new assessments.</div>
+      <div style="font-size:13px;color:var(--text-dim);">Questions staff answer, and the score behind each answer. Staff only see the answers — the scores appear on the risk report. Changes apply to new assessments only.</div>
     </div>
+  </div>
+
+  <div class="rq-legend">
+    <strong>Score</strong> 1 = Low · 2 = Medium · 3 = High. The overall score is the average of the counted answers (≤1.00 Low, 1.01–2.00 Medium, ≥2.01 High).<br>
+    <strong>Not counted</strong> — answer is left out of the average (e.g. "Not Applicable").
+    <strong>⚠ Force High</strong> — choosing this answer makes the whole assessment High Risk.
+    <strong>High with top volume</strong> — High Risk when combined with the highest "Expected volume" answer (e.g. Cash).<br>
+    <strong>Country list</strong> questions use the scores in <a href="{{ url_for('country_scores') }}" style="color:var(--primary);">Country Risk Scores</a> (countries marked "Force High" there, e.g. Iran, make the assessment High Risk).
   </div>
 
   <div class="tab-bar" style="margin-bottom:18px;">
@@ -30,26 +54,41 @@ const DATA = {
   company: {{ company_qs|tojson }},
   individual: {{ individual_qs|tojson }}
 };
+const RULES = {incorporation_country: 'Rule: incorporation country', parent_country: 'Rule: parent company country',
+               mainland_freezone: 'Rule: counted only for UAE', payment: 'Rule: payment method', volume: 'Rule: transaction volume'};
 let currentSet = 'company';
+const expanded = {};          // "set:qi" -> show every answer
 
 function showSet(name, btn) {
   currentSet = name;
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('set-company').style.display = name==='company' ? '' : 'none';
-  document.getElementById('set-individual').style.display = name==='individual' ? '' : 'none';
+  document.getElementById('set-company').style.display = name === 'company' ? '' : 'none';
+  document.getElementById('set-individual').style.display = name === 'individual' ? '' : 'none';
 }
 
 function render(setName) {
-  try {
-    renderInner(setName);
-  } catch (e) {
-    // Never let a rendering problem in one tab silently blank out the other —
-    // show the error and log it so it's diagnosable instead of a mystery blank tab.
+  try { renderInner(setName); }
+  catch (e) {
     console.error('render(' + setName + ') failed:', e);
     const el = document.getElementById('set-' + setName);
-    if (el) el.innerHTML = `<div style="color:#fca5a5;padding:20px;">⚠️ Could not display these questions (${esc(e.message||e)}). Check the browser console for details.</div>`;
+    if (el) el.innerHTML = `<div style="color:#fca5a5;padding:20px;">⚠️ Could not display these questions (${esc(e.message || e)}).</div>`;
   }
+}
+
+function optRow(setName, qi, oi, o) {
+  const P = `DATA['${setName}'][${qi}].options[${oi}]`;
+  return `<div class="rq-opt">
+    <input type="text" value="${esc(o.label || '')}" onchange="${P}.label=this.value" placeholder="Answer">
+    <input type="number" min="1" max="3" value="${o.excluded ? '' : (o.score ?? '')}" ${o.excluded ? 'disabled' : ''}
+      onchange="${P}.score=parseInt(this.value)||1" title="Score 1–3" style="text-align:center;">
+    <div class="rq-flags">
+      <label title="Leave this answer out of the average (e.g. Not Applicable)"><input type="checkbox" ${o.excluded ? 'checked' : ''} onchange="${P}.excluded=this.checked?1:0;render('${setName}')"> Not counted</label>
+      <label title="Choosing this answer makes the assessment High Risk" style="color:${o.force_high ? 'var(--danger)' : ''};"><input type="checkbox" ${o.force_high ? 'checked' : ''} onchange="${P}.force_high=this.checked?1:0;render('${setName}')"> ⚠ Force High</label>
+      <label title="High Risk when combined with the highest expected-volume answer"><input type="checkbox" ${o.combo_high ? 'checked' : ''} onchange="${P}.combo_high=this.checked?1:0"> High w/ top volume</label>
+      <button class="btn btn-ghost btn-sm btn-icon" title="Remove answer" onclick="delOption('${setName}',${qi},${oi})">✕</button>
+    </div>
+  </div>`;
 }
 
 function renderInner(setName) {
@@ -58,61 +97,78 @@ function renderInner(setName) {
   if (!qs.length) {
     el.innerHTML = `<div style="color:var(--text-dim);padding:30px;text-align:center;background:var(--surface);border-radius:10px;">
       No questions yet. Click "+ Add Question", or
-      <button class="btn btn-primary btn-sm" style="margin-left:6px;" onclick="loadDefaults('${setName}')">⚡ Load Default Questions</button>
+      <button class="btn btn-primary btn-sm" style="margin-left:6px;" onclick="loadDefaults('${setName}')">⚡ Load the official questionnaire</button>
     </div>`;
     return;
   }
-  el.innerHTML = qs.map((q, qi) => `
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px;">
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
-        <span style="color:var(--text-dim);font-weight:700;font-size:13px;">Q${qi+1}</span>
-        <input type="text" value="${esc(q.question||'')}" onchange="DATA['${setName}'][${qi}].question=this.value"
-          placeholder="Question text" style="flex:1;font-weight:600;">
+  el.innerHTML = qs.map((q, qi) => {
+    const Q = `DATA['${setName}'][${qi}]`;
+    const isCountry = q.answer_source === 'countries';
+    const opts = q.options || [];
+    const key = setName + ':' + qi, showAll = expanded[key] || opts.length <= 12;
+    const shown = showAll ? opts : opts.slice(0, 8);
+    let answers;
+    if (isCountry) {
+      answers = `<div class="rq-note">🌍 Answers are the full country list with scores from
+        <a href="{{ url_for('country_scores') }}" style="color:var(--primary);">Country Risk Scores</a>.
+        <label style="display:inline-flex;gap:5px;align-items:center;margin-left:10px;text-transform:none;letter-spacing:0;font-size:12px;cursor:pointer;">
+          <input type="checkbox" ${q.allow_na ? 'checked' : ''} onchange="${Q}.allow_na=this.checked?1:0"> Offer "Not Applicable" (not counted)</label></div>`;
+    } else {
+      answers = `<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;font-weight:700;margin-bottom:6px;">Answers &amp; scores (${opts.length})</div>
+        ${shown.map((o, oi) => optRow(setName, qi, oi, o)).join('')}
+        ${showAll ? '' : `<button class="btn btn-ghost btn-sm" onclick="expanded['${key}']=1;render('${setName}')">Show all ${opts.length} answers</button>`}
+        <button class="btn btn-ghost btn-sm" onclick="addOption('${setName}',${qi})">+ Add Answer</button>`;
+    }
+    return `<div class="rq">
+      <div class="rq-top">
+        <input type="text" class="rq-code" value="${esc(q.code || '')}" onchange="${Q}.code=this.value" placeholder="No." title="Question number shown to staff, e.g. 1 (a)">
+        <input type="text" value="${esc(q.question || '')}" onchange="${Q}.question=this.value" placeholder="Question text" style="flex:1;min-width:240px;font-weight:600;">
+        <select class="rq-src" onchange="${Q}.answer_source=this.value;render('${setName}')" title="Where the answers come from">
+          <option value="options" ${isCountry ? '' : 'selected'}>Custom answers</option>
+          <option value="countries" ${isCountry ? 'selected' : ''}>Country list</option>
+        </select>
+        ${q.rule_key && RULES[q.rule_key] ? `<span class="rq-rule" title="This question takes part in an automatic scoring rule from the official risk sheet">${RULES[q.rule_key]}</span>` : ''}
         <button class="btn btn-danger btn-sm btn-icon" title="Delete question" onclick="delQuestion('${setName}',${qi})">🗑️</button>
       </div>
-      <div style="padding-left:22px;">
-        <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;font-weight:700;margin-bottom:6px;">Answers &amp; Scores</div>
-        ${(q.options||[]).map((o, oi) => `
-          <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
-            <input type="text" value="${esc(o.label||'')}" onchange="DATA['${setName}'][${qi}].options[${oi}].label=this.value"
-              placeholder="Answer label" style="flex:1;">
-            <input type="number" min="1" max="3" value="${o.score}" onchange="DATA['${setName}'][${qi}].options[${oi}].score=parseInt(this.value)||1"
-              title="Score (1=Low, 2=Medium, 3=High)" style="width:70px;text-align:center;">
-            <button class="btn btn-ghost btn-sm btn-icon" title="Remove answer" onclick="delOption('${setName}',${qi},${oi})">✕</button>
-          </div>`).join('')}
-        <button class="btn btn-ghost btn-sm" onclick="addOption('${setName}',${qi})">+ Add Answer</button>
-      </div>
-    </div>`).join('');
+      <div style="padding-left:6px;">${answers}</div>
+    </div>`;
+  }).join('');
 }
 
 function addQuestion(setName) {
-  DATA[setName].push({question:'', options:[{label:'Low risk',score:1},{label:'Medium risk',score:2},{label:'High risk',score:3}]});
+  DATA[setName].push({code: '', question: '', answer_source: 'options', allow_na: 0,
+                      options: [{label: '', score: 1, excluded: 0, force_high: 0, combo_high: 0}]});
   render(setName);
 }
-function delQuestion(setName, qi) { DATA[setName].splice(qi,1); render(setName); }
-function addOption(setName, qi) { DATA[setName][qi].options.push({label:'',score:1}); render(setName); }
-function delOption(setName, qi, oi) { DATA[setName][qi].options.splice(oi,1); render(setName); }
+function delQuestion(setName, qi) {
+  if (!confirm('Delete this question? (Past assessments keep their answers.)')) return;
+  DATA[setName].splice(qi, 1); render(setName);
+}
+function addOption(setName, qi) {
+  DATA[setName][qi].options.push({label: '', score: 1, excluded: 0, force_high: 0, combo_high: 0});
+  expanded[setName + ':' + qi] = 1; render(setName);
+}
+function delOption(setName, qi, oi) { DATA[setName][qi].options.splice(oi, 1); render(setName); }
 
 function loadDefaults(setName) {
   fetch('/api/risk-questions/load-defaults', {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({applies_to: setName})
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({applies_to: setName})
   }).then(r => r.json()).then(d => {
     if (!d.success) { alert(d.error || 'Could not load defaults'); return; }
-    location.reload();  // simplest way to pick up the freshly-seeded questions + ids
+    location.reload();
   }).catch(() => alert('Network error loading defaults'));
 }
 
 function saveSet(setName) {
   const msg = document.getElementById('saveMsg');
   fetch('/api/risk-questions/save', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({applies_to:setName, questions:DATA[setName]})
-  }).then(r=>r.json()).then(d=>{
-    msg.style.display='block';
-    msg.style.color = d.success ? '#16a34a' : '#dc2626';
-    msg.textContent = d.success ? '✅ ' + (setName==='company'?'Company':'Individual') + ' questionnaire saved.' : '❌ ' + (d.error||'failed');
-  }).catch(e=>{ msg.style.display='block'; msg.style.color='#dc2626'; msg.textContent='❌ '+e; });
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({applies_to: setName, questions: DATA[setName]})
+  }).then(r => r.json()).then(d => {
+    msg.style.display = 'block';
+    msg.style.color = d.success ? 'var(--success)' : 'var(--danger)';
+    msg.textContent = d.success ? '✅ ' + (setName === 'company' ? 'Company' : 'Individual') + ' questionnaire saved.' : '❌ ' + (d.error || 'failed');
+  }).catch(e => { msg.style.display = 'block'; msg.style.color = 'var(--danger)'; msg.textContent = '❌ ' + e; });
 }
 
 render('company');

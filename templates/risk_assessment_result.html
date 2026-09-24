@@ -25,7 +25,7 @@
       <td style="padding:3px;"><strong>Date:</strong></td>
       <td style="padding:3px;">{{ assessment.assessment_date }}</td>
       <td style="padding:3px;"><strong>Assessed By:</strong></td>
-      <td style="padding:3px;">{{ assessment.assessed_by }}</td>
+      <td style="padding:3px;">{{ assessment.assessed_by_name or assessment.assessed_by }}</td>
     </tr>
   </table>
 
@@ -36,6 +36,7 @@
     <div style="font-size:9px;color:#666;font-weight:600;margin-bottom:3px;">OVERALL RISK RATING</div>
     <div style="font-size:22px;font-weight:700;color:{% if assessment.risk_rating == 'Low' %}#22c55e{% elif assessment.risk_rating == 'Medium' %}#f59e0b{% else %}#ef4444{% endif %};margin-bottom:2px;">{{ assessment.risk_rating }}</div>
     <div style="font-size:11px;color:#333;font-weight:700;">Score: {{ assessment.final_score }}/3.0</div>
+    {% if assessment.rating_note %}<div style="font-size:9px;color:#b91c1c;font-weight:700;margin-top:4px;">⚠ {{ assessment.rating_note }}</div>{% endif %}
   </div>
 
   <!-- RISK FACTORS - COMPACT TABLE -->
@@ -53,10 +54,11 @@
       <tr><td colspan="4" style="height:1px;padding:0;background:#ddd;"></td></tr>
       {% for f in factors %}
       <tr>
-        <td style="padding:2px;border-right:1px solid #e0e0e0;">{{ f.label }}</td>
-        {% if responses %}<td style="padding:2px;border-right:1px solid #e0e0e0;">{{ f.answer or '—' }}</td>{% endif %}
-        <td style="padding:2px;text-align:center;border-right:1px solid #e0e0e0;font-weight:600;">{{ '%g' % f.score }}</td>
-        <td style="padding:2px;text-align:center;color:{% if f.level=='Low' %}#15803d{% elif f.level=='Medium' %}#b45309{% else %}#b91c1c{% endif %};font-weight:600;">{{ f.level|upper }}</td>
+        {% set nc = (f.counted is defined and not f.counted) %}
+        <td style="padding:2px;border-right:1px solid #e0e0e0;{% if nc %}color:#888;{% endif %}">{{ f.label }}</td>
+        {% if responses %}<td style="padding:2px;border-right:1px solid #e0e0e0;{% if nc %}color:#888;{% endif %}">{{ f.answer or '—' }}{% if f.note %}<div style="font-size:8px;color:{% if 'High Risk' in f.note %}#b91c1c{% else %}#888{% endif %};font-style:italic;">{{ f.note }}</div>{% endif %}</td>{% endif %}
+        <td style="padding:2px;text-align:center;border-right:1px solid #e0e0e0;font-weight:600;{% if nc %}color:#888;text-decoration:line-through;{% endif %}">{% if f.score %}{{ '%g' % f.score }}{% else %}—{% endif %}</td>
+        <td style="padding:2px;text-align:center;color:{% if nc %}#888{% elif f.level=='Low' %}#15803d{% elif f.level=='Medium' %}#b45309{% else %}#b91c1c{% endif %};font-weight:600;">{% if nc %}NOT COUNTED{% else %}{{ f.level|upper }}{% endif %}</td>
       </tr>
       {% endfor %}
     </table>
@@ -66,9 +68,10 @@
   <div style="margin-bottom:8px;border:1px solid #ccc;border-radius:3px;padding:6px 8px;background:#fafafa;">
     <div style="font-size:9px;font-weight:700;margin-bottom:3px;">HOW THIS SCORE WAS DERIVED</div>
     <div style="font-size:9px;color:#333;line-height:1.5;">
-      Overall Score = average of the {{ calc.count }} rated factor(s):
+      Overall Score = average of the {{ calc.count }} counted answer(s):
       <strong>{{ '%g' % calc.total }} ÷ {{ calc.count }} = {{ assessment.final_score }}</strong>.
-      Each factor is scored 1 (Low), 2 (Medium) or 3 (High).
+      Each answer is scored 1 (Low), 2 (Medium) or 3 (High); answers marked "not counted" are left out, as in the official risk sheet.
+      {% if assessment.rating_note %}<br><strong style="color:#b91c1c;">{{ assessment.rating_note }} — the rating is High Risk regardless of the average.</strong>{% endif %}
     </div>
     <table style="width:100%;font-size:8px;border-collapse:collapse;margin-top:5px;">
       <tr style="text-align:center;">

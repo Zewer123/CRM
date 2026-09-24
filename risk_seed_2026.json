@@ -1,0 +1,10598 @@
+{
+"version": "2026-v1",
+"countries": {
+"AFGHANISTAN": 3,
+"ALAND ISLANDS": 2,
+"ALBANIA": 2,
+"ALGERIA": 2,
+"AMERICAN SAMOA": 2,
+"ANDORRA": 2,
+"ANGOLA": 3,
+"ANGUILLA": 2,
+"ANTIGUA & BARBUDA": 2,
+"ARGENTINA": 2,
+"ARMENIA": 2,
+"ARUBA": 2,
+"AUSTRALIA": 1,
+"AUSTRIA": 1,
+"AZERBAIJAN": 2,
+"BAHAMAS": 2,
+"BAHRAIN": 2,
+"BANGLADESH": 2,
+"BARBADOS": 2,
+"BELARUS": 3,
+"BELGIUM": 1,
+"BELIZE": 2,
+"BENIN": 2,
+"BERMUDA": 2,
+"BHUTAN": 1,
+"BOLIVIA": 3,
+"BOSNIA AND HERZEGOVINA": 2,
+"BOTSWANA": 2,
+"BRAZIL": 2,
+"BRUNEI DARUSSALAM": 2,
+"BRITISH VIRGIN ISLANDS": 3,
+"BULGARIA": 2,
+"BURKINA FASO": 3,
+"BURUNDI": 2,
+"CAMBODIA": 2,
+"CAMEROON": 3,
+"CANADA": 1,
+"CAPE VERDE": 2,
+"CAYMAN ISLANDS": 2,
+"CENTRAL AFRICAN REPUBLIC": 3,
+"CHAD": 3,
+"CHILE": 1,
+"CHINA": 2,
+"CHRISTMAS ISLANDS": 2,
+"COCOS ISLANDS": 2,
+"COLOMBIA": 2,
+"COMOROS": 2,
+"CONGO": 3,
+"COOK ISLANDS": 2,
+"COSTA RICA": 1,
+"CROATIA": 2,
+"CUBA": 3,
+"CURACAO": 2,
+"CYPRUS": 1,
+"CZECH REPUBLIC": 1,
+"DEMOCRATIC REPUBLIC OF THE CONGO": 3,
+"DENMARK": 1,
+"DJIBOUTI": 2,
+"DOMINICA": 2,
+"DOMINICAN REPUBLIC": 2,
+"ECUADOR": 2,
+"EGYPT": 2,
+"EL SALVADOR": 2,
+"EQUATORIAL GUINEA": 2,
+"ERITREA": 3,
+"ESTONIA": 1,
+"ESWATINI": 2,
+"ETHIOPIA": 3,
+"FALKLAND ISLANDS": 2,
+"FAROE ISLANDS": 2,
+"FIJI": 2,
+"FINLAND": 1,
+"FRANCE": 1,
+"FRENCH GUIANA": 2,
+"FRENCH POLYNESIA": 2,
+"GABON": 2,
+"GAMBIA": 2,
+"GEORGIA": 2,
+"GERMANY": 1,
+"GHANA": 2,
+"GIBRALTHAR": 2,
+"GREECE": 1,
+"GREENLAND": 2,
+"GRENADA": 2,
+"GUAM": 2,
+"GUATEMALA": 2,
+"GUERNSEY": 2,
+"GUINEA": 3,
+"GUINEA BISSAU": 3,
+"GUYANA": 2,
+"HAITI": 3,
+"HONDURAS": 2,
+"HONG KONG": 2,
+"HUNGARY": 2,
+"ICELAND": 1,
+"INDIA": 2,
+"INDONESIA": 2,
+"IRAN": 3,
+"IRAQ": 3,
+"IRELAND": 1,
+"ISLE OF MAN": 2,
+"ISRAEL": 2,
+"ITALY": 1,
+"IVORY COAST": 3,
+"CÔTE D'IVOIRE": 3,
+"JAMAICA": 2,
+"JAPAN": 1,
+"JORDAN": 2,
+"KAZAKHSTAN": 2,
+"KENYA": 2,
+"KIRIBATI": 2,
+"NORTH KOREA": 3,
+"SOUTH KOREA": 1,
+"KOSOVO": 2,
+"KUWAIT": 2,
+"KYRGYZSTAN REPUBLIC": 2,
+"LAO PEOPLES DEMOCRATIC REPUBLIC": 3,
+"LATVIA": 2,
+"LEBANON": 3,
+"LESOTHO": 2,
+"LIBERIA": 3,
+"LIBYA": 3,
+"LIECHTENSTIEN": 2,
+"LITHUANIA": 2,
+"LUXEMBOURG": 1,
+"MACAU": 2,
+"MADGASCAR": 2,
+"MALAWI": 2,
+"MALAYSIA": 2,
+"MALDIVES": 2,
+"MALI": 3,
+"MALTA": 1,
+"MARSHALL ISLANDS": 2,
+"MARTINIQUE": 2,
+"MAURITANIA": 2,
+"MAURITIUS": 2,
+"MAYOTTE": 2,
+"MEXICO": 2,
+"MICRONESIA": 2,
+"MOLDOVA": 2,
+"MONACO": 2,
+"MONGOLIA": 2,
+"MONTENEGRO": 2,
+"MONTSERRAT": 2,
+"MOROCCO": 2,
+"MOZAMBIQUE": 3,
+"MYANMAR": 3,
+"NAMIBIA": 3,
+"NAURU": 2,
+"NEPAL": 3,
+"NETHERLAND": 1,
+"NETHERLANDS ANTILLES": 2,
+"NEW ZEALAND": 1,
+"NICARAGUA": 3,
+"NIGER": 2,
+"NIGERIA": 2,
+"NIUE": 2,
+"NORFOLK ISLAND": 2,
+"NORTH MACEDONIA": 2,
+"NORTH MARIANA ISLANDS": 2,
+"NORWAY": 1,
+"OMAN": 2,
+"PAKISTAN": 2,
+"PALAU": 2,
+"PALESTINE": 2,
+"PANAMA": 2,
+"PAPUA NEW GUINEA": 2,
+"PARAGUAY": 2,
+"PERU": 2,
+"PHILIPPINES": 2,
+"PITCAIRN": 2,
+"POLAND": 1,
+"PORTUGAL": 1,
+"PUERTO RICO": 2,
+"QATAR": 2,
+"ROMANIA": 2,
+"RUSSIA": 3,
+"RWANDA": 3,
+"SAINT BARTHELEMY": 2,
+"SAINT HELENA": 2,
+"SAINT MARTIN": 2,
+"SAINT PIERRE AND MIQUELON": 2,
+"SAINT LUCIA": 2,
+"SAINT MARTEEN": 2,
+"SAINT VINCENT": 2,
+"SAINT KITTS AND NEVIS": 2,
+"SAMOA": 2,
+"SAN MARINO": 2,
+"SAO TOME AND PRINCIPE": 2,
+"SAUDI ARABIA": 2,
+"SENEGAL": 2,
+"SERBIA": 2,
+"SEYCHELLES": 1,
+"SIERRA LEONE": 3,
+"SINGAPORE": 1,
+"SLOVAKIA": 1,
+"SLOVENIA": 2,
+"SOLOMON ISLANDS": 2,
+"SOMALIA": 3,
+"SOUTH AFRICA": 2,
+"SOUTH SUDAN": 3,
+"SPAIN": 1,
+"SRI LANKA": 2,
+"SUDAN": 3,
+"SURINAME": 2,
+"SVALBARD AND MAYEN": 2,
+"SWEDEN": 1,
+"SWITZERLAND": 1,
+"SYRIA": 3,
+"TAIWAN": 1,
+"TAJIKSTAN": 2,
+"TANZANIA": 2,
+"THAILAND": 2,
+"TIMOR-LESTE": 2,
+"TOGO": 2,
+"TOKELAU": 2,
+"TONGA": 2,
+"TRINIDAD AND TOBAGO": 2,
+"TUNISIA": 2,
+"TURKEY": 2,
+"TURKMENISTAN": 2,
+"TURKS & CAICOS": 2,
+"TUVALU": 2,
+"UGANDA": 2,
+"UKRAINE": 2,
+"UNITED ARAB EMIRATES": 2,
+"UNITED KINGDOM": 1,
+"UNITED STATES": 1,
+"UNITED STATES VIRGIN ISLANDS": 2,
+"URUGUAY": 1,
+"UZBEKISTAN": 2,
+"VANUATU": 2,
+"VENEZUELA": 3,
+"VIETNAM": 2,
+"VETICAN CITY": 2,
+"YEMEN": 3,
+"ZAMBIA": 2,
+"ZIMBABWE": 3
+},
+"force_high_countries": [
+"IRAN",
+"NORTH KOREA",
+"MYANMAR"
+],
+"company": [
+{
+"code": "1 (a)",
+"question": "In what jurisdiction is the business registered / incorporated?",
+"rule_key": "incorporation_country",
+"answer_source": "countries",
+"allow_na": 0,
+"options": []
+},
+{
+"code": "1 (b)",
+"question": "If registered in the UAE: Mainland or Freezone?",
+"rule_key": "mainland_freezone",
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "Mainland",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "ADGM/DIFC",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Freezone",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Not Applicable",
+"score": 0,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 1
+}
+]
+},
+{
+"code": "1 (c)",
+"question": "Does the business have a parent company? If yes, where is the parent registered / incorporated?",
+"rule_key": "parent_country",
+"answer_source": "countries",
+"allow_na": 1,
+"options": []
+},
+{
+"code": "2",
+"question": "What are the activities of the entity?",
+"rule_key": null,
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "Accounting Firm",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Advertising",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Airlines",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Arms Dealer",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Auction",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Auditors / Audit Firm",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Automobile Service",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Banking",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Brokerage Business",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Building Contracting",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Building Maintenance",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Building Management",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Car Business (New & Used Sales)",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cargo & Logistics",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Carpentry",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Carpets Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Catering",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Charities/Non-Profit Organizations",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chemicals Trading",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cleaning and Maintenance",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Commission Agents",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Communication Devices",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Computer/Laptop Accessories Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Computer/Laptop Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Construction Items Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Consultancy Service",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Corporate Service Provider (CSP)",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cosmetics Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Credit providers (finance companies)",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Custodians",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Dealers in Precious Metals & Stones",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Digital Currency Providers",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "E-Commerce",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Items Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electronic Items Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Event Management",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Exchange Houses",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Financial Advisors and Consultants",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Financial brokers and agents",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Financial Institution",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Flower Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Food Items/Fruits Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Freezone",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Freight Forwarding",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Furniture & Fixtures Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Garments Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "General Trading",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Government Dept / Ministries",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hawala",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Health & Fitness",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "High-Value Goods (Watches, Art Work, Imitation Jewelry, etc.)",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Home Appliance Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hospital",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hotel & Restaurants",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hotel Server",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Immigration",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Import & Export",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Industrial Manufacturing Company",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Insurance and Investment Company",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Intellectual Property Services (Trademark, Patent, Copyright, etc)",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Investment funds and Asset managers",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Investment Holding",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "IT Services",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "ITES",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Jewellery Items Trading (Precious Metal)",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Kitchen Items Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Lawyers and Notaries / Judge",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Machinery & Heavy Equipment Trading",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Manpower Supplier",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Meat Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Medicine or Pharmacy Trading",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Metals Trading",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mobile Accessories Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mobile Phones Trading",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Nominee Arrangements and Trusts",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Non-Profit Organizations (NPO)",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Oil & Gas Facility Instrument Trading",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Others",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Packing and Moving",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Perfumes Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pesticides Trading",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Photography",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Police",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Precious Stones Trading",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Printing & Stationery",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Property and Casualty (General Insurance)",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Proprietory Investment",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Real Estate (Investment, Rentals, Lease, etc.)",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Retail Business",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Saloon & Health Care",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "School or University",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Security Guard Services",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Shipping Agents",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Software Programmer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Spare Parts Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sports Equipment Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Structured Financing",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tailoring",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tech Startup",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Technical Services",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tourism and Entertainment",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Trading",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Transport",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Trusts",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Typing Center - Document Clearing",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vegetables Trading",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vehicle Rentals",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Virtual Asset Service Providers (VASP)",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Watch & Clock Trading",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+}
+]
+},
+{
+"code": "3",
+"question": "Ownership structure",
+"rule_key": null,
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "Easily Identifiable",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Complex (Trust, Family Office, Legal Arrangements, etc.)",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Unidentifiable",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+}
+]
+},
+{
+"code": "4",
+"question": "Delivery channel",
+"rule_key": null,
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "Face-to-Face",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Non Face-to-Face (e-KYC)",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Non Face-to-Face",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+}
+]
+},
+{
+"code": "5",
+"question": "Preferred payment method",
+"rule_key": "payment",
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "Cash",
+"score": 3,
+"force_high": 0,
+"combo_high": 1,
+"excluded": 0
+},
+{
+"label": "Cheque",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Crypto",
+"score": 3,
+"force_high": 1,
+"combo_high": 1,
+"excluded": 0
+},
+{
+"label": "Bank Transfer (Local)",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bank Transfer (International)",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Debit/Credit Card",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Gold to Gold Exchange",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "All of the Above",
+"score": 3,
+"force_high": 1,
+"combo_high": 1,
+"excluded": 0
+}
+]
+},
+{
+"code": "6",
+"question": "Expected volume of transactions",
+"rule_key": "volume",
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "Amount up to AED 55,000",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Amount upto AED 500,000",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Amount more than AED 500,000",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+}
+]
+},
+{
+"code": "7",
+"question": "Product availed",
+"rule_key": null,
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "Antique & Vintage Jewellery",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bullion",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Collectible Coins",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Designer & Branded Jewellery",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fine Jewellery",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Investment-Grade Precious Metals",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Luxury Watches",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Polished Diamonds",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Raw Precious Metals",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Uncut & Rough Gemstones",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Wholesale Jewellery",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+}
+]
+},
+{
+"code": "8",
+"question": "Are any of the shareholders / directors / partners or UBOs Politically Exposed Persons (PEPs)?",
+"rule_key": null,
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "No",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Yes - Local PEP",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Yes - Foreign PEP",
+"score": 3,
+"force_high": 1,
+"combo_high": 0,
+"excluded": 0
+}
+]
+},
+{
+"code": "9",
+"question": "Nationality of the shareholders / directors / members",
+"rule_key": null,
+"answer_source": "countries",
+"allow_na": 0,
+"options": []
+},
+{
+"code": "10",
+"question": "Number of years in relationship",
+"rule_key": null,
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "Less than 1",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "More than 1 Less than 5",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "More than 5",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+}
+]
+},
+{
+"code": "11",
+"question": "Number of years in operation",
+"rule_key": null,
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "Less than 1",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "More than 1 Less than 5",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "More than 5",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+}
+]
+},
+{
+"code": "12",
+"question": "Type of transaction — involvement of a third party for payments?",
+"rule_key": null,
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "No",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Yes",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+}
+]
+},
+{
+"code": "13",
+"question": "Any negative media, or name on other sanctions lists (OFAC, UK HMT, etc.) for UBO / shareholder / company?",
+"rule_key": null,
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "No",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Yes",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+}
+]
+}
+],
+"individual": [
+{
+"code": "1",
+"question": "Nationality of the individual",
+"rule_key": null,
+"answer_source": "countries",
+"allow_na": 0,
+"options": []
+},
+{
+"code": "2",
+"question": "Residence status",
+"rule_key": null,
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "Resident",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Non-Resident",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+}
+]
+},
+{
+"code": "3",
+"question": "PEP status",
+"rule_key": null,
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "No",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Yes - Local PEP",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Yes - Foreign PEP",
+"score": 3,
+"force_high": 1,
+"combo_high": 0,
+"excluded": 0
+}
+]
+},
+{
+"code": "4",
+"question": "Profession",
+"rule_key": null,
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "Accident Surveyor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Accountant",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Actor",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Acupuncture Technician",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Administration Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Administration Director",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Administration Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Administration Officer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Administrative Officer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Administrative Supervisor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Advertising Designer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Advertising Editor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Advertising Representative",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Aged Care Services Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Agricultural Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Agricultural Mechanic",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Agricultural Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Agricultural Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Agriculture Engineer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Agriculture Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Agriculture Salesperson",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Air Conditioning Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Air Conditioning Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Air Freight Clerk",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Air Navigation Trainer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Air Traffic Controller",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Air Traffic Safety Electronics Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Air Transport Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Air-conditioning Supply Salesperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Aircraft Deport Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Aircraft Electrician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Aircraft Engine Mechanic",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Aircraft Fuelling Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Aircraft Pilot",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Airframe Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Airport Check-in Agent",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Airport Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Airport Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "All Vehicles Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Allergist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Aluminium Doors Maker",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Aluminium Fabricator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Aluminium Fitter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Aluminium Furnace Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Anaesthesia Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Anaesthetist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Anthropologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Anthropology Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Appliance Electrician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Aquaculture Production Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Aquaculture Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Arabic Coffee Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Arabic Food Cook",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Arabic Language Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Arabic Primary Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Arc Welder",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Archaeologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Archaeology Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Architecture Draftsperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Architecture Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Archive Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Archivist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Area Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Art Critic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Artificial Flower Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Artistic Painter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Arts Primary Teacher",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Arts Teacher",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Asphalt Mixer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Asphalt Roofer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Asphalt Spreader Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Assistant Accountant",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Assistant General Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Assistant Midwife",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Assistant Professor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Assistant Teacher",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Assistant Undersecretary",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Astronomer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Astronomy Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Auctioneer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Auditing Clerk",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Auto Body Repairer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Auto Electrician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Automotive Air Conditioning Mechanic",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Automotive Parts Sales Assistant",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Automotive Sales Representative",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Automotive Spray Painter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Avionics Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Babysitter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bag Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bags and Accessories Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Baker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bakery Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bank Officer",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bank Teller",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Banking Consultant",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Banking Operations Manager",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Barber",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bartender",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Beautician",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Beekeeper",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Beverage Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bicycle Assembler",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bicycle Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Biochemist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Biologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Biology Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bird Breeder",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Biscuit Maker",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Blacksmith",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Blaster",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Block Printer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Boat Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Boatmaster",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Boiler Insulation Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Boiler Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bookbinder",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bookbinding Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bookkeeper",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Books Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Botanist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Botany Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Brakes Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bread and Pastry Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Brick Kiln Operator",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Brick Mason",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bricklayer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bricklayer Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Broadcasting Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Broadcasting Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Brokerage Clerk",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Building Architect",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Building Caretaker",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Building Construction Supervisor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Building Control Surveyor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Building Draftsperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Building Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Building Exterior Cleaner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Building Insulation Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Building Labourer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Building Materials Sales Assistant",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Building Materials Salesperson",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Building Painter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Building Painter Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bulldozer Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bus Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bus Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Business Owner",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Business Service Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Butcher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cable and Rope Splicing Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cane Furniture Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cantilever Crane Operator",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Car Electrician Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Car Insurance Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cardiologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cargo Agent",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cargo Insurance Agent",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cargo Ship Captain",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cargo Supervisor",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Carpenter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Carpenter Assistant",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Carpentry Work Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Carpet Layer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cartoonist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cash Desk Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cashier",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Casting Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Catering Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Catering Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Ceiling Fixer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cement Compressor Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cement Kiln Operator",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cement Mixer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Central Air Cooling Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Central Cooling Mechanic Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Central Heating Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Central Service Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Ceramic Carver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Ceramic Painter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chairman",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chairman of the Board",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chemical Analyst",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chemical Engineer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chemical Engineering Professor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chemical Engineering Technician",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chemical Laboratory Technician",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chemical Processing Plant Controller",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chemical Products Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chemical Technician",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chemist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chemist Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chemistry Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chemistry Teacher",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chief Executive",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chief Executive Officer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chief Fire Officer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chief of Teachers",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Child Care Services Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chimney Sweeper",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Chiropractor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Choreographer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cinema Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cinematographer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Circuit Breaker Assembler",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Circus Performer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Civil Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Civil Engineer Labourer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Civil Engineer Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Civil Engineer Technician",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Civil Registrar",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Claims Department Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cleaner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cleaning Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Clinic Manager",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Clinic Nurse",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Clothes Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Clown",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Club Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Coffee Shop Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "College Dean",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Colour Press Operator",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Commerce Teacher",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Commerce Trainer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Commercial Advertising Specialist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Commercial Agents",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Commercial Broker",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Commercial Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Commercial Pilot",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Commercial Promoter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Commercial Sales Representative",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Commodity Broker",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Complementary Medicine Associate",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Composer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Compressor Mechanic",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Computer Assembler",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Computer Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Computer Network Analyst",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Computer Network and Systems Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Computer Networking Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Computer Programmer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Computer Science Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Computer Systems Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Computer Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Concrete Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Concrete Mason",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Concrete Mixing Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Concrete Pump Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Concrete Structure Mason",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Confectioner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Confectioner Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Conference Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Construction Carpenter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Construction Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Construction Material Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Construction Safety Officer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Construction Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Construction Supplies Salesperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Consultant Engineer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Consulting Physician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Contracts and Service Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Contracts Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Contracts Officer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Control Panel Electrician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Control Room Operator",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cook",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Coppersmith",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Corpse Washer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Correspondence Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cosmetic Manufacturing Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cost Account Clerk",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cost Accountant",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Counting Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Court Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Crane Operator",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Crane Operator Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Credit Analyst",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Credit Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Credit Officer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Credit Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Critic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Crop and Animal Farmer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cruise Ship Captain",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cultural Information Director",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Curtain Tailor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Custom and Border Inspector",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Customer Service Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Customer Service Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Customs Clearance Agent",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Cytologist",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Dairy Products Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Dairy Products Salesperson",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Dam Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Dancer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Data Entry Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Data Processing Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Database Designer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Debt Collector",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Deck Officer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Decorative Painter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Decorative Woodworker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Decorator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Demolition Labourer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Dental Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Dental Prosthesis Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Dental Surgeon",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Dental Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Dentist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Dentistry Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Dermatologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Design Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Desulphurisation Unit Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Development and Specification Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Development Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Die Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Dietician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Diplomatic Corp Director",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Director",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Disabled Care Specialist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Dish Washer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Distribution Electrician",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Documentation Authentication Clerk",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Domestic Science Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Domestic Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Doorman",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Dough Kneader",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Drama Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Drama Teacher",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Dredger Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Dressmaker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Drill Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Drilling and Boring Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Drilling Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Driving Examiner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Driving Instructor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Economic Analyst",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Economic Sciences Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Economics Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Economist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Editor in Chief",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Education Affairs Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Education Expert",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Education Methods Specialist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Educational Means Specialist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electric Insulation Worker",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Controller",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Draftsperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Engineer Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Engineering Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Equipment Assembler",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Equipment Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Medical Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Monitor Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Network Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Powerline Installer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Precision Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Products Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Supplies Salesperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Switch Assembler",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrical Transmission Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electrician Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electricity Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electronic Draftsperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electronic Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electronic Engineer Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electronic Equipment Assembler",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electronic Equipment Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electronic Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electronics Engineering Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Electronics Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Elevator Electrician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Elevator Electrician Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Elevator Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Embroider",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Embroidering Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Emergency Ambulance Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Emergency Nurse",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Employment Agent",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Employment Services Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Endocrinologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Engine Cylinders Turner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "English Language Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Engraver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Environment Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Environmental Engineer Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Environmental Protection Officer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Event Planner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Executive Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Executive Secretary",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Exhaust System Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Exhibition Designer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Explosive Technician",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Factory Insurance Agent",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Factory Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Factory Planning Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Factory Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Falafel Maker",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Falconist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Farm Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Farm Vehicle Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Farm Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fashion Designer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fashion Model",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fast Food Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Ferryboat Captain",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fibre Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fibreglass Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Field Crop and Vegetable Grower",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Filing Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Finance & Commerce Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Finance Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Finance Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Financial Advisor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Financial Analyst",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Financial Auditor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Financial Controller",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Financial Officer",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fire Fighter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fire Fighter Instructor",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fire Investigator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fish Cook",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fish Filleter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fish Processing Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fishery Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fishing Net Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fishmonger",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Flight Attendant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Flight Instructor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Florist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Folding Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Follow Up Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Follow Up Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Food and Beverage Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Food Products Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Food Service Counter Attendant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Food Service Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Food Supplies Salesperson",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Footwear Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Foreign Currency Trader",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Foreign Food Cook",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Foreign Language Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Forestry Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Forestry Worker",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Forklift Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Freight Forwarder",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Freight Handler",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fruit and Vegetable Preparer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fruit and Vegetable Preserver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Furnace Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Furniture Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Furniture Upholster",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Furniture Woodworker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Garbage Truck Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Garden Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Garden Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Garment and Pattern Cutter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Gas Fitter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Gas Salesperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Gas Station Attendant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Gas Turbine Fitter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Gas Turbine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Gastroenterologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "General Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "General Medical Practitioner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Geographer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Geography Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Geography Teacher",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Geologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Geology Laboratory Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Geology Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Geology Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Geology Technician",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Gifts and Curious Sales",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Glass and Ceramic Plant Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Glass Blower",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Glass Carver",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Glass Cutter Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Glass Grinder Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Glass Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Glass Polisher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Glazier",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Goldsmith",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Goods Receiving and Delivery Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Government Licensing Official",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Government Ministers",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Government Tax Official",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Graphic and Multimedia Designer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Graphic Artist",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Grave Digger",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Grilled Chicken Maker",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Grilled Fish Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Grilled Meat Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Grinding Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Grocer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Gunsmith",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Gynaecologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Haematologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hairdresser",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hairstylist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hand Presser",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Handicraft Knitter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Happiness Consultant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hardware Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Harvesting Machine Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hazard Insurance Specialist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Head Chef",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Head of Section",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Head Waiter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Health Affairs Director",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Health and Safety Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Health Care Assistant",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Health Insurance Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Health Services Manager",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Healthcare Technician",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Heavy Truck Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Heavy Vehicle Mechanic",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Heavy Vehicle Mechanic Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Helicopter Pilot",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Henna Applicator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Highway and Road Surveyor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Highway Construction Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Highway Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Historic Monuments Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "History Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "History Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Holly Quran Reader",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Horse Trainer",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Horticulture Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Horticulture Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Horticulturist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hospital Admissions Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hospital Cleaner",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hospital Director",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hospital Porter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hotel Cleaner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hotel Concierge",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hotel Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hotel Receptionist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hotelier Trainer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "House Builder",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Household Appliance Assembler",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Household Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Housekeeper",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Housekeeping Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Housemaid",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Human Resource Coordinator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Human Resource Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hunter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hunting Dogs Trainer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hydraulic Mechanic Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hydraulic Turbine Mechanic",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Hydraulic Turbine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "ICT Operations Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "ICT Sales Representative",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "ICT Security Specialist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "ICT Service Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "ICT Trainer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "ICT User Support Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Identity Documents Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Iman",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Industrial Affairs Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Industrial Chemist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Industrial Electrician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Industrial Engineer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Industrial Engineer Professor",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Industrial Equipment Mechanic",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Industrial Equipment Salesperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Industrial Maintenance Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Industrial Maintenance Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Industrial Relations Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Industry Trainer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Information Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Information Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Information Systems Professor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Information Technology Consultant",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Information Technology Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Injection Pump Mechanic",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Inland Fisher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Inorganic Chemist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Institute Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Instrumentalist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Insulation Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Insurance Agent",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Insurance Claims Clerk",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Insurance Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Insurance Specialist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Interior Designer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Internal Auditing Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Interpreter",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Investment Manager",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Investor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Irrigation Engineer",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Irrigation Technician",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Jeweller",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Jewellery Sales Assistant",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Jockey",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Joiner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Journalist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Judge",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Juice Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Kindergarten Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Kindergarten Education Supervisor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Kindergarten Teacher",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Kitchen Fitter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Kitchen Helper",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Knitting Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Laboratory Technician Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Laminated Wood Manufacturing Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Land Surveying Equipment Assembler",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Land Surveyor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Landscape Architect",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Landscape Designer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Languages Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Languages Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Launderer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Laundry Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Law Professor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Lawyer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Lawyer Clerk",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Leather Preparing Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Legal Advisor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Legal Assistant",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Legal Director",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Legal Researcher",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Legal Secretary",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Lens Maker",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Librarian",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Library Clerk",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Library Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Life Claims Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Life Guard",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Life Insurance Agent",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Life Insurance Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Life Science Technician",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Light Vehicle Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Lighting Technician",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Linguist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Literary Writer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Livestock and Dairy Farmer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Livestock Farm Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Livestock Farm Worker",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Locksmith",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Loom Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Machine Assembler",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Machine Operator Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Machine Tool Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Machinery Maintenance Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Magician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mailing Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Maintenance Mechanic Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Make Up Artist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Management Consultant",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Management Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Managing Director",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Manicurist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Manual Book Embosser",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Manufacturing Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Manufacturing Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Manufacturing Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Marble Burnish Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Marble Stone Cutter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Marina Attendant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Marine Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Marine Traffic Controller",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Marines Tool Salesperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Marketing Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Marketing Specialist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Masseur",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Material Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mathematician",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mathematics Primary Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mathematics Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mathematics Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mattress Upholster",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Measuring Instruments Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Meat Counter Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mechanic Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mechanical Draftsperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mechanical Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mechanical Engineer Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mechanical Engineer Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mechanical Equipment Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mechanical Machinery Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mechanical Maintenance Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mechanical Maintenance Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mechanical Production Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mechanical Production Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Media Presenter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Medical Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Medical Imaging Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Medical Instruments Sales Representative",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Medical Laboratory Assistant",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Medical Laboratory Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Medical Records Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Medical Sales Representative",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Medical Sciences Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Medical Secretary",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Messenger",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Metal Construction Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Metal Doors Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Metal Etcher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Metal Furnace Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Metal Machine Processing Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Metal Painter Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Metal Plates Roller Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Metal Plating Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Metal Production Process Controller",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Metal Salesperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Metal Spray Painter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Metal Spray Painter Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Metal Structure Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Metal Structure Installation Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Metal Structure Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Meteorologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Meteorology Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Meter Reader",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Midwife",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "MIG Welder",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Milling Machine Assembler",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Milling Machine Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Milling Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Miner",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mining Engineer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mining Labourer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mining Technician",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mixed Crop Grower",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Model Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Mosaic Fitter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Motorcyclist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Moulder and Coremaker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Moulding Maker Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Movie Producer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Muezzin",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Multimedia Developer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Municipal Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Museum Curator",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Museum Guide",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Music Critic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Music Instructor",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Music Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Musical Equipment Salesperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Musical Instrument Maker",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Musician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Nanny",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Navigation Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Nephrologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Network Cable Installer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Neurologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "News Presenter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Nosologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Notary",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Nuclear Physicist",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Nuclear Power Engineer",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Nuclear Reactor Operator",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Nuclear Technician",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Nurse",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Nurse Assistant",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Nursery Director",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Nursery Supervisor",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Nursery Supervisor Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Nursing Trainer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Nutritional Chemist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Obstetrician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Occupation Health and Safety Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Occupational Health Advisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Occupational Health and Safety Inspector",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Occupational Physician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Office Cleaner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Office Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Office Equipment Salesperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Office Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Office Supervisor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Oil and Gas Production Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Operating Theatre Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Operations Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Ophthalmologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Optician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Optometrist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Organic Chemist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Orthopaedic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Orthopaedic Physiotherapist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Otolaryngologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Oxygen Welder",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Packaging Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Packer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Paediatrician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Paint and Decorating Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Painter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Painter Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Painting Industries Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Painting Restorer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Palm Farmer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Paper Cutter Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Paper Mixing Operator",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Paper Products Machine Operator",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Paper Pulp Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Paramedic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Passenger Service Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pastries Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pastry Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pathologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pathology Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Perfume and Cosmetic Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Personal Affairs Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Personal Companion",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Personal Trainer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Personnel Affairs Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Personnel Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Personnel Officer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pesticides Controller",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pesticides Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pet Shop Salesperson",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Petroleum and Natural Gas Refining Plant Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Petroleum Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Petroleum Geologist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Petroleum Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pharmaceutical Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pharmacist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pharmacist Assistant",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pharmacist Technician",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pharmacologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pharmacology Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Phlebologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Photographer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Photographic Product Machine Operator",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Physical Education Primary Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Physical Education Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Physical Education Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Physicist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Physics Laboratory Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Physics Professor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Physics Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Physics Technician",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Physiotherapist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Physiotherapy Specialist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pilot Captain",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pipe Fitter",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pipe Insulation Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pipeline Pumps Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pisciculturist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Plant Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Plasterer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Plastic Arts Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Plastic Cutting Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Plastic Extruder Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Plastic Injection Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Plastic Materials Salesperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Plastic Moulding Press Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Plastic Products Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Plastic Surgeon",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Plate Printing Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Plumber",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Plumber Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Poet",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Police Detective",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Police Inspector",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Police Officer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Policy and Planning Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Political Advisor",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Political Sciences Professor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Political Scientist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Porter",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Ports Engineer",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Postman",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Potter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Poultry Farm Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Poultry Producer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Power Distribution Board Assembler",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Power Distribution Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Power Plant Electrician",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Power Plant Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Power Production Plant Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Powerplant Electrician Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Precision Instrument Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Press Editor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Priest",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Primary Education Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Primary School Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Printer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Printer Work Supervisor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Printing Press Assembler",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Printing Press Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Printing Silk Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Prison Guard",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Private Coach",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Private Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Private Nurse",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Private Representative",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Private Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Proctologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Product Quality Controller",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Production Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Production Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Production Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Production Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Project Engineer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Project Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Projectionist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Projects and Technology Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Promotion Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Property Appraiser",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Prosthesis Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Psychoanalyst",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Psychologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Psychology Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Psychology Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Public Relations Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Public Relations Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Public Relations Officer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Publication Designer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Publicity Advertising Agent",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Pulmonologist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Puppet Artist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Purchasing Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Purchasing Representative",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Purchasing Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Quality Control Engineer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Quality Control Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Quality Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Quantities and Calculation Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Quantity Surveyor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Quarry Supervisor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Radiation Protection Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Radiator Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Radiographer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Radiologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Railway Station Director",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Railways Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Real Estate Agent",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Real Estate Broker",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Real Estate Insurance Agent",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Real Estate Property Manager",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Real Estate Registration Clerk",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Receptionist",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Refinery Operator",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Refrigeration Mechanic",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Refuse Collector",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Registered Hawala Enabler",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Reinforcing Fitter Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Reinsurance Specialist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Religious Education Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Religious Guide",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Religious Primary Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Religious Sciences Professor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Reprographics Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Research and Development Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Research Studies Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Reservation Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Restaurant Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Restaurant Worker",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Retail Sales Assistant",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Retail Store Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Rheumatologist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Rigger",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Road Maintenance Labourer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Road Maintenance Technician",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Road Sign Installer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Road Transport Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Roads Draftsperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Rubber Products Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Rugs and Carpets Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Saddler",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sailor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sales Demonstrator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sales Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sales Supervisor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sample Collector",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sandwich Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sanitary Salesperson",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Scaffolder",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Scaffolder Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "School Attendance Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "School Department Head",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "School Deputy Principal",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "School Health Nurse",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "School Laboratory Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "School Principal",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Science Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Science Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sciences Primary Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Scientific Laboratory Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Scrap Merchant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sculptor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sea Fisher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sea Transport Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Seaman",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Seamstress",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Seaport Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Secondary Education Supervisor",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Secondary Education Teacher",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Secretary",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Security Guard",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Security Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Security Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Senior Government Official",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Service Station Cashier",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Service Station Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sewage Pipelayer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sewage Supervisor",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sewerage Cleaner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sewing Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Shawarma Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sheet Metal Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sheet Metal Worker Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Shepherd",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Ship Captain",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Ship Captain Assistant",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Ship Electrician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Ship Electrician Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Ship Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Ship Mechanical Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Ship Painter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Shipping Agent",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Shipping Services Clerk",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Shipwright",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Shoe Polisher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Shoemaker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Shoemaking Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Shop Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Shop Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Shovel Operation Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Signal Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Silkworm Farmer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Singer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Site Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Skilled Forester",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Slaughterer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Smelting Furnace Operator",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Social Primary Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Social Security Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Social Services Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Social Services Specialist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Social Welfare Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Social Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sociologist",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sociology Professor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sociology Teacher",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Software Developer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Soldier / Military / Defence",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sound Physicist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sound Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sous Chef",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Special Education Needs Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Specialist Physician",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Speech and language Therapist Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Speech Therapist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sports Commentator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sports Equipment Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sports Referee",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Sports Trainer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Spray Painter",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stable Groom",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stadium Official",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Staff Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stall and Market Salesperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stamp Carver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Statistical Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Statistician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Statistics Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Steam Press Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Steam Roller Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Steam Turbine Mechanic",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Steam Turbine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Steel Fixer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stevedore",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Steward/Stewardess",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stock Broker",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stock Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stock Filler",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stone Carver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stone Crushing Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stone Decorator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stone Driller",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stone Mason Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stone Polishing Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stone Processing Plant Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stone Sorter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stone Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Stonemason",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Storekeeper",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Street Sweeper",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Student Affairs Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Student Affairs Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Supermarket Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Supply and Distribution Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Supply Chain Analyst",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Supply Chain Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Surgeon",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Surveillance Equipment Assembler",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Survey and Market Research Interviewer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Survey Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Surveyor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Suspension Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Synthetic Fibre Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "System Administrator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Systems Analyst",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tailor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tamer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tanker Captain",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tanner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tax Account Clerk",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tax Advisor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Taxi Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Technical Advisor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Technical Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Telecommunication Assistant",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Telecommunication Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Telecommunication Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Telecommunication Line Installer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Telecommunication Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Telecommunications Clerk",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Telecommunications Engineering Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Telecommunications Equipment Repairer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Telephone Assembler",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Telephone Switchboard Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Television Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tent Installation Worker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tent Maker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Test Pilot",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Textile Machine Operator",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Textiles Salesperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Theatre Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Ticket Collector",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Ticket Conductor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "TIG Welder",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tile Layer",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tile Layer Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tile Polisher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tin Cutting Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tinsmith",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tobacco Products Maker",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tool Grinder and Sharpener",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Torsion Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tour Guide",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tourist Agent",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tourist Information Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tourist Information Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tourist Supervisor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Toys Sales Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tractor Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Traffic Control Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Traffic Planner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Train Driver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Train Fitter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Training Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Transformer Assembler",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Translator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Transmission Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Transmission Engineer Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Transport Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Transportation Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Transportation Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Travel Agency Manager",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Travel Agent",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Travel Tickets Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tree and Shrub Crop Grower",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Trench Digger Operator",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tropical Medicine Doctor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Turbine Engine Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Turbine Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Turbine Operation Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Turbine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Turner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Turner Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Turning Work Supervisor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Typesetter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Typist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Tyre Repairer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Undeclared Profession",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Undersecretary",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Undertaker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Underwater Diver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Unemployed",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Unidentified Profession",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "University President",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "University Professor",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "University Vice-President",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Upholsterer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Upholsterer Assistant",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Urban Planner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Urologist",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Valuer and Loss Assessor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vegetable and Fruit Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vegetable and Fruit Packer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vehicle Assembler",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vehicle Cleaner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vehicle Glass Installer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vehicle Insurance Agent",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vehicle Maintenance Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vehicle Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vehicle Painter Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vehicle Rental Agent",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vehicle Upholster",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vehicles Mechanic Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Venereologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Veterinarian",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Veterinarian Hospital Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Veterinary Nurse",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Veterinary Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Veterinary Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vice Chairman",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Virtual Asset Trader / Service Provider",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Visitors Guide",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vocational Agriculture Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vocational Commerce Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vocational Hotels Teacher",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vocational Industry Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vocational Nursing Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vocational Teacher",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Vocational Trainer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Wages Clerk",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Waiter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Warehouse Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Watch Repairer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Watchmaker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Water and Sewage System Director",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Water Chemist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Water Plant Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Water Salesperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Water Treatment Plant Operator",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Water Well Driller",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Weather Forecaster",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Weaver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Web Developer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Web Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Weighting Clerk",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Welder",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Welder Assistant",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Welding Inspector",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Welding Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Well Drilling Engineer",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Wheel and Balancing Mechanic",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Wholesale Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Window Cleaner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Wood Carver",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Wood Painter",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Wood Painter Assistant",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Wood Processing Plant Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Wood Sewing Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Wood Smoothing Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Wood Supplies Salesperson",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Wood Treater",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Wood Turner",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Woodworker",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Woodworker Supervisor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "X-Ray Technician",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Yarn Dyeing Machine Operator",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Youth Sport Manager",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Zoologist",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Zoology Professor",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+}
+]
+},
+{
+"code": "5",
+"question": "Product availed",
+"rule_key": null,
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "Antique & Vintage Jewellery",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bullion",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Collectible Coins",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Designer & Branded Jewellery",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Fine Jewellery",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Investment-Grade Precious Metals",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Luxury Watches",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Polished Diamonds",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Raw Precious Metals",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Uncut & Rough Gemstones",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Wholesale Jewellery",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+}
+]
+},
+{
+"code": "6",
+"question": "Delivery channel",
+"rule_key": null,
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "Face-to-Face",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Non Face-to-Face (e-KYC)",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Non Face-to-Face",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+}
+]
+},
+{
+"code": "7",
+"question": "Preferred payment method",
+"rule_key": "payment",
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "Cash",
+"score": 3,
+"force_high": 0,
+"combo_high": 1,
+"excluded": 0
+},
+{
+"label": "Cheque",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Crypto",
+"score": 3,
+"force_high": 1,
+"combo_high": 1,
+"excluded": 0
+},
+{
+"label": "Bank Transfer (Local)",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Bank Transfer (International)",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Debit/Credit Card",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Gold to Gold Exchange",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "All of the Above",
+"score": 3,
+"force_high": 1,
+"combo_high": 1,
+"excluded": 0
+}
+]
+},
+{
+"code": "8",
+"question": "Expected volume of transactions",
+"rule_key": "volume",
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "Amount up to AED 55,000",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Amount upto AED 100,000",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Amount more than AED 100,000",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+}
+]
+},
+{
+"code": "9",
+"question": "Place of birth",
+"rule_key": null,
+"answer_source": "countries",
+"allow_na": 0,
+"options": []
+},
+{
+"code": "10",
+"question": "Number of years in relationship",
+"rule_key": null,
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "Less than 1",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "More than 1 Less than 5",
+"score": 2,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "More than 5",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+}
+]
+},
+{
+"code": "11",
+"question": "Type of transaction — involvement of a third party for payments?",
+"rule_key": null,
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "No",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Yes",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+}
+]
+},
+{
+"code": "12",
+"question": "Any negative media, or name on other sanctions lists (OFAC, UK HMT, etc.)?",
+"rule_key": null,
+"answer_source": "options",
+"allow_na": 0,
+"options": [
+{
+"label": "No",
+"score": 1,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+},
+{
+"label": "Yes",
+"score": 3,
+"force_high": 0,
+"combo_high": 0,
+"excluded": 0
+}
+]
+}
+]
+}
