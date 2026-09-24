@@ -267,6 +267,8 @@ def _pg_ensure_columns():
         "ALTER TABLE additional_tasks ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'open'",
         "ALTER TABLE additional_tasks ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP",
         "ALTER TABLE additional_tasks ADD COLUMN IF NOT EXISTS completed_by INTEGER",
+        # Staff leave (pauses regular tasks; optional cover person)
+        "CREATE TABLE IF NOT EXISTS staff_leave (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, start_date DATE NOT NULL, end_date DATE NOT NULL, cover_user_id INTEGER, notes TEXT, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
     ]
     # (risk_questions seeding for PG happens in _run_migrations via _seed_risk_questions)
     try:
@@ -325,6 +327,7 @@ def _run_migrations(conn):
         "risk_answer_options (id {pk}, question_id INTEGER NOT NULL, label TEXT NOT NULL, score INTEGER NOT NULL DEFAULT 1, sort_order INTEGER DEFAULT 0)",
         "risk_responses (id {pk}, assessment_type TEXT, assessment_id INTEGER, question_id INTEGER, question_text TEXT, answer_label TEXT, score INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "login_history (id {pk}, user_id INTEGER, username TEXT, success BOOLEAN DEFAULT FALSE, ip_address TEXT, user_agent TEXT, logout_at TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "staff_leave (id {pk}, user_id INTEGER NOT NULL, start_date DATE NOT NULL, end_date DATE NOT NULL, cover_user_id INTEGER, notes TEXT, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
     ]
     pk = "SERIAL PRIMARY KEY" if pg else "INTEGER PRIMARY KEY AUTOINCREMENT"
     for t in new_tables:
@@ -977,7 +980,7 @@ def healthz():
             try: conn.rollback()
             except: pass
             checks['login_history.logout_at'] = 'MISSING'
-        for t in ['risk_country_scores', 'login_history', 'risk_questions', 'risk_answer_options', 'risk_responses', 'walkin_risk_assessments']:
+        for t in ['risk_country_scores', 'login_history', 'risk_questions', 'risk_answer_options', 'risk_responses', 'walkin_risk_assessments', 'staff_leave']:
             try:
                 x(conn, f'SELECT 1 FROM {t} LIMIT 1').fetchone()
                 checks[t] = 'ok'
@@ -2213,11 +2216,15 @@ def _staff_task_report(conn, today, df, dt, staff_id=None):
         reg_pending = 0
         try:
             if urole in ('admin', 'compliance'):
-                tmpls = all_(conn, "SELECT id,frequency,created_at FROM regular_task_templates WHERE assigned_user_id=?", (uid,))
+                tmpls = all_(conn, "SELECT id,frequency,created_at,assigned_user_id FROM regular_task_templates WHERE assigned_user_id=?", (uid,))
             else:
-                tmpls = all_(conn, "SELECT id,frequency,created_at FROM regular_task_templates WHERE assigned_role='all' OR assigned_user_id=? OR assigned_role=?", (uid, urole))
+                tmpls = all_(conn, "SELECT id,frequency,created_at,assigned_user_id FROM regular_task_templates WHERE assigned_role='all' OR assigned_user_id=? OR assigned_role=?", (uid, urole))
+            own_ids = set(tm['id'] for tm in tmpls)
             for tm in tmpls:
-                reg_pending += len(_regular_missed_dates(conn, tm['id'], uid, tm['frequency'], tm.get('created_at'), today))
+                reg_pending += len(_regular_missed_dates(conn, tm['id'], uid, tm['frequency'], tm.get('created_at'), today, tm.get('assigned_user_id'), True))
+            for tm in _covered_templates(conn, uid, today):
+                if tm['id'] not in own_ids:
+                    reg_pending += len(_regular_missed_dates(conn, tm['id'], uid, tm['frequency'], tm.get('created_at'), today, tm.get('assigned_user_id'), False))
         except Exception:
             reg_pending = 0
 
@@ -2926,6 +2933,8 @@ def settings():
     bp = one(conn, "SELECT value FROM app_settings WHERE key='backup_path'")
     bt = one(conn, "SELECT value FROM app_settings WHERE key='backup_time'")
     lba = one(conn, "SELECT value FROM app_settings WHERE key='last_backup_at'")
+    today = str(dubai_today())
+    leave_now = {p['user_id']: p['end_date'] for p in _leave_periods(conn) if p['start_date'] <= today <= p['end_date']}
     conn.close()
     groups={}
     for d in dds: groups.setdefault(d['field_name'],[]).append(d)
@@ -2934,7 +2943,7 @@ def settings():
         backup_path=(bp['value'] if bp else ''),
         backup_time=(bt['value'] if bt else ''),
         last_backup_at=(lba['value'] if lba else ''),
-        is_local=(os.getenv('LOCAL_SERVICE') == '1'))
+        is_local=(os.getenv('LOCAL_SERVICE') == '1'), leave_now=leave_now)
 
 def get_setting(key, default=''):
     """Read a single app_settings value."""
@@ -3147,29 +3156,6 @@ def tasks():
                    'days_until_due':d,'is_overdue':(d is not None and d<0)})
 
     # ── REGULAR TASKS ──
-    def due_dates_for_frequency(freq, since_date):
-        dates=[]
-        if freq=='daily':
-            d=since_date
-            while d<=today:
-                dates.append(d); d+=timedelta(days=1)
-        elif freq=='weekly':
-            d=since_date
-            days_ahead=(4-d.weekday())%7
-            d=d+timedelta(days=days_ahead)
-            while d<=today:
-                dates.append(d); d+=timedelta(weeks=1)
-        elif freq=='monthly':
-            d=since_date.replace(day=1)
-            while True:
-                try: due=d.replace(day=25)
-                except ValueError: due=None
-                if due and due>=since_date and due<=today: dates.append(due)
-                if d.month==12: d=d.replace(year=d.year+1,month=1)
-                else: d=d.replace(month=d.month+1)
-                if d>today: break
-        return dates
-
     try:
         if role in ['admin','compliance']:
             rt_templates=all_(conn,"""SELECT rt.*,u.name as created_by_name,au.name as assigned_user_name
@@ -3192,17 +3178,34 @@ def tasks():
                 WHERE l.user_id=? ORDER BY l.logged_at DESC LIMIT 100""", (uid,))
     except: rt_templates=[]; rt_logs=[]
 
+    # Tasks this user is covering while their owner is on leave
+    own_ids = set(t['id'] for t in rt_templates)
+    covered = {t['id']: t for t in _covered_templates(conn, uid, today)}
+    rt_templates = [({**t, **{k: covered[t['id']][k] for k in ('covering_for', 'cover_until')}} if t['id'] in covered else t)
+                    for t in rt_templates]
+    for tid, t in covered.items():
+        if tid not in own_ids:
+            rt_templates.append({**t, '_cover_only': True})
+
+    # Who is on leave today (for badges) and whether the viewer is
+    on_leave_now = {}
+    for p in _leave_periods(conn):
+        if p['start_date'] <= str(today) <= p['end_date']:
+            on_leave_now[p['user_id']] = p['end_date']
+    my_leave_until = on_leave_now.get(uid)
+
     task_status={}
+    kept = []
     for t in rt_templates:
+        own = not t.get('_cover_only') and _regular_is_own(t, uid, role)
         try:
             user_logs=all_(conn,"""SELECT DATE(logged_at) as log_date FROM regular_task_logs
                 WHERE template_id=? AND user_id=? ORDER BY logged_at ASC""", (t['id'],uid))
-            logged_dates=set(r['log_date'] for r in user_logs)
-            created=t.get('created_at')
-            try: start=datetime.strptime(str(created)[:10],'%Y-%m-%d').date()
-            except: start=today
-            all_due=due_dates_for_frequency(t['frequency'],start)
-            missed=[d for d in all_due if str(d) not in logged_dates]
+            missed=_regular_missed_dates(conn, t['id'], uid, t['frequency'], t.get('created_at'), today,
+                                         t.get('assigned_user_id'), own)
+            # A cover-only task drops off the list once the leave is over and nothing is owed
+            if t.get('_cover_only') and not missed and str(t.get('cover_until')) < str(today):
+                continue
             freq=t['frequency']
             if freq=='daily': next_due=today+timedelta(days=1)
             elif freq=='weekly':
@@ -3213,14 +3216,17 @@ def tasks():
                 elif today.month==12: next_due=today.replace(year=today.year+1,month=1,day=25)
                 else: next_due=today.replace(month=today.month+1,day=25)
             else: next_due=today
-            is_due_today=str(today) in [str(d) for d in all_due] and str(today) not in logged_dates
+            is_due_today=str(today) in [str(d) for d in missed]
             task_status[t['id']]={
                 'overdue_count':len(missed),'is_due_today':is_due_today,
-                'next_due':str(next_due),'last_logged':user_logs[-1]['log_date'] if user_logs else None,
+                'next_due':str(next_due),'last_logged':str(user_logs[-1]['log_date'])[:10] if user_logs else None,
                 'missed_dates':[str(d) for d in missed[-3:]],
-                'missed_all':[str(d) for d in missed[-180:]]
+                'missed_all':[str(d) for d in missed[-180:]],
+                'owner_on_leave_until':on_leave_now.get(t.get('assigned_user_id')),
             }
         except: task_status[t['id']]={'overdue_count':0,'is_due_today':False,'next_due':str(today),'last_logged':None,'missed_dates':[]}
+        kept.append(t)
+    rt_templates = kept
 
     # ── ADDITIONAL TASKS ──
     try:
@@ -3262,7 +3268,7 @@ def tasks():
     return render_template('tasks.html',tasks=tl,all_users=users,all_companies=cos,task_templates=tmpls,
                            rt_templates=rt_templates,rt_logs=rt_logs,task_status=task_status,
                            active_tab=active_tab,today=str(today),add_tasks=add_tasks,
-                           current_user_id=uid)
+                           current_user_id=uid,my_leave_until=my_leave_until)
 
 @app.route('/api/task/add',methods=['POST'])
 @require_perm('tasks_create')
@@ -4058,11 +4064,15 @@ def analytics():
             reg_pending = 0
             try:
                 if urole in ('admin', 'compliance'):
-                    tmpls = all_(conn, "SELECT id,frequency,created_at FROM regular_task_templates WHERE assigned_user_id=?", (uid,))
+                    tmpls = all_(conn, "SELECT id,frequency,created_at,assigned_user_id FROM regular_task_templates WHERE assigned_user_id=?", (uid,))
                 else:
-                    tmpls = all_(conn, "SELECT id,frequency,created_at FROM regular_task_templates WHERE assigned_role='all' OR assigned_user_id=? OR assigned_role=?", (uid, urole))
+                    tmpls = all_(conn, "SELECT id,frequency,created_at,assigned_user_id FROM regular_task_templates WHERE assigned_role='all' OR assigned_user_id=? OR assigned_role=?", (uid, urole))
+                own_ids = set(tm['id'] for tm in tmpls)
                 for tm in tmpls:
-                    reg_pending += len(_regular_missed_dates(conn, tm['id'], uid, tm['frequency'], tm.get('created_at'), today))
+                    reg_pending += len(_regular_missed_dates(conn, tm['id'], uid, tm['frequency'], tm.get('created_at'), today, tm.get('assigned_user_id'), True))
+                for tm in _covered_templates(conn, uid, today):
+                    if tm['id'] not in own_ids:
+                        reg_pending += len(_regular_missed_dates(conn, tm['id'], uid, tm['frequency'], tm.get('created_at'), today, tm.get('assigned_user_id'), False))
             except Exception:
                 reg_pending = 0
             done_period = (temp_done_p or 0) + (logs_c or 0) + (add_done_p or 0)
@@ -4169,18 +4179,136 @@ def _regular_due_dates(freq, since_date, today):
             if d > today: break
     return dates
 
-def _regular_missed_dates(conn, template_id, user_id, frequency, created_at, today):
-    """Due dates for this template/user that have no log yet (the backlog)."""
+def _leave_periods(conn, user_id=None, cover_user_id=None):
+    """Staff leave rows with ISO-string start/end, filtered by person on leave and/or cover."""
+    q, args = 'SELECT id,user_id,start_date,end_date,cover_user_id FROM staff_leave WHERE 1=1', []
+    if user_id is not None: q += ' AND user_id=?'; args.append(user_id)
+    if cover_user_id is not None: q += ' AND cover_user_id=?'; args.append(cover_user_id)
+    try:
+        rows = all_(conn, q, tuple(args))
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+        return []
+    return [{**r, 'start_date': str(r['start_date'])[:10], 'end_date': str(r['end_date'])[:10]} for r in rows]
+
+def _in_periods(d, periods):
+    ds = str(d)[:10]
+    return any(p['start_date'] <= ds <= p['end_date'] for p in periods)
+
+def _regular_is_own(t, uid, role):
+    """True if the template is on this user's own list (not only via covering someone's leave)."""
+    if role in ('admin', 'compliance'):
+        return True
+    ar = t.get('assigned_role') or 'all'
+    return ar == 'all' or t.get('assigned_user_id') == uid or ar == role
+
+def _regular_missed_dates(conn, template_id, user_id, frequency, created_at, today,
+                          assigned_user_id=None, own=True):
+    """Due dates this user still owes for a template (the backlog):
+       - own schedule, minus days this user is on leave;
+       - plus days they are covering for the assigned person's leave."""
     try:
         user_logs = all_(conn, """SELECT DATE(logged_at) as log_date FROM regular_task_logs
             WHERE template_id=? AND user_id=? ORDER BY logged_at ASC""", (template_id, user_id))
-        logged = set(str(r['log_date']) for r in user_logs)
+        logged = set(str(r['log_date'])[:10] for r in user_logs)
         try: start = datetime.strptime(str(created_at)[:10], '%Y-%m-%d').date()
         except Exception: start = today
         due = _regular_due_dates(frequency, start, today)
-        return [d for d in due if str(d) not in logged]
+        own_leave = _leave_periods(conn, user_id=user_id) if own else []
+        cover = []
+        if assigned_user_id and assigned_user_id != user_id:
+            cover = _leave_periods(conn, user_id=assigned_user_id, cover_user_id=user_id)
+        owed = [d for d in due
+                if (own and not _in_periods(d, own_leave)) or _in_periods(d, cover)]
+        return [d for d in owed if str(d) not in logged]
     except Exception:
         return []
+
+def _covered_templates(conn, uid, today):
+    """Regular tasks assigned to people this user covers, for leaves that have started.
+       Each row carries covering_for (name) and cover_until (latest leave end)."""
+    out = {}
+    for p in _leave_periods(conn, cover_user_id=uid):
+        if p['start_date'] > str(today):
+            continue
+        try:
+            rows = all_(conn, """SELECT rt.*,u.name as created_by_name,au.name as assigned_user_name
+                FROM regular_task_templates rt LEFT JOIN users u ON rt.created_by=u.id
+                LEFT JOIN users au ON rt.assigned_user_id=au.id
+                WHERE rt.assigned_user_id=?""", (p['user_id'],))
+        except Exception:
+            rows = []
+        for r in rows:
+            prev = out.get(r['id'])
+            until = max(p['end_date'], prev['cover_until']) if prev else p['end_date']
+            out[r['id']] = {**r, 'covering_for': r.get('assigned_user_name'), 'cover_until': until}
+    return list(out.values())
+
+
+# ── STAFF LEAVE (pauses a person's regular tasks; optional cover takes them over) ──
+@app.route('/api/staff-leave/<int:user_id>')
+@require_perm('admin_users')
+def api_list_staff_leave(user_id):
+    conn = get_db()
+    try:
+        rows = all_(conn, """SELECT l.id,l.start_date,l.end_date,l.cover_user_id,l.notes,c.name AS cover_name
+            FROM staff_leave l LEFT JOIN users c ON l.cover_user_id=c.id
+            WHERE l.user_id=? ORDER BY l.start_date DESC""", (user_id,))
+        conn.close()
+        return jsonify({'success': True, 'leaves': [
+            {**r, 'start_date': str(r['start_date'])[:10], 'end_date': str(r['end_date'])[:10]} for r in rows]})
+    except Exception as e:
+        try: conn.close()
+        except Exception: pass
+        return _fail(e)
+
+@app.route('/api/staff-leave/add', methods=['POST'])
+@require_perm('admin_users')
+def api_add_staff_leave():
+    d = request.get_json() or {}
+    try:
+        uid = int(d.get('user_id') or 0)
+        start = datetime.strptime(str(d.get('start_date') or ''), '%Y-%m-%d').date()
+        end = datetime.strptime(str(d.get('end_date') or ''), '%Y-%m-%d').date()
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Please enter valid From and To dates'}), 400
+    if end < start:
+        return jsonify({'success': False, 'error': '"To" date is before "From" date'}), 400
+    cover = int(d['cover_user_id']) if str(d.get('cover_user_id') or '').isdigit() else None
+    if cover == uid:
+        return jsonify({'success': False, 'error': 'A person cannot cover their own leave'}), 400
+    conn = get_db()
+    try:
+        if not one(conn, 'SELECT id FROM users WHERE id=?', (uid,)):
+            conn.close(); return jsonify({'success': False, 'error': 'User not found'}), 404
+        if cover and not one(conn, 'SELECT id FROM users WHERE id=? AND is_active=1', (cover,)):
+            conn.close(); return jsonify({'success': False, 'error': 'Cover person not found or disabled'}), 400
+        for p in _leave_periods(conn, user_id=uid):
+            if p['start_date'] <= str(end) and str(start) <= p['end_date']:
+                conn.close()
+                return jsonify({'success': False, 'error': f"Overlaps an existing leave ({p['start_date']} to {p['end_date']})"}), 400
+        x(conn, """INSERT INTO staff_leave (user_id,start_date,end_date,cover_user_id,notes,created_by)
+            VALUES (?,?,?,?,?,?)""", (uid, str(start), str(end), cover, (d.get('notes') or '').strip(), session.get('user_id')))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        try: conn.close()
+        except Exception: pass
+        return _fail(e)
+
+@app.route('/api/staff-leave/<int:id>/delete', methods=['POST'])
+@require_perm('admin_users')
+def api_delete_staff_leave(id):
+    conn = get_db()
+    try:
+        x(conn, 'DELETE FROM staff_leave WHERE id=?', (id,))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        try: conn.close()
+        except Exception: pass
+        return _fail(e)
 
 
 @app.route('/api/regular-task/<int:id>/catchup', methods=['POST'])
@@ -4192,10 +4320,11 @@ def api_catchup_regular_task(id):
     try:
         conn = get_db()
         uid = session.get('user_id'); today = dubai_today()
-        t = one(conn, 'SELECT id,title,frequency,created_at FROM regular_task_templates WHERE id=?', (id,))
+        t = one(conn, 'SELECT * FROM regular_task_templates WHERE id=?', (id,))
         if not t:
             return jsonify({'success': False, 'error': 'Task not found'}), 404
-        missed = _regular_missed_dates(conn, id, uid, t['frequency'], t.get('created_at'), today)
+        missed = _regular_missed_dates(conn, id, uid, t['frequency'], t.get('created_at'), today,
+                                       t.get('assigned_user_id'), _regular_is_own(t, uid, session.get('user_role')))
         n = 0
         for d in missed:
             x(conn, '''INSERT INTO regular_task_logs (template_id, user_id, notes, status, logged_at)
@@ -4220,10 +4349,11 @@ def api_log_regular_task(id):
         dates = d.get('dates') or []
         if dates:
             # Log specific pending days — only dates that are genuinely in this user's backlog
-            t = one(conn, 'SELECT id,frequency,created_at FROM regular_task_templates WHERE id=?', (id,))
+            t = one(conn, 'SELECT * FROM regular_task_templates WHERE id=?', (id,))
             if not t:
                 conn.close(); return jsonify({'success': False, 'error': 'Task not found'}), 404
-            pending = set(str(x_) for x_ in _regular_missed_dates(conn, id, uid, t['frequency'], t.get('created_at'), dubai_today()))
+            pending = set(str(x_) for x_ in _regular_missed_dates(conn, id, uid, t['frequency'], t.get('created_at'), dubai_today(),
+                                                                  t.get('assigned_user_id'), _regular_is_own(t, uid, session.get('user_role'))))
             bad = [s for s in dates if str(s) not in pending]
             if bad:
                 conn.close()

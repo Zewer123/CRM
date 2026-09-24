@@ -394,6 +394,9 @@
   </div>
 </div>
 
+{% if my_leave_until %}
+<div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.35);color:#93c5fd;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;">🏖️ You're on leave until <strong>{{ my_leave_until }}</strong> — your regular tasks are paused for those days.</div>
+{% endif %}
 <!-- REGULAR TASK LIST (simple table) -->
 <div class="card" style="padding:0;overflow:hidden;margin-bottom:20px;">
   <div class="table-wrap">
@@ -445,6 +448,8 @@
             {% if t.assigned_user_name %}<span style="color:var(--primary);">👤 {{ t.assigned_user_name }}</span>
             {% elif t.assigned_role == 'all' or not t.assigned_role %}<span style="color:var(--text-dim);">👥 All Staff</span>
             {% else %}<span style="color:var(--text-dim);">👥 {{ t.assigned_role|title }}</span>{% endif %}
+            {% if s.get('owner_on_leave_until') %}<div style="font-size:10px;color:#93c5fd;margin-top:2px;">🏖️ On leave → {{ s.owner_on_leave_until }}</div>{% endif %}
+            {% if t.covering_for %}<div style="font-size:10px;color:#fcd34d;margin-top:2px;">🤝 You're covering → {{ t.cover_until }}</div>{% endif %}
           </td>
           <td style="font-size:12px;">
             {% if s.get('last_logged') %}<span style="color:#86efac;">{{ s.last_logged }}</span>

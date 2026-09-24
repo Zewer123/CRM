@@ -51,10 +51,12 @@
             <span class="badge {% if u.is_active %}badge-active{% else %}badge-inactive{% endif %}">
               {{ 'Active' if u.is_active else 'Disabled' }}
             </span>
+            {% if leave_now.get(u.id) %}<span class="badge" style="background:rgba(59,130,246,0.15);color:#93c5fd;margin-left:4px;">🏖️ On leave → {{ leave_now[u.id] }}</span>{% endif %}
           </td>
           <td>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
               <button class="btn btn-ghost btn-sm" onclick="editUser({{ u.id }}, '{{ u.name|replace("'","\\'") }}', '{{ u.email|replace("'","\\'") }}', '{{ u.role }}', '{{ (u.contact_number or '')|replace("'","\\'") }}', '{{ (u.username or '')|replace("'","\\'") }}', '{{ (u.permissions or '')|replace("'","\\'") }}')">✏️ Edit</button>
+              <button class="btn btn-ghost btn-sm" onclick="openLeave({{ u.id }}, '{{ u.name|replace("'","\\'") }}')">🏖️ Leave</button>
               <button class="btn btn-ghost btn-sm" onclick="toggleUser({{ u.id }}, {{ u.is_active }})">
                 {{ '🔴 Disable' if u.is_active else '🟢 Enable' }}
               </button>
@@ -212,6 +214,32 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('editUserModal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveEditUser()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: STAFF LEAVE ===== -->
+<div class="modal-overlay" id="leaveModal">
+  <div class="modal-box" style="max-width:520px;">
+    <div class="modal-title">🏖️ Leave — <span id="leaveUserName"></span></div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">While on leave, this person's daily / weekly / monthly tasks are paused (not counted as overdue). If you pick a cover person, tasks assigned directly to this person appear on the cover's list for those days and go back automatically when the leave ends.</div>
+    <input type="hidden" id="leaveUserId">
+    <div id="leaveList" style="margin-bottom:14px;"></div>
+    <div class="form-grid">
+      <div class="form-group"><label>From *</label><input type="date" id="leaveFrom"></div>
+      <div class="form-group"><label>To *</label><input type="date" id="leaveTo"></div>
+      <div class="form-group form-full">
+        <label>Cover person <small style="color:var(--text-dim);">(optional)</small></label>
+        <select id="leaveCover">
+          <option value="">— No cover (just pause) —</option>
+          {% for cu in users if cu.is_active %}<option value="{{ cu.id }}">{{ cu.name }} ({{ cu.role }})</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group form-full"><label>Notes</label><input type="text" id="leaveNotes" placeholder="e.g. Annual leave"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('leaveModal')">Close</button>
+      <button class="btn btn-primary" onclick="saveLeave()">+ Add Leave</button>
     </div>
   </div>
 </div>
@@ -660,6 +688,51 @@ function saveEditUser() {
 function toggleUser(id, currentActive) {
   fetch(`/api/user/${id}/toggle`, { method:'POST' })
     .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
+}
+
+// STAFF LEAVE
+function _escHtml(t) { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; }
+function openLeave(id, name) {
+  document.getElementById('leaveUserId').value = id;
+  document.getElementById('leaveUserName').textContent = name;
+  ['leaveFrom','leaveTo','leaveNotes'].forEach(k => document.getElementById(k).value = '');
+  const sel = document.getElementById('leaveCover');
+  sel.value = '';
+  Array.from(sel.options).forEach(o => { o.hidden = (o.value === String(id)); });
+  loadLeaves(id);
+  openModal('leaveModal');
+}
+function loadLeaves(id) {
+  const box = document.getElementById('leaveList');
+  box.innerHTML = '<div style="font-size:12px;color:var(--text-dim);">Loading…</div>';
+  fetch(`/api/staff-leave/${id}`).then(r => r.json()).then(d => {
+    if (!d.success) { box.innerHTML = '<div style="color:#fca5a5;font-size:12px;">' + _escHtml(d.error) + '</div>'; return; }
+    if (!d.leaves.length) { box.innerHTML = '<div style="font-size:12px;color:var(--text-dim);">No leave recorded.</div>'; return; }
+    box.innerHTML = d.leaves.map(l =>
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;font-size:12px;">' +
+        '<div><strong>' + l.start_date + ' → ' + l.end_date + '</strong>' +
+        '<div style="color:var(--text-dim);">' + (l.cover_name ? 'Cover: ' + _escHtml(l.cover_name) : 'No cover (paused)') + (l.notes ? ' · ' + _escHtml(l.notes) : '') + '</div></div>' +
+        '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteLeave(' + l.id + ')">🗑️</button>' +
+      '</div>').join('');
+  }).catch(() => { box.innerHTML = '<div style="color:#fca5a5;font-size:12px;">Network error</div>'; });
+}
+function saveLeave() {
+  const id = document.getElementById('leaveUserId').value;
+  const body = {
+    user_id: id,
+    start_date: document.getElementById('leaveFrom').value,
+    end_date: document.getElementById('leaveTo').value,
+    cover_user_id: document.getElementById('leaveCover').value,
+    notes: document.getElementById('leaveNotes').value
+  };
+  if (!body.start_date || !body.end_date) { alert('Please choose From and To dates'); return; }
+  fetch('/api/staff-leave/add', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
+    .then(r => r.json()).then(d => { if (d.success) location.reload(); else alert('Error: ' + d.error); });
+}
+function deleteLeave(lid) {
+  if (!confirm('Remove this leave?\n\nAny days in it that were not logged will show as overdue again for this person.')) return;
+  fetch(`/api/staff-leave/${lid}/delete`, { method:'POST' })
+    .then(r => r.json()).then(d => { if (d.success) location.reload(); else alert('Error: ' + d.error); });
 }
 
 // DELETE USER
