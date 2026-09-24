@@ -1331,7 +1331,19 @@ function clearTaskFilters() {
   ['filterStatus','filterUser','filterCreatedBy','filterPriority','filterDateFrom','filterDateTo','taskSearch'].forEach(id => document.getElementById(id).value = '');
   setQuick('open');
 }
-document.addEventListener('DOMContentLoaded', filterTasks);
+document.addEventListener('DOMContentLoaded', function () {
+  // Deep links from reports: ?user=&created_by=&status=&q=
+  const P = new URLSearchParams(window.location.search);
+  if (P.get('user')) document.getElementById('filterUser').value = P.get('user');
+  if (P.get('created_by')) document.getElementById('filterCreatedBy').value = P.get('created_by');
+  if (P.get('status')) document.getElementById('filterStatus').value = P.get('status');
+  if (P.get('q') || P.get('status') || P.get('user') || P.get('created_by')) {
+    _quick = P.get('q') || 'all';
+    document.querySelectorAll('#quickSeg button').forEach(b => b.classList.toggle('active', b.dataset.q === _quick));
+  }
+  filterTasks();
+  if (P.get('history')) openHistory(+P.get('history'), P.get('person'));
+});
 </script>
 
 
@@ -1566,9 +1578,10 @@ function saveTemplate() {
 
 // ── Recurring history (calendar + stats) ──
 let _hId = null, _hMonth = null, _hToday = null;
-function openHistory(id) {
+function openHistory(id, person) {
   _hId = id; _hMonth = null;
   const sel = document.getElementById('hPerson'); sel.innerHTML = ''; sel.dataset.loaded = '';
+  if (person) sel.innerHTML = `<option value="${+person}" selected></option>`;
   document.getElementById('hCal').innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:var(--text-dim);">Loading…</div>';
   openModal('historyModal');
   loadHistory();

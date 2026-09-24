@@ -4347,6 +4347,59 @@ def task_history():
 # ════════════════════════════════════════════════════════════
 # ANALYTICS DASHBOARD (on-screen; Reports page keeps the exports)
 # ════════════════════════════════════════════════════════════
+def _recurring_performance(conn, today, start, end):
+    """Per recurring task and responsible person, for days due in [start, end] (up to today):
+       expected, done (incl. partial), skipped, missed, completion %.
+       Responsibility follows the same rules as the Tasks page: a named assignee wins; 'All Staff'
+       means staff-role users; leave days and days before assignment are not counted."""
+    end_eff = min(end, today)
+    if start > end_eff:
+        return []
+    users = all_(conn, 'SELECT id,name,role FROM users WHERE is_active=1 ORDER BY name')
+    rows = []
+    for t in all_(conn, """SELECT rt.*, au.name AS assigned_user_name FROM regular_task_templates rt
+                           LEFT JOIN users au ON rt.assigned_user_id=au.id ORDER BY rt.title"""):
+        due = [d for d in _template_due_dates(conn, t, end_eff) if d >= start]
+        if not due:
+            continue
+        if t.get('assigned_user_id'):
+            people = [(t['assigned_user_id'], t.get('assigned_user_name') or f"#{t['assigned_user_id']}")]
+        else:
+            ar = t.get('assigned_role') or 'all'
+            want = 'staff' if ar == 'all' else ar
+            people = [(u['id'], u['name']) for u in users if (u['role'] or '').lower() == want]
+        own_from = _to_date(t.get('assigned_from'))
+        for pid, pname in people:
+            leave = _leave_periods(conn, user_id=pid)
+            resp = [d for d in due if (not own_from or d >= own_from) and not _in_periods(d, leave)]
+            if not resp:
+                continue
+            logs = {}
+            for l in all_(conn, """SELECT DATE(logged_at) AS d, status FROM regular_task_logs
+                    WHERE template_id=? AND user_id=? AND logged_at >= ? AND logged_at < ?
+                    AND COALESCE(status,'done') <> 'reopened'""",
+                          (t['id'], pid, str(start), str(end_eff + timedelta(days=1)))):
+                logs.setdefault(str(l['d'])[:10], l.get('status') or 'done')
+            done = skipped = missed = 0
+            expected = 0
+            for d in resp:
+                ds = str(d); st = logs.get(ds)
+                if d == today and not st:
+                    continue                    # today still open — not late yet
+                expected += 1
+                if st in ('done', 'partial'): done += 1
+                elif st == 'skipped': skipped += 1
+                elif not st: missed += 1
+            if not expected:
+                continue
+            rows.append({'template_id': t['id'], 'title': t['title'], 'frequency': t.get('frequency') or 'daily',
+                         'schedule': _rule_text(t.get('frequency'), t.get('weekday'), t.get('month_day')),
+                         'person_id': pid, 'person': pname, 'expected': expected, 'done': done,
+                         'skipped': skipped, 'missed': missed,
+                         'completion': round(100.0 * done / expected)})
+    rows.sort(key=lambda r: (r['completion'], -r['missed'], r['title']))
+    return rows
+
 @app.route('/analytics')
 @login_required
 def analytics():
@@ -4517,6 +4570,11 @@ def analytics():
             open_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status NOT IN ('done')", (uid,))
             overdue_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status NOT IN ('done','pending_close') AND due_date<?", (uid, str(today)))
             due_today_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status NOT IN ('done') AND due_date=?", (uid, str(today)))
+            todo_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND COALESCE(status,'todo')='todo'", (uid,))
+            inprog_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status='inprogress'", (uid,))
+            hold_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status='hold'", (uid,))
+            await_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status='pending_close'", (uid,))
+            to_close_c = c("SELECT COUNT(*) FROM tasks WHERE created_by=? AND status='pending_close'", (uid,))
             # completed within the selected period
             temp_done_p = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status='done' AND updated_at BETWEEN ? AND ?", (uid, ps, pe_end))
             try:
@@ -4547,14 +4605,35 @@ def analytics():
             except Exception:
                 reg_pending = 0
             done_period = (temp_done_p or 0) + (logs_c or 0) + (add_done_p or 0)
-            staff_full.append({'name': u['name'], 'role': (u['role'] or '').title(),
+            staff_full.append({'id': uid, 'name': u['name'], 'role': (u['role'] or '').title(),
                                'open': open_c, 'overdue': overdue_c, 'due_today': due_today_c,
+                               'todo': todo_c, 'inprogress': inprog_c, 'hold': hold_c,
+                               'awaiting': await_c, 'to_close': to_close_c,
                                'done': done_period, 'temp_done': temp_done_p or 0,
                                'logs': logs_c, 'add_done': add_done_p or 0,
                                'reg_pending': reg_pending, 'additional': add_c})
         staff_full.sort(key=lambda s: (-(s['done'] + s['open'] + s['reg_pending']), s['name']))
     except Exception:
         staff_full = []
+
+    # Team snapshot (live) + recurring-task performance (period)
+    team = {
+        'overdue': c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done','pending_close') AND due_date<?", (str(today),)),
+        'todo': c("SELECT COUNT(*) FROM tasks WHERE COALESCE(status,'todo')='todo'"),
+        'inprogress': c("SELECT COUNT(*) FROM tasks WHERE status='inprogress'"),
+        'hold': c("SELECT COUNT(*) FROM tasks WHERE status='hold'"),
+        'awaiting': c("SELECT COUNT(*) FROM tasks WHERE status='pending_close'"),
+    }
+    try:
+        recurring_perf = _recurring_performance(conn, today, start_p, end_p)
+    except Exception as e:
+        logger.warning(f'recurring performance failed: {e}')
+        try: conn.rollback()
+        except Exception: pass
+        recurring_perf = []
+    rp_exp = sum(r['expected'] for r in recurring_perf)
+    team['rec_completion'] = round(100.0 * sum(r['done'] for r in recurring_perf) / rp_exp) if rp_exp else None
+    team['rec_missed'] = sum(r['missed'] for r in recurring_perf)
 
     # Detailed per-staff drill-down (same builder as the Reports page), scoped to the period
     try:
@@ -4587,7 +4666,7 @@ def analytics():
         ind_by_nat=ind_by_nat, ind_by_emirate=ind_by_emirate, ind_by_prof=ind_by_prof,
         ind_kyc=ind_kyc, ind_resident=ind_resident, ind_nonresident=ind_nonresident,
         # staff
-        staff_full=staff_full,
+        staff_full=staff_full, team=team, recurring_perf=recurring_perf,
     )
 
 

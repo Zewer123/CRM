@@ -343,6 +343,23 @@
 
 <!-- ═══════════ STAFF ═══════════ -->
 <div class="an-tab-pane" id="an-staff" style="display:none;">
+  {# numbers link to the filtered task list (admin sees everyone's tasks there) #}
+  {% macro tlink(n, uid, status='', q='', color='var(--text)') -%}
+    {%- if n and user_role == 'admin' -%}<a href="{{ url_for('tasks', tab='temp', user=uid, status=status, q=q) }}" style="font-weight:700;color:{{ color }};text-decoration:underline dotted;">{{ n }}</a>
+    {%- elif n -%}<span style="font-weight:700;color:{{ color }};">{{ n }}</span>
+    {%- else -%}<span style="color:var(--text-dim);">0</span>{%- endif -%}
+  {%- endmacro %}
+  <div class="an-card-title" style="margin-bottom:10px;">Team right now</div>
+  <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:18px;" class="an-team-grid">
+    <div class="an-kpi" style="border-top-color:var(--danger);"><div class="an-kpi-label">Overdue</div><div class="an-kpi-val" style="color:var(--danger);">{{ team.overdue }}</div><div class="an-kpi-sub">one-time tasks</div></div>
+    <div class="an-kpi" style="border-top-color:var(--text-dim);"><div class="an-kpi-label">Pending</div><div class="an-kpi-val">{{ team.todo }}</div><div class="an-kpi-sub">not started</div></div>
+    <div class="an-kpi" style="border-top-color:var(--blue);"><div class="an-kpi-label">In Progress</div><div class="an-kpi-val" style="color:var(--blue);">{{ team.inprogress }}</div></div>
+    <div class="an-kpi" style="border-top-color:#a855f7;"><div class="an-kpi-label">On Hold</div><div class="an-kpi-val" style="color:#a855f7;">{{ team.hold }}</div></div>
+    <div class="an-kpi" style="border-top-color:var(--warning);"><div class="an-kpi-label">Awaiting Closure</div><div class="an-kpi-val" style="color:var(--warning);">{{ team.awaiting }}</div><div class="an-kpi-sub">marked done, not closed</div></div>
+    <div class="an-kpi" style="border-top-color:var(--success);"><div class="an-kpi-label">Recurring Completion</div><div class="an-kpi-val" style="color:{% if team.rec_completion is none %}var(--text-dim){% elif team.rec_completion >= 90 %}var(--success){% elif team.rec_completion >= 70 %}var(--warning){% else %}var(--danger){% endif %};">{{ team.rec_completion if team.rec_completion is not none else '—' }}{% if team.rec_completion is not none %}%{% endif %}</div><div class="an-kpi-sub">{{ team.rec_missed }} missed day(s) · {{ period_label }}</div></div>
+  </div>
+  <style>@media (max-width:900px){.an-team-grid{grid-template-columns:repeat(3,minmax(0,1fr)) !important;}}</style>
+
   <div class="an-card" style="padding:0;overflow:hidden;">
     <div class="an-card-title" style="padding:18px 18px 0;">Staff Task Summary — {{ period_label }}</div>
     <div class="table-wrap">
@@ -351,10 +368,14 @@
           <tr>
             <th>Staff</th><th>Role</th>
             <th title="Everything completed within the selected period (one-off + regular logs + additional)">✅ Done ({{ period_label }})</th>
-            <th title="Open one-off tasks assigned now">⏳ Pending</th>
-            <th title="Recurring occurrences not yet logged (the backlog)">🔁 Reg. Backlog</th>
-            <th title="Assigned tasks past their due date">⚠️ Overdue</th>
-            <th title="Assigned tasks due today">🔔 Due Today</th>
+            <th title="Assigned one-time tasks not started">⏳ Pending</th>
+            <th title="Assigned one-time tasks in progress">🔄 In Progress</th>
+            <th title="Assigned one-time tasks on hold">⏸ On Hold</th>
+            <th title="They marked it Done — waiting for the task creator to close it">⏳ Awaiting Closure</th>
+            <th title="Tasks THEY created that others marked Done — waiting for them to close">✋ To Close</th>
+            <th title="Assigned one-time tasks past their due date">⚠️ Overdue</th>
+            <th title="Assigned one-time tasks due today">🔔 Due Today</th>
+            <th title="Recurring occurrences not yet logged (the backlog)">🔁 Rec. Backlog</th>
           </tr>
         </thead>
         <tbody>
@@ -366,19 +387,56 @@
               <span style="font-weight:700;color:#86efac;">{{ s.done }}</span>
               <div style="font-size:10px;color:var(--text-dim);">{{ s.temp_done }} one-off · {{ s.logs }} regular · {{ s.add_done }} add'l</div>
             </td>
-            <td><span style="font-weight:700;color:var(--text);">{{ s.open }}</span></td>
-            <td>{% if s.reg_pending %}<span style="font-weight:700;color:#fcd34d;">{{ s.reg_pending }}</span>{% else %}<span style="color:var(--text-dim);">0</span>{% endif %}</td>
-            <td>{% if s.overdue %}<span style="font-weight:700;color:#fca5a5;">{{ s.overdue }}</span>{% else %}<span style="color:var(--text-dim);">0</span>{% endif %}</td>
+            <td>{{ tlink(s.todo, s.id, 'todo') }}</td>
+            <td>{{ tlink(s.inprogress, s.id, 'inprogress', '', 'var(--blue)') }}</td>
+            <td>{{ tlink(s.hold, s.id, 'hold', '', '#a855f7') }}</td>
+            <td>{{ tlink(s.awaiting, s.id, 'pending_close', '', 'var(--warning)') }}</td>
+            <td>{% if s.to_close and user_role == 'admin' %}<a href="{{ url_for('tasks', tab='temp', created_by=s.id, status='pending_close') }}" style="font-weight:700;color:var(--primary);text-decoration:underline dotted;">{{ s.to_close }}</a>{% elif s.to_close %}<span style="font-weight:700;color:var(--primary);">{{ s.to_close }}</span>{% else %}<span style="color:var(--text-dim);">0</span>{% endif %}</td>
+            <td>{{ tlink(s.overdue, s.id, '', 'overdue', 'var(--danger)') }}</td>
             <td>{% if s.due_today %}<span style="font-weight:700;color:#fcd34d;">{{ s.due_today }}</span>{% else %}<span style="color:var(--text-dim);">0</span>{% endif %}</td>
+            <td>{% if s.reg_pending %}<span style="font-weight:700;color:#fcd34d;">{{ s.reg_pending }}</span>{% else %}<span style="color:var(--text-dim);">0</span>{% endif %}</td>
           </tr>
           {% else %}
-          <tr><td colspan="7" class="an-empty">No active staff.</td></tr>
+          <tr><td colspan="11" class="an-empty">No active staff.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
   <div style="font-size:12px;color:var(--text-dim);"><strong>Done</strong> counts everything completed inside <strong>{{ period_label }}</strong> (one-off tasks closed + regular logs + additional tasks completed). <strong>Pending / Overdue / Due Today</strong> are the live position right now. <strong>Reg. Backlog</strong> is unlogged recurring occurrences — clear it from Tasks → Recurring → Log → "Catch up all". Use the period buttons at the top to change the window.</div>
+
+  <!-- ── RECURRING TASK PERFORMANCE ── -->
+  <div class="an-card" style="padding:0;overflow:hidden;margin-top:18px;">
+    <div class="an-card-title" style="padding:18px 18px 4px;">Recurring task performance — {{ period_label }}</div>
+    <div style="padding:0 18px 10px;font-size:12px;color:var(--text-dim);">Every daily / weekly / monthly responsibility per person, weakest first. Days on leave, paused days and days before the task was assigned to them are not counted; today is only counted once logged. Click a row to open its calendar.</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Task</th><th>Schedule</th><th>Person</th><th title="Days due in this period">Due</th><th>✅ Done</th><th>⏭ Skipped</th><th>✕ Missed</th><th style="min-width:160px;">Completion</th></tr></thead>
+        <tbody>
+          {% for r in recurring_perf %}
+          {% set col = 'var(--success)' if r.completion >= 90 else ('var(--warning)' if r.completion >= 70 else 'var(--danger)') %}
+          <tr style="cursor:pointer;" onclick="window.location.href='{{ url_for('tasks', tab='regular', history=r.template_id, person=r.person_id) }}'">
+            <td style="font-weight:600;color:var(--text);">{{ r.title }}</td>
+            <td style="font-size:12px;color:var(--text-muted);">{{ r.schedule }}</td>
+            <td>{{ r.person }}</td>
+            <td>{{ r.expected }}</td>
+            <td style="color:var(--success);font-weight:600;">{{ r.done }}</td>
+            <td style="color:var(--text-muted);">{{ r.skipped }}</td>
+            <td>{% if r.missed %}<span style="color:var(--danger);font-weight:700;">{{ r.missed }}</span>{% else %}<span style="color:var(--text-dim);">0</span>{% endif %}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="flex:1;height:8px;border-radius:5px;background:var(--surface3);overflow:hidden;"><div style="height:100%;width:{{ r.completion }}%;background:{{ col }};"></div></div>
+                <span style="font-weight:700;color:{{ col }};min-width:38px;text-align:right;">{{ r.completion }}%</span>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="an-empty">No recurring tasks were due in this period.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 
   <!-- ── DETAILED PER-STAFF DRILL-DOWN (same data as Reports → Task Report) ── -->
   <div class="an-card-title" style="margin:22px 0 10px;">Detailed breakdown — click a staff member to expand ({{ period_label }})</div>
