@@ -10,6 +10,8 @@
 .tr-sc .nm{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .tr-sc .nums{display:flex;gap:10px;margin-top:6px;font-size:12px;}
 .tr-sc .nums b{font-size:15px;}
+.tr-sc .nb{cursor:pointer;border-radius:5px;padding:1px 3px;margin:-1px -3px;}
+.tr-sc .nb:hover{background:var(--surface3);text-decoration:underline;}
 .tr-sc .bar{height:5px;border-radius:3px;background:var(--surface3);overflow:hidden;margin-top:7px;}
 .tr-sc .bar div{height:100%;background:var(--success);}
 .st-b{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;}
@@ -208,14 +210,24 @@ function renderStaffCards(staff) {
     return `<div class="tr-sc${cur === id ? ' sel' : ''}" onclick="pickStaff('${id}')" title="Show only ${esc2(s.name)}">
       <div class="nm">👤 ${esc2(s.name)}</div>
       <div class="nums">
-        <span style="color:var(--success);"><b>${s.done}</b> done</span>
-        <span style="color:var(--text-muted);"><b>${s.pending}</b> pending</span>
-        ${s.overdue ? `<span style="color:var(--danger);"><b>${s.overdue}</b> late</span>` : ''}
-        ${s.awaiting ? `<span style="color:var(--warning);" title="Finished by this person — waiting for the task creator / admin to close"><b>${s.awaiting}</b> to close</span>` : ''}
+        <span class="nb" style="color:var(--success);" onclick="pickStaffStatus(event,'${id}','@completed')" title="Show what ${esc2(s.name)} completed"><b>${s.done}</b> done</span>
+        <span class="nb" style="color:var(--text-muted);" onclick="pickStaffStatus(event,'${id}','@pending')" title="Show what ${esc2(s.name)} still has pending"><b>${s.pending}</b> pending</span>
+        ${s.overdue ? `<span class="nb" style="color:var(--danger);" onclick="pickStaffStatus(event,'${id}','@overdue')" title="Show overdue / missed"><b>${s.overdue}</b> late</span>` : ''}
+        ${s.awaiting ? `<span class="nb" style="color:var(--warning);" onclick="pickStaffStatus(event,'${id}','@awaiting')" title="Finished by this person — waiting for the task creator / admin to close"><b>${s.awaiting}</b> to close</span>` : ''}
       </div>
       <div class="bar"><div style="width:${pct}%;"></div></div>
     </div>`;
   }).join('') || '';
+}
+
+// Click a number on a card: that person + that status (click again to go back to everything)
+function pickStaffStatus(ev, id, status) {
+  ev.stopPropagation();
+  const sel = document.getElementById('hFilterUser'), st = document.getElementById('hFilterStatus');
+  const same = (!sel || sel.value === id) && st.value === status;
+  if (sel) sel.value = id;
+  st.value = same ? '' : status;
+  filterHistory();
 }
 
 function pickStaff(id) {
