@@ -6,10 +6,10 @@
 <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #d97706;">
         <div>
+            <div class="page-breadcrumb"><a href="#" onclick="goBack('/settings');return false;">← Back</a></div>
             <h1 style="margin: 0; font-size: 26px; color: var(--text);">🔐 Login History</h1>
             <div style="font-size: 13px; color: var(--text-dim); margin-top: 4px;">Monitor sign-in attempts to spot suspicious activity</div>
         </div>
-        <a href="{{ url_for('settings') }}" class="btn btn-ghost">← Settings</a>
     </div>
 
     {% if failed_24h and failed_24h > 0 %}

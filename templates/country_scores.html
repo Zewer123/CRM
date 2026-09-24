@@ -6,10 +6,10 @@
 <div style="max-width: 900px; margin: 0 auto; padding: 20px;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #d97706;">
         <div>
+            <div class="page-breadcrumb"><a href="#" onclick="goBack('/settings');return false;">← Back</a></div>
             <h1 style="margin: 0; font-size: 26px; color: var(--text);">🌍 Country Risk Scores</h1>
             <div style="font-size: 13px; color: var(--text-dim); margin-top: 4px;">Used by Risk Assessment for jurisdiction & nationality scoring. Update as country ratings change.</div>
         </div>
-        <a href="{{ url_for('settings') }}" class="btn btn-ghost">← Settings</a>
     </div>
 
     <div style="display:flex; gap:12px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">
