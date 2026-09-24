@@ -329,7 +329,7 @@
   <div class="an-grid3">
     <div class="an-kpi"><div class="an-kpi-label">Regular Tasks</div><div class="an-kpi-val">{{ reg_total }}</div><div class="an-kpi-sub">recurring templates</div></div>
     <div class="an-kpi" style="border-top-color:#3b82f6;"><div class="an-kpi-label">Updates Logged</div><div class="an-kpi-val">{{ logs_period }}</div><div class="an-kpi-sub">this period</div></div>
-    <div class="an-kpi" style="border-top-color:#8b5cf6;"><div class="an-kpi-label">Additional Tasks</div><div class="an-kpi-val">{{ add_period }}</div><div class="an-kpi-sub">field/bank visits this period</div></div>
+    <div class="an-kpi" style="border-top-color:#8b5cf6;"><div class="an-kpi-label">Additional Jobs</div><div class="an-kpi-val">{{ add_period }}</div><div class="an-kpi-sub">field/bank visits this period</div></div>
   </div>
   <div class="an-card">
     <div class="an-card-title">Task Load by Staff (open · overdue)</div>
@@ -391,7 +391,7 @@
             <td style="color:var(--text-muted);font-size:12px;">{{ s.role }}</td>
             <td>
               <span style="font-weight:700;color:#86efac;">{{ s.done }}</span>
-              <div style="font-size:10px;color:var(--text-dim);">{{ s.temp_done }} one-off · {{ s.logs }} regular · {{ s.add_done }} add'l</div>
+              <div style="font-size:10px;color:var(--text-dim);">{{ s.temp_done }} one-off · {{ s.logs }} regular · {{ s.add_done }} add'l job</div>
             </td>
             <td>{{ tlink(s.todo, s.id, 'todo') }}</td>
             <td>{{ tlink(s.inprogress, s.id, 'inprogress', '', 'var(--blue)') }}</td>
@@ -409,7 +409,7 @@
       </table>
     </div>
   </div>
-  <div style="font-size:12px;color:var(--text-dim);"><strong>Done</strong> counts everything completed inside <strong>{{ period_label }}</strong> (one-off tasks closed + regular logs + additional tasks completed). <strong>Pending / Overdue / Due Today</strong> are the live position right now. <strong>Reg. Backlog</strong> is unlogged recurring occurrences — clear it from Tasks → Recurring → Log → "Catch up all". Use the period buttons at the top to change the window.</div>
+  <div style="font-size:12px;color:var(--text-dim);"><strong>Done</strong> counts everything completed inside <strong>{{ period_label }}</strong> (one-off tasks closed + regular logs + additional jobs completed). <strong>Pending / Overdue / Due Today</strong> are the live position right now. <strong>Reg. Backlog</strong> is unlogged recurring occurrences — clear it from Tasks → Recurring → Log → "Catch up all". Use the period buttons at the top to change the window.</div>
 
   <!-- ── RECURRING TASK PERFORMANCE ── -->
   <div class="an-card" style="padding:0;overflow:hidden;margin-top:18px;">
@@ -462,7 +462,7 @@
       <div class="tr-chips">
         {% set open_n = s.temp_pending|length + s.temp_overdue|length + s.add_open %}
         <span class="tr-chip b-done" title="Completed in this period">✅ {{ s.done_total }} done</span>
-        <span class="tr-chip b-pend" title="One-off + additional tasks still open (includes overdue)">⏳ {{ open_n }} open</span>
+        <span class="tr-chip b-pend" title="One-off + additional jobs still open (includes overdue)">⏳ {{ open_n }} open</span>
         {% if s.temp_overdue %}<span class="tr-chip b-over" title="Open one-off tasks past their due date">⚠️ {{ s.temp_overdue|length }} overdue</span>{% endif %}
         {% if s.reg_pending %}<span class="tr-chip b-back" title="Recurring days not logged yet">🔁 {{ s.reg_pending }} backlog</span>{% endif %}
       </div>
@@ -482,12 +482,12 @@
       </tbody></table>
       {% else %}<div class="tr-none">No regular-task logs in this period.</div>{% endif %}
 
-      <div class="tr-sub">➕ Additional tasks in period ({{ s.add_list|length }})</div>
+      <div class="tr-sub">➕ Additional jobs in period ({{ s.add_list|length }})</div>
       {% if s.add_list %}
       <table class="tr-table"><thead><tr><th>Task</th><th>From</th><th>To</th><th>Status</th></tr></thead><tbody>
         {% for a in s.add_list %}<tr><td style="color:var(--text);">{{ a.title }}</td><td>{{ a.from }}</td><td>{{ a.to }}</td><td>{% if a.status=='completed' %}✅ Completed{% else %}○ Open{% endif %}</td></tr>{% endfor %}
       </tbody></table>
-      {% else %}<div class="tr-none">No additional tasks in this period.</div>{% endif %}
+      {% else %}<div class="tr-none">No additional jobs in this period.</div>{% endif %}
 
       <div class="tr-sub">⏳ Currently pending / overdue (one-off)</div>
       {% if s.temp_pending or s.temp_overdue %}

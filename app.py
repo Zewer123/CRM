@@ -4350,7 +4350,7 @@ def export_tasks_all():
         try: conn.rollback()
         except Exception: pass
         adds = []
-    sheet(wb.create_sheet(), 'Additional Tasks', ['Task', 'Person', 'From', 'To', 'Status', 'Completed At', 'Details', 'Remarks'],
+    sheet(wb.create_sheet(), 'Additional Jobs', ['Job', 'Person', 'From', 'To', 'Status', 'Completed At', 'Details', 'Remarks'],
           [[a.get('title'), a.get('person'), str(a.get('from_datetime') or '')[:16], str(a.get('to_datetime') or '')[:16],
             'Completed' if a.get('status') == 'completed' else 'Open', str(a.get('completed_at') or '')[:16],
             a.get('task_details'), a.get('remarks')] for a in adds])
@@ -5533,7 +5533,8 @@ def api_complete_additional_task(id):
         if role not in ('admin', 'compliance') and task['created_by'] != uid:
             return jsonify({'success': False, 'error': 'Not allowed'}), 403
         if completed:
-            x(conn, "UPDATE additional_tasks SET status='completed', completed_at=CURRENT_TIMESTAMP, completed_by=? WHERE id=?", (uid, id))
+            x(conn, "UPDATE additional_tasks SET status='completed', completed_at=?, completed_by=? WHERE id=?",
+              (datetime.now(DUBAI_TZ).strftime('%Y-%m-%d %H:%M:%S'), uid, id))
         else:
             x(conn, "UPDATE additional_tasks SET status='open', completed_at=NULL, completed_by=NULL WHERE id=?", (id,))
         commit(conn); conn.close()

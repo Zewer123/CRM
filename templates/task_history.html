@@ -16,14 +16,16 @@
 </style>
 
 <div class="page-header">
-  <div class="page-title">📋 Task Report</div>
+  <div>
+    <div class="page-breadcrumb"><a href="#" onclick="goBack('/tasks');return false;">← Back</a></div>
+    <div class="page-title">📋 Task Report</div>
+  </div>
   <div style="display:flex;gap:8px;">
     <a href="{{ url_for('export_tasks_all') }}" class="btn btn-ghost btn-sm">⬇️ Export all (Excel)</a>
-    <a href="{{ url_for('tasks') }}" class="btn btn-ghost btn-sm">← Back to Tasks</a>
   </div>
 </div>
 
-<div style="color:var(--text-dim);font-size:13px;margin-bottom:14px;">Everything done <strong>and</strong> everything still pending, in one place — one-off tasks, recurring (daily / weekly / monthly) days and additional activities. Use <strong>Status</strong> to switch between completed and pending, and click a staff card to see one person.</div>
+<div style="color:var(--text-dim);font-size:13px;margin-bottom:14px;">Everything done <strong>and</strong> everything still pending, in one place — one-off tasks, recurring (daily / weekly / monthly) days and additional jobs. Use <strong>Status</strong> to switch between completed and pending, and click a staff card to see one person.</div>
 
 <!-- STAFF SUMMARY CARDS (follow the filters) -->
 <div class="tr-staff" id="staffCards"></div>
@@ -43,27 +45,9 @@
     <label>STATUS</label>
     <select id="hFilterStatus" onchange="filterHistory()">
       <option value="">Everything</option>
-      <optgroup label="Groups">
-        <option value="@completed">✅ All completed</option>
-        <option value="@pending">⏳ All pending</option>
-        <option value="@overdue">⚠️ Overdue / missed only</option>
-      </optgroup>
-      <optgroup label="Completed">
-        <option value="done">Done / Closed</option>
-        <option value="completed">Completed (additional)</option>
-        <option value="partial">Partial</option>
-        <option value="skipped">Skipped</option>
-        <option value="reopened">Reopened by manager</option>
-      </optgroup>
-      <optgroup label="Pending">
-        <option value="todo">Pending (not started)</option>
-        <option value="inprogress">In Progress</option>
-        <option value="hold">On Hold</option>
-        <option value="pending_close">Awaiting Closure</option>
-        <option value="missed">Missed (recurring)</option>
-        <option value="due">Due today (recurring)</option>
-        <option value="open">Open (additional)</option>
-      </optgroup>
+      <option value="@completed">✅ Completed</option>
+      <option value="@pending">⏳ Pending</option>
+      <option value="@overdue">⚠️ Overdue / missed</option>
     </select>
   </div>
   <div class="form-group" style="min-width:140px;">
@@ -72,7 +56,7 @@
       <option value="">All types</option>
       <option value="Regular">Recurring</option>
       <option value="One-off">One-off</option>
-      <option value="Additional">Additional</option>
+      <option value="Additional">Additional Job</option>
     </select>
   </div>
   <div class="form-group" style="min-width:130px;">
@@ -124,7 +108,7 @@
             {% elif l.kind == 'One-off' %}
               <span class="badge" style="background:var(--surface3);color:var(--text-muted);">📌 One-off</span>
             {% else %}
-              <span class="badge" style="background:var(--surface3);color:var(--text-muted);">➕ Additional</span>
+              <span class="badge" style="background:var(--surface3);color:var(--text-muted);">➕ Additional Job</span>
             {% endif %}
           </td>
           <td style="color:var(--text-muted);">{{ l.staff_name }}</td>

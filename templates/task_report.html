@@ -31,8 +31,10 @@
 </style>
 
 <div class="page-header">
-  <div class="page-title">✅ Staff Task Report</div>
-  <a href="{{ url_for('reports') }}" class="btn btn-ghost btn-sm no-print">← Back to Reports</a>
+  <div>
+    <div class="page-breadcrumb no-print"><a href="#" onclick="goBack('/reports');return false;">← Back</a></div>
+    <div class="page-title">✅ Staff Task Report</div>
+  </div>
 </div>
 <div style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">Every task each staff member completed, has pending, or is overdue on — one-off, regular (recurring), and additional — for the selected date range.</div>
 
@@ -77,7 +79,7 @@
     <div class="tr-chips">
       {% set open_n = s.temp_pending|length + s.temp_overdue|length + s.add_open %}
       <span class="tr-chip b-done" title="Completed in this period">✅ {{ s.done_total }} done</span>
-      <span class="tr-chip b-pend" title="One-off + additional tasks still open (includes overdue)">⏳ {{ open_n }} open</span>
+      <span class="tr-chip b-pend" title="One-off + additional jobs still open (includes overdue)">⏳ {{ open_n }} open</span>
       {% if s.temp_overdue %}<span class="tr-chip b-over" title="Open one-off tasks past their due date">⚠️ {{ s.temp_overdue|length }} overdue</span>{% endif %}
       {% if s.reg_pending %}<span class="tr-chip b-back" title="Recurring days not logged yet">🔁 {{ s.reg_pending }} backlog</span>{% endif %}
     </div>
@@ -98,12 +100,12 @@
     </tbody></table>
     {% else %}<div class="tr-none">No regular-task logs in this range.</div>{% endif %}
 
-    <div class="tr-sub">➕ Additional tasks in range ({{ s.add_list|length }})</div>
+    <div class="tr-sub">➕ Additional jobs in range ({{ s.add_list|length }})</div>
     {% if s.add_list %}
     <table class="tr-table"><thead><tr><th>Task</th><th>From</th><th>To</th><th>Status</th></tr></thead><tbody>
       {% for a in s.add_list %}<tr><td style="color:var(--text);">{{ a.title }}</td><td>{{ a.from }}</td><td>{{ a.to }}</td><td>{% if a.status=='completed' %}✅ Completed{% else %}○ Open{% endif %}</td></tr>{% endfor %}
     </tbody></table>
-    {% else %}<div class="tr-none">No additional tasks in this range.</div>{% endif %}
+    {% else %}<div class="tr-none">No additional jobs in this range.</div>{% endif %}
 
     <div class="tr-sub">⏳ Currently pending / overdue (one-off)</div>
     {% if s.temp_pending or s.temp_overdue %}

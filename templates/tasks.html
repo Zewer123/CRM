@@ -62,7 +62,7 @@
   <button class="tab-btn {% if active_tab == 'today' %}active{% endif %}" onclick="switchMainTab('today',this)">🎯 My Day{% if myday.attention %} <span class="cnt-badge">{{ myday.attention }}</span>{% endif %}</button>
   <button class="tab-btn {% if active_tab == 'temp' %}active{% endif %}" onclick="switchMainTab('temp',this)">📋 One-time Tasks</button>
   <button class="tab-btn {% if active_tab == 'regular' %}active{% endif %}" onclick="switchMainTab('regular',this)">🔁 Recurring Tasks</button>
-  <button class="tab-btn {% if active_tab == 'additional' %}active{% endif %}" onclick="switchMainTab('additional',this)">🚗 Additional Tasks</button>
+  <button class="tab-btn {% if active_tab == 'additional' %}active{% endif %}" onclick="switchMainTab('additional',this)">🚗 Additional Jobs</button>
 </div>
 
 
@@ -573,7 +573,7 @@
 
 <div class="page-header" style="margin-bottom:16px;">
   <div style="font-size:13px;color:var(--text-dim);">Log out-of-office work, field visits, bank runs, and any engagement that took you away from regular duties.</div>
-  <button class="btn btn-primary" onclick="openModal('addAdditionalModal')">+ New Additional Task</button>
+  <button class="btn btn-primary" onclick="openModal('addAdditionalModal')">+ New Additional Job</button>
 </div>
 
 <!-- FILTER ROW -->
@@ -664,7 +664,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="{% if user_role == 'admin' %}8{% else %}7{% endif %}" style="text-align:center;padding:50px;color:var(--text-dim);">No additional tasks logged yet. <a href="#" onclick="openModal('addAdditionalModal');return false;" style="color:var(--primary);">Log one now?</a></td></tr>
+        <tr><td colspan="{% if user_role == 'admin' %}8{% else %}7{% endif %}" style="text-align:center;padding:50px;color:var(--text-dim);">No additional jobs logged yet. <a href="#" onclick="openModal('addAdditionalModal');return false;" style="color:var(--primary);">Log one now?</a></td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -676,7 +676,7 @@
 <!-- ADD ADDITIONAL TASK MODAL -->
 <div class="modal-overlay" id="addAdditionalModal">
   <div class="modal-box" style="max-width:520px;">
-    <div class="modal-title">🚗 Log Additional Task</div>
+    <div class="modal-title">🚗 Log Additional Job</div>
     <div class="form-group">
       <label>Task Title *</label>
       <input type="text" id="atTitle" placeholder="e.g. Bank visit - Emirates NBD, Client meeting - DIFC">
@@ -1689,7 +1689,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Apply default sort/order to the regular-tasks list
   if (document.getElementById('regularBody')) filterRegular();
 
-  // Auto-set current datetime for additional task modal
+  // Auto-set current datetime for additional job modal
   function setNowDatetime() {
     const now = new Date();
     const pad = n => String(n).padStart(2,'0');
@@ -1795,7 +1795,7 @@ function submitAdditionalTask() {
 }
 
 function deleteAdditionalTask(id) {
-  if (!confirm('Delete this additional task log?')) return;
+  if (!confirm('Delete this additional job log?')) return;
   fetch(`/api/additional-task/${id}/delete`, {method: 'POST'})
     .then(r => r.json()).then(d => {
       if (d.success) location.reload();
