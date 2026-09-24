@@ -53,6 +53,7 @@
       <option value="@pending">⏳ Pending</option>
       <option value="@awaiting">🔒 Awaiting closure</option>
       <option value="@overdue">⚠️ Overdue / missed</option>
+      <option value="@late">🕒 Done late (recurring)</option>
     </select>
   </div>
   <div class="form-group" style="min-width:140px;">
@@ -98,13 +99,13 @@
           <th>Staff</th>
           <th>Status</th>
           <th>Notes</th>
-          <th title="Completed items: when it was done. Pending items: the due date.">When / Due</th>
+          <th title="Recurring: the day it counts for, and when it was actually ticked. Other completed items: when done. Pending items: the due date.">When / Due</th>
         </tr>
       </thead>
       <tbody id="historyBody">
         {% for l in logs %}
         <tr data-user="{{ l.user_id }}" data-staff="{{ l.staff_name }}" data-kind="{{ l.kind }}" data-freq="{{ l.freq }}" data-status="{{ l.status }}"
-            data-group="{{ l.group }}" data-overdue="{{ '1' if l.overdue else '' }}" data-date="{{ (l.when or '')[:10] }}">
+            data-group="{{ l.group }}" data-overdue="{{ '1' if l.overdue else '' }}" data-date="{{ (l.when or '')[:10] }}" data-late="{{ '1' if (l.late and l.group == 'completed') else '' }}">
           <td style="font-weight:500;color:var(--text);">{{ l.title }}</td>
           <td>
             {% if l.kind == 'Regular' %}
@@ -134,7 +135,12 @@
             {% if l.overdue and st not in ['missed'] %}<div style="font-size:10px;color:var(--danger);font-weight:700;margin-top:2px;">⚠️ overdue</div>{% endif %}
           </td>
           <td style="font-size:12px;color:var(--text-dim);">{{ l.notes or '—' }}</td>
-          <td style="font-size:12px;color:{% if l.overdue %}var(--danger){% else %}var(--text-muted){% endif %};white-space:nowrap;">{{ l.when or '—' }}</td>
+          <td style="font-size:12px;color:{% if l.overdue %}var(--danger){% else %}var(--text-muted){% endif %};white-space:nowrap;">{{ l.when or '—' }}
+            {% if l.kind == 'Regular' and l.group != 'pending' %}
+              {% if l.late == '?' %}<div style="font-size:10.5px;color:#a855f7;font-weight:700;" title="Older entry: it was ticked after the day, but the exact date was not recorded">🕒 ticked later</div>
+              {% elif l.late %}<div style="font-size:10.5px;color:#a855f7;font-weight:700;">🕒 ticked {{ l.ticked }} · {{ l.late }}d late</div>
+              {% elif l.ticked %}<div style="font-size:10.5px;color:var(--text-dim);">ticked {{ l.ticked[11:16] }} · on time</div>{% endif %}
+            {% endif %}</td>
         </tr>
         {% else %}
         <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-dim);">No tasks yet.</td></tr>
@@ -161,6 +167,7 @@ function _rowMatch(row, ignoreUser) {
   if (s === '@pending' && row.dataset.group !== 'pending') return false;
   if (s === '@awaiting' && row.dataset.group !== 'awaiting') return false;
   if (s === '@overdue' && !row.dataset.overdue) return false;
+  if (s === '@late' && !row.dataset.late) return false;
   if (s && s[0] !== '@' && row.dataset.status !== s) return false;
   const d = row.dataset.date;
   if (from && (!d || d < from)) return false;

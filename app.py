@@ -281,6 +281,7 @@ def _pg_ensure_columns():
         "ALTER TABLE regular_task_logs ADD COLUMN IF NOT EXISTS reopened_by INTEGER",
         "ALTER TABLE regular_task_logs ADD COLUMN IF NOT EXISTS reopened_at TIMESTAMP",
         "ALTER TABLE regular_task_logs ADD COLUMN IF NOT EXISTS reopen_reason TEXT",
+        "ALTER TABLE regular_task_logs ADD COLUMN IF NOT EXISTS recorded_at TIMESTAMP",
         # Risk model 2026 (real answers, country-list questions, override rules)
         "ALTER TABLE risk_questions ADD COLUMN IF NOT EXISTS code TEXT",
         "ALTER TABLE risk_questions ADD COLUMN IF NOT EXISTS rule_key TEXT",
@@ -430,6 +431,7 @@ def _run_migrations(conn):
     safe_alter('regular_task_logs', 'reopened_by', 'INTEGER')
     safe_alter('regular_task_logs', 'reopened_at', 'TIMESTAMP')
     safe_alter('regular_task_logs', 'reopen_reason', 'TEXT')
+    safe_alter('regular_task_logs', 'recorded_at', 'TIMESTAMP')
     # Risk model 2026: real answers, country-list questions, override rules
     safe_alter('risk_questions', 'code', "TEXT")
     safe_alter('risk_questions', 'rule_key', "TEXT")
@@ -1107,7 +1109,7 @@ def healthz():
         conn = get_db()
         for tbl, col in [('companies', 'disabled'), ('clients', 'disabled'), ('clients', 'pep'),
                          ('ubos', 'pep_status'), ('aml_tracker', 'exchange_rate'),
-                         ('internal_documents', 'file_url'), ('regular_task_templates', 'month_day'), ('regular_task_logs', 'reopen_reason'), ('risk_answer_options', 'force_high'), ('risk_responses', 'counted')]:
+                         ('internal_documents', 'file_url'), ('regular_task_templates', 'month_day'), ('regular_task_logs', 'reopen_reason'), ('regular_task_logs', 'recorded_at'), ('risk_answer_options', 'force_high'), ('risk_responses', 'counted')]:
             try:
                 x(conn, f'SELECT {col} FROM {tbl} LIMIT 1').fetchone()
                 checks[f'{tbl}.{col}'] = 'ok'
@@ -4640,9 +4642,15 @@ def export_tasks_all():
            LEFT JOIN users u ON l.user_id=u.id LEFT JOIN users ru ON l.reopened_by=ru.id WHERE l.logged_at >= ?"""
     logs = all_(conn, q + ' ORDER BY l.logged_at DESC', (since,)) if everyone else \
         all_(conn, q + ' AND l.user_id=? ORDER BY l.logged_at DESC', (since, uid))
-    sheet(wb.create_sheet(), 'Recurring Logs', ['Date', 'Time', 'Task', 'Frequency', 'Person', 'Status', 'Notes', 'Reopened By', 'Reopen Reason'],
-          [[str(l['logged_at'])[:10], str(l['logged_at'])[11:16], l.get('title'), (l.get('frequency') or '').title(), l.get('person'),
-            (l.get('status') or 'done').title(), l.get('notes'), l.get('reopened_by_name'), l.get('reopen_reason')] for l in logs])
+    def _late_cols(l):
+        n, rec = _log_lateness(l)
+        if n is None: return ['', 'Late (tick date not recorded)']
+        return [rec, 'On time' if n == 0 else f'{n} day(s) late']
+    sheet(wb.create_sheet(), 'Recurring Logs', ['Due Date', 'Task', 'Frequency', 'Person', 'Status', 'Ticked At', 'On Time?',
+                                                'Notes', 'Reopened By', 'Reopen Reason'],
+          [[str(l['logged_at'])[:10], l.get('title'), (l.get('frequency') or '').title(), l.get('person'),
+            (l.get('status') or 'done').title()] + _late_cols(l) + [l.get('notes'), l.get('reopened_by_name'), l.get('reopen_reason')]
+           for l in logs])
 
     # 4) Additional tasks
     try:
@@ -4694,7 +4702,9 @@ def task_history():
             'freq': (l.get('frequency') or '').lower(),
             'user_id': l.get('user_id'), 'staff_name': l.get('staff_name') or '—',
             'status': l.get('status') or 'done', 'notes': l.get('notes') or '',
-            'when': str(l.get('logged_at'))[:16] if l.get('logged_at') else '',
+            # 'when' = the day it counts for; 'ticked' = when the person actually ticked it
+            'when': str(l.get('logged_at'))[:10] if l.get('logged_at') else '',
+            'late': (lambda n: '?' if n is None else n)(_log_lateness(l)[0]), 'ticked': _log_lateness(l)[1],
             'group': 'reopened' if (l.get('status') or 'done') == 'reopened' else 'completed',
         })
 
@@ -5544,6 +5554,26 @@ def api_delete_staff_leave(id):
         return _fail(e)
 
 
+def _dubai_now_str():
+    return datetime.now(DUBAI_TZ).strftime('%Y-%m-%d %H:%M:%S')
+
+def _log_lateness(l):
+    """How late a recurring log was ticked compared with the day it counts for.
+       Returns (days_late, ticked_at): 0 = on time, >0 = ticked that many days later,
+       None = ticked later but the real date was not recorded (logs saved before recorded_at
+       existed through 'pick days' / catch-up, which stamp the due day at 12:00:00)."""
+    due = str(l.get('logged_at') or '')[:10]
+    rec = str(l.get('recorded_at') or '')[:16]
+    if rec:
+        try:
+            n = (datetime.strptime(rec[:10], '%Y-%m-%d').date() - datetime.strptime(due, '%Y-%m-%d').date()).days
+        except ValueError:
+            n = 0
+        return max(n, 0), rec
+    if str(l.get('logged_at') or '')[11:19] == '12:00:00':
+        return None, ''
+    return 0, str(l.get('logged_at') or '')[:16]
+
 @app.route('/api/regular-task/<int:id>/catchup', methods=['POST'])
 @require_perm('regular_tasks_log')
 def api_catchup_regular_task(id):
@@ -5559,9 +5589,9 @@ def api_catchup_regular_task(id):
         missed = _regular_missed_dates(conn, t, uid, today, _regular_is_own(t, uid, session.get('user_role')))
         n = 0
         for d in missed:
-            x(conn, '''INSERT INTO regular_task_logs (template_id, user_id, notes, status, logged_at)
-                VALUES (?,?,?,?,?)''',
-              (id, uid, 'Catch-up (backdated)', 'done', str(d) + ' 12:00:00'))
+            x(conn, '''INSERT INTO regular_task_logs (template_id, user_id, notes, status, logged_at, recorded_at)
+                VALUES (?,?,?,?,?,?)''',
+              (id, uid, 'Catch-up (backdated)', 'done', str(d) + ' 12:00:00', _dubai_now_str()))
             n += 1
         commit(conn); conn.close()
         return jsonify({'success': True, 'count': n})
@@ -5591,17 +5621,17 @@ def api_log_regular_task(id):
                 conn.close()
                 return jsonify({'success': False, 'error': 'Not pending (already logged or not a due day): ' + ', '.join(map(str, bad[:5]))}), 400
             for s in sorted(set(map(str, dates))):
-                x(conn, '''INSERT INTO regular_task_logs (template_id, user_id, notes, status, logged_at)
-                    VALUES (?,?,?,?,?)''',
-                  (id, uid, d.get('notes', ''), d.get('status', 'done'), s + ' 12:00:00'))
+                x(conn, '''INSERT INTO regular_task_logs (template_id, user_id, notes, status, logged_at, recorded_at)
+                    VALUES (?,?,?,?,?,?)''',
+                  (id, uid, d.get('notes', ''), d.get('status', 'done'), s + ' 12:00:00', _dubai_now_str()))
             commit(conn); conn.close()
             return jsonify({'success': True, 'count': len(set(dates))})
         # Dubai wall-clock time: the DB's CURRENT_TIMESTAMP is UTC, which filed logs made
         # between 00:00 and 04:00 Dubai under the previous day.
-        x(conn, '''INSERT INTO regular_task_logs (template_id, user_id, notes, status, logged_at)
-            VALUES (?,?,?,?,?)''',
-          (id, uid, d.get('notes', ''), d.get('status', 'done'),
-           datetime.now(DUBAI_TZ).strftime('%Y-%m-%d %H:%M:%S')))
+        now_s = _dubai_now_str()
+        x(conn, '''INSERT INTO regular_task_logs (template_id, user_id, notes, status, logged_at, recorded_at)
+            VALUES (?,?,?,?,?,?)''',
+          (id, uid, d.get('notes', ''), d.get('status', 'done'), now_s, now_s))
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
@@ -5618,7 +5648,7 @@ def _regular_history(conn, t, person, today, m_start, m_end):
     leave = _leave_periods(conn, user_id=person)
     pauses = _template_pauses(conn, t['id'])
     try:
-        logs = all_(conn, """SELECT l.id,l.user_id,l.status,l.notes,l.logged_at,l.reopened_at,l.reopen_reason,
+        logs = all_(conn, """SELECT l.id,l.user_id,l.status,l.notes,l.logged_at,l.recorded_at,l.reopened_at,l.reopen_reason,
                 u.name AS user_name, ru.name AS reopened_by_name
             FROM regular_task_logs l LEFT JOIN users u ON l.user_id=u.id LEFT JOIN users ru ON l.reopened_by=ru.id
             WHERE l.template_id=? ORDER BY l.logged_at""", (t['id'],))
@@ -5636,7 +5666,7 @@ def _regular_history(conn, t, person, today, m_start, m_end):
     responsible = lambda ds: (not own_from or ds >= str(own_from)) and not _in_periods(ds, leave)
 
     # lifetime stats (this person's responsibility only)
-    expected = done = partial = skipped = missed = 0
+    expected = done = partial = skipped = missed = late = 0
     today_pending = False
     past = []
     for d in due_all:
@@ -5650,6 +5680,7 @@ def _regular_history(conn, t, person, today, m_start, m_end):
             if st == 'partial': partial += 1
             elif st == 'skipped': skipped += 1
             else: done += 1
+            if st != 'skipped' and _log_lateness(l)[0] != 0: late += 1
         elif ds < tstr:
             missed += 1
         else:
@@ -5657,11 +5688,12 @@ def _regular_history(conn, t, person, today, m_start, m_end):
         past.append(ds)
     base = expected - (1 if today_pending else 0)
     completion = round(100.0 * (done + partial) / base) if base else None
+    # On-time streak: consecutive due days ticked on the day itself (a late tick breaks it)
     streak = 0
     for ds in reversed(past):
         if ds == tstr and ds not in mine:
             continue
-        if ds in mine: streak += 1
+        if ds in mine and _log_lateness(mine[ds])[0] == 0: streak += 1
         else: break
     last_done = max((ds for ds, l in mine.items() if (l.get('status') or 'done') in ('done', 'partial')), default=None)
 
@@ -5684,6 +5716,11 @@ def _regular_history(conn, t, person, today, m_start, m_end):
         elif ds in mine:
             cell['state'] = mine[ds].get('status') or 'done'
             if cell['state'] not in ('done', 'partial', 'skipped'): cell['state'] = 'done'
+            if cell['state'] != 'skipped':
+                n, rec = _log_lateness(mine[ds])
+                if n != 0:
+                    cell['late'] = n if n is not None else '?'
+                    cell['ticked'] = rec
         elif ds > tstr:
             cell['state'] = 'upcoming'
         elif ds == tstr:
@@ -5695,6 +5732,7 @@ def _regular_history(conn, t, person, today, m_start, m_end):
 
     ms, me = str(m_start), str(m_end)
     month_logs = [{'id': l['id'], 'date': str(l['logged_at'])[:10], 'time': str(l['logged_at'])[11:16],
+                   'late': (lambda n: '?' if n is None else n)(_log_lateness(l)[0]), 'ticked': _log_lateness(l)[1],
                    'user_name': l.get('user_name'), 'status': l.get('status') or 'done', 'notes': l.get('notes') or '',
                    'reopened_by': l.get('reopened_by_name'), 'reopen_reason': l.get('reopen_reason') or '',
                    'reopened_at': str(l.get('reopened_at') or '')[:16]}
@@ -5702,7 +5740,7 @@ def _regular_history(conn, t, person, today, m_start, m_end):
                   if ms <= str(l['logged_at'])[:10] <= me
                   and (l['user_id'] == person or _in_periods(str(l['logged_at'])[:10], leave))]
     return {'stats': {'expected': expected, 'done': done, 'partial': partial, 'skipped': skipped,
-                      'missed': missed, 'completion': completion, 'streak': streak, 'last_done': last_done,
+                      'missed': missed, 'late': late, 'completion': completion, 'streak': streak, 'last_done': last_done,
                       'today_pending': today_pending},
             'cells': cells, 'logs': month_logs}
 

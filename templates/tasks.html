@@ -924,7 +924,9 @@
 .hc.leave,.hc.covered{background:var(--blue-bg);border-color:var(--blue);color:var(--blue);}
 .hc.paused,.hc.na{opacity:.45;}
 .hc.today{box-shadow:0 0 0 2px var(--primary);}
-.hs-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:12px 0;}
+.hc.late{background:rgba(168,85,247,0.14);border-color:#a855f7;color:#a855f7;}
+.hc .lt{position:absolute;right:4px;bottom:2px;font-size:9px;font-weight:700;}
+.hs-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin:12px 0;}
 @media (max-width:560px){.hs-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
 .hs{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 10px;}
 .hs .k{font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;}
@@ -950,7 +952,8 @@
     </div>
     <div class="hc-grid" id="hCal"></div>
     <div class="hl">
-      <span><i style="background:var(--success-bg);border-color:var(--success);"></i>Done</span>
+      <span><i style="background:var(--success-bg);border-color:var(--success);"></i>Done on the day</span>
+      <span><i style="background:rgba(168,85,247,0.14);border-color:#a855f7;"></i>Done late (+days)</span>
       <span><i style="background:var(--warning-bg);border-color:var(--warning);"></i>Partial</span>
       <span><i style="background:var(--surface3);"></i>Skipped</span>
       <span><i style="background:var(--danger-bg);border-color:var(--danger);"></i>Missed</span>
@@ -1622,22 +1625,29 @@ function loadHistory() {
       box('Completion', st.completion === null ? '—' : st.completion + '%', st.completion === null ? '' : (st.completion >= 90 ? 'var(--success)' : st.completion >= 70 ? 'var(--warning)' : 'var(--danger)')) +
       box('Done', st.done + (st.partial ? ` <span style="font-size:11px;color:var(--warning);">+${st.partial} partial</span>` : '')) +
       box('Missed', st.missed, st.missed ? 'var(--danger)' : '') +
-      box('Streak', st.streak + (st.streak === 1 ? ' day' : ' days')) +
+      box('Done Late', st.late || 0, st.late ? '#a855f7' : '') +
+      box('On-time Streak', st.streak + (st.streak === 1 ? ' day' : ' days')) +
       box('Last Done', `<span style="font-size:13px;">${st.last_done || '—'}</span>`);
     const mark = {done:'✓', partial:'◐', skipped:'⏭', missed:'✕', due:'•', upcoming:'○', leave:'🏖', covered:'🤝', paused:'⏸', na:'', none:''};
     const title = {done:'Done', partial:'Partially done', skipped:'Skipped', missed:'Missed', due:'Due today', upcoming:'Upcoming', leave:'On leave', covered:'Covered', paused:'Paused', na:'Before assignment', none:'Not a due day'};
     let html = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(x => `<div class="hc-dow">${x}</div>`).join('');
     if (d.cells.length) for (let i = 0; i < d.cells[0].dow; i++) html += '<div class="hc blank"></div>';
     d.cells.forEach(c => {
-      const tip = title[c.state] + (c.by ? ' by ' + c.by : '');
-      html += `<div class="hc ${c.state}${c.date === d.today ? ' today' : ''}" title="${c.date} — ${esc(tip)}"><span class="n">${c.day}</span><span class="m">${mark[c.state] || ''}</span></div>`;
+      let tip = title[c.state] + (c.by ? ' by ' + c.by : '');
+      const late = c.late !== undefined && c.late !== null;
+      if (late) tip += c.late === '?' ? ' — ticked later (date not recorded)' : ` — ticked ${c.ticked} (${c.late} day${c.late == 1 ? '' : 's'} late)`;
+      html += `<div class="hc ${c.state}${late ? ' late' : ''}${c.date === d.today ? ' today' : ''}" title="${c.date} — ${esc(tip)}"><span class="n">${c.day}</span><span class="m">${mark[c.state] || ''}</span>${late ? `<span class="lt">${c.late === '?' ? 'late' : '+' + c.late + 'd'}</span>` : ''}</div>`;
     });
     document.getElementById('hCal').innerHTML = html;
     const sLabel = {done:'✅ Done', partial:'⚠️ Partial', skipped:'⏭️ Skipped', reopened:'↩ Reopened'};
     document.getElementById('hLogs').innerHTML = d.logs.length ? d.logs.slice().reverse().map(l => `
       <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;font-size:12px;${l.status === 'reopened' ? 'opacity:.75;' : ''}">
         <div style="min-width:0;">
-          <div><strong>${l.date}</strong> <span style="color:var(--text-dim);">${l.time}</span> · ${esc(l.user_name || '')} · ${sLabel[l.status] || esc(l.status)}</div>
+          <div><strong>${l.date}</strong> · ${esc(l.user_name || '')} · ${sLabel[l.status] || esc(l.status)}</div>
+          <div style="margin-top:2px;font-size:11px;${l.late && l.late !== 0 ? 'color:#a855f7;font-weight:600;' : 'color:var(--text-dim);'}">${
+            l.late === '?' ? 'Ticked later — the date it was ticked was not recorded (older entry)'
+            : l.late ? `Ticked ${l.ticked} · ${l.late} day${l.late == 1 ? '' : 's'} late`
+            : `Ticked ${l.ticked || (l.date + ' ' + l.time)} · on time`}</div>
           ${l.notes ? `<div style="color:var(--text-muted);margin-top:2px;white-space:pre-wrap;">${esc(l.notes)}</div>` : ''}
           ${l.status === 'reopened' ? `<div style="color:var(--danger);margin-top:2px;">Reopened by ${esc(l.reopened_by || '—')}: ${esc(l.reopen_reason)}</div>` : ''}
         </div>
