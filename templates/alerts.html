@@ -237,7 +237,7 @@ Thank you.{% endset %}
         <textarea id="ctDesc" rows="3"></textarea>
       </div>
       <div class="form-group">
-        <label>Assign To (Account Manager)</label>
+        <label>Assign To *</label>
         <select id="ctAssign">
           <option value="">— Select —</option>
           {% for u in all_users %}
@@ -351,7 +351,8 @@ function createTask(acCode, companyId, companyName, docType, expiryDate, account
   document.getElementById('ctTitle').value = `${docType} Renewal — ${companyName}`;
   document.getElementById('ctDesc').value = `AC Code: ${acCode}\nDocument: ${docType}\nExpiry Date: ${expiryDate}\n\nPlease follow up with the client to collect the renewed document.`;
 
-  // Try to match account manager to user
+  // Try to match account manager to user (start blank so the previous alert's choice never carries over)
+  document.getElementById('ctAssign').value = '';
   const opts = document.getElementById('ctAssign').options;
   for (let i = 0; i < opts.length; i++) {
     if (opts[i].dataset.name === accountManager) {
@@ -380,6 +381,7 @@ function saveAlertTask() {
     company_id: document.getElementById('ctCompanyId').value || null,
   };
   if (!data.title) { alert('Title required'); return; }
+  if (!data.assigned_to) { alert('Please choose who should do this task (Assign To).'); document.getElementById('ctAssign').focus(); return; }
   fetch('/api/task/add', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
     .then(r=>r.json()).then(d=>{
       if(d.success) {

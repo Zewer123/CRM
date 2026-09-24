@@ -4697,8 +4697,8 @@ def task_history():
     today = dubai_today(); tstr = str(today)
     # 4) open one-off tasks
     try:
-        q = """SELECT t.*,u.name AS staff_name,c.ac_code FROM tasks t LEFT JOIN users u ON t.assigned_to=u.id
-               LEFT JOIN companies c ON t.company_id=c.id
+        q = """SELECT t.*,u.name AS staff_name,c.ac_code,cu.name AS creator_name FROM tasks t LEFT JOIN users u ON t.assigned_to=u.id
+               LEFT JOIN companies c ON t.company_id=c.id LEFT JOIN users cu ON t.created_by=cu.id
                WHERE COALESCE(t.status,'todo') <> 'done'"""
         opens = all_(conn, q + " ORDER BY t.due_date") if is_mgr else all_(conn, q + " AND t.assigned_to=? ORDER BY t.due_date", (uid,))
     except Exception:
@@ -4711,7 +4711,11 @@ def task_history():
             'kind': 'One-off', 'title': t.get('title') or '—', 'freq': '',
             'user_id': t.get('assigned_to'), 'staff_name': t.get('staff_name') or 'Unassigned',
             'status': st, 'notes': (('[' + t['ac_code'] + '] ') if t.get('ac_code') else '') + (t.get('description') or ''),
-            'when': due, 'group': 'pending', 'overdue': overdue,
+            'when': due, 'overdue': overdue,
+            # Marked done by the assignee — now waiting for the creator / admin to close it,
+            # so it is not the assignee's pending work.
+            'group': 'awaiting' if st == 'pending_close' else 'pending',
+            'closer': t.get('creator_name') or 'Admin',
         })
     # 5) recurring days missed / due today (last 180 days per person)
     try:
