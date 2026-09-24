@@ -13,8 +13,10 @@
     {% if client.whatsapp_number %}
     <a href="https://wa.me/{{ client.whatsapp_number|replace('+','')|replace(' ','')|replace('-','') }}" target="_blank" class="btn btn-wa">💬 WhatsApp</a>
     {% endif %}
-    {% if user_role == 'admin' %}
+    {% if has_perm('clients') %}
     <button class="btn btn-ghost" onclick="editClient({{ client.id }})">✏️ Edit</button>
+    {% endif %}
+    {% if user_role == 'admin' %}
     {% if client.disabled %}
     <button class="btn btn-primary" onclick="toggleDisable()">✅ Enable</button>
     {% else %}

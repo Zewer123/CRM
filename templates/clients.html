@@ -158,8 +158,10 @@
     <button class="btn btn-ghost btn-sm btn-icon" disabled title="No phone/WhatsApp number" style="opacity:0.3;cursor:not-allowed;">💬</button>
     {% endif %}
     <a href="{{ url_for('client_detail', id=c.id) }}" class="btn btn-ghost btn-sm btn-icon" title="View">👁️</a>
-    {% if user_role == 'admin' %}
+    {% if has_perm('clients') %}
     <button class="btn btn-ghost btn-sm btn-icon" title="Edit" onclick="editClient({{ c.id }})">✏️</button>
+    {% endif %}
+    {% if user_role == 'admin' %}
     <button class="btn btn-danger btn-sm btn-icon" title="Delete" onclick="deleteClient({{ c.id }},'{{ c.name|replace("'","\\'") }}')">🗑️</button>
     {% endif %}
   </div>
