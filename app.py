@@ -1973,7 +1973,7 @@ def _dynamic_assessment_responses(conn, question_type, form):
     if vol:
         top = max((int(o['score']) for o in vol['q'].get('options', []) if not o.get('excluded')), default=None)
         for a_ in answers:
-            if a_['combo'] and top is not None and vol['score'] == top:
+            if a_['combo'] and not a_['force'] and top is not None and vol['score'] == top:
                 reasons.append(f"Payment \"{a_['label']}\" with the highest volume \"{vol['label']}\"")
                 a_['note'] = (a_['note'] + '; ' if a_['note'] else '') + 'Automatic High Risk (with highest volume)'
 

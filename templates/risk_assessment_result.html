@@ -1,144 +1,238 @@
-{% extends "base.html" %}
-{% block title %}Risk Assessment{% endblock %}
-{% block content %}
-<style media="print">.bc-noprint{display:none !important;}</style>
-<div class="page-breadcrumb bc-noprint" style="margin-bottom:10px;"><a href="{{ url_for('risk_assessment_list') }}">← Back</a></div>
+{%- if assessment_type == 'walkin' -%}
+  {%- set cust_name = assessment.entity_name -%}
+  {%- set cust_code = 'Walk-in' -%}
+  {%- set cust_type = 'Walk-in ' ~ ((assessment.entity_type or 'company')|title) -%}
+  {%- set ref_prefix = 'W' -%}
+{%- elif assessment_type == 'company' -%}
+  {%- set cust_name = company.client_name -%}
+  {%- set cust_code = company.ac_code or '—' -%}
+  {%- set cust_type = 'Company / Legal Entity' -%}
+  {%- set ref_prefix = 'C' -%}
+{%- else -%}
+  {%- set cust_name = individual.name -%}
+  {%- set cust_code = individual.ac_code if individual.ac_code is defined and individual.ac_code else '—' -%}
+  {%- set cust_type = 'Individual' -%}
+  {%- set ref_prefix = 'I' -%}
+{%- endif -%}
+{%- set rating = assessment.risk_rating or 'Unspecified' -%}
+{%- set rkey = rating|lower -%}
+{%- set score_txt = ('%.2f'|format(assessment.final_score|float)) if assessment.final_score is not none else '—' -%}
+{%- set ref_no = 'RA-' ~ ref_prefix ~ '-' ~ ('%05d'|format(assessment.id|int)) -%}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Risk Assessment - {{ cust_name }} - {{ assessment.assessment_date }}</title>
+<style>
+  :root{
+    --brand:#1d4a3c; --brand-2:#2c6452; --gold:#b38b59; --gold-soft:#f6efe4;
+    --ink:#1f2933; --muted:#667085; --line:#d9dee3; --zebra:#f7f9f8;
+    --low:#15803d; --low-bg:#e7f6ec; --med:#b45309; --med-bg:#fdf3e2; --high:#b91c1c; --high-bg:#fdeaea;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:#e9ecef;color:var(--ink);font-family:"Segoe UI",Calibri,Arial,sans-serif;
+       -webkit-print-color-adjust:exact;print-color-adjust:exact;}
 
-<!-- PRINTABLE SECTION - FITS ON ONE PAGE A4 -->
-<div id="printContent" style="background:white;color:#000;padding:15px;font-size:10px;line-height:1.4;font-family:Calibri,Arial,sans-serif;max-width:210mm;">
-  
-  <!-- HEADER -->
-  <div style="text-align:center;margin-bottom:10px;border-bottom:3px solid #000;padding-bottom:8px;">
-    <div style="font-size:14px;font-weight:700;">RISK ASSESSMENT REPORT</div>
-    <div style="font-size:8px;color:#444;">ZEWER JEWELLERY LLC | AML COMPLIANCE</div>
-  </div>
+  /* Screen toolbar (never printed) */
+  .toolbar{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--line);
+           display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 16px;flex-wrap:wrap;}
+  .toolbar .grp{display:flex;gap:8px;flex-wrap:wrap;}
+  .tb{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:7px;font-size:13px;font-weight:600;
+      text-decoration:none;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);font-family:inherit;}
+  .tb:hover{border-color:var(--brand);}
+  .tb.primary{background:var(--brand);border-color:var(--brand);color:#fff;}
+  .tb-hint{font-size:11.5px;color:var(--muted);}
 
-  <!-- KEY INFO - 2 ROW -->
-  <table style="width:100%;margin-bottom:10px;font-size:10px;border-collapse:collapse;">
-    <tr>
-      <td style="width:20%;padding:3px;"><strong>Entity:</strong></td>
-      <td style="width:30%;padding:3px;">{% if assessment_type == 'walkin' %}{{ assessment.entity_name }}{% elif assessment_type == 'company' %}{{ company.client_name }}{% else %}{{ individual.name }}{% endif %}</td>
-      <td style="width:20%;padding:3px;"><strong>Code:</strong></td>
-      <td style="width:30%;padding:3px;">{% if assessment_type == 'walkin' %}Walk-in{% elif assessment_type == 'company' %}{{ company.ac_code }}{% else %}—{% endif %}</td>
-    </tr>
-    <tr>
-      <td style="padding:3px;"><strong>Date:</strong></td>
-      <td style="padding:3px;">{{ assessment.assessment_date }}</td>
-      <td style="padding:3px;"><strong>Assessed By:</strong></td>
-      <td style="padding:3px;">{{ assessment.assessed_by_name or assessment.assessed_by }}</td>
-    </tr>
-  </table>
+  /* The A4 landscape sheet */
+  .sheet{width:297mm;min-height:210mm;margin:18px auto;background:#fff;padding:8mm 10mm 7mm;
+         box-shadow:0 4px 24px rgba(0,0,0,.12);display:flex;flex-direction:column;font-size:8.2pt;line-height:1.3;}
+  @media (max-width:1150px){ .sheet{width:auto;min-height:0;margin:12px;} }
 
-  <!-- OVERALL RATING BOX -->
-  <div style="text-align:center;margin-bottom:8px;padding:10px;background:#f5f5f5;border-left:5px solid 
-    {% if assessment.risk_rating == 'Low' %}#22c55e{% elif assessment.risk_rating == 'Medium' %}#f59e0b{% else %}#ef4444{% endif %};
-    border-radius:3px;">
-    <div style="font-size:9px;color:#666;font-weight:600;margin-bottom:3px;">OVERALL RISK RATING</div>
-    <div style="font-size:22px;font-weight:700;color:{% if assessment.risk_rating == 'Low' %}#22c55e{% elif assessment.risk_rating == 'Medium' %}#f59e0b{% else %}#ef4444{% endif %};margin-bottom:2px;">{{ assessment.risk_rating }}</div>
-    <div style="font-size:11px;color:#333;font-weight:700;">Score: {{ assessment.final_score }}/3.0</div>
-    {% if assessment.rating_note %}<div style="font-size:9px;color:#b91c1c;font-weight:700;margin-top:4px;">⚠ {{ assessment.rating_note }}</div>{% endif %}
-  </div>
+  .hdr{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:3mm;border-bottom:2.2px solid var(--brand);}
+  .hdr img{height:12.5mm;width:auto;display:block;}
+  .hdr-r{text-align:right;}
+  .doc-title{font-size:15pt;font-weight:700;letter-spacing:.06em;color:var(--brand);}
+  .doc-sub{font-size:8pt;color:var(--gold);font-weight:600;letter-spacing:.14em;text-transform:uppercase;margin-top:1mm;}
+  .gold-rule{height:1.2mm;background:var(--gold);opacity:.85;margin-bottom:3mm;}
 
-  <!-- RISK FACTORS - COMPACT TABLE -->
-  <div style="margin-bottom:8px;">
-    <div style="font-size:10px;font-weight:700;border-bottom:2px solid #000;padding-bottom:3px;margin-bottom:4px;">
-      {% if responses %}RISK QUESTIONS, ANSWERS &amp; SCORES{% else %}RISK FACTORS &amp; SCORES{% endif %}
-    </div>
-    <table style="width:100%;font-size:9px;border-collapse:collapse;">
-      <tr style="background:#f5f5f5;">
-        <td style="padding:3px;font-weight:600;border-right:1px solid #ddd;">{% if responses %}Question{% else %}Factor{% endif %}</td>
-        {% if responses %}<td style="padding:3px;font-weight:600;width:30%;border-right:1px solid #ddd;">Answer Given</td>{% endif %}
-        <td style="padding:3px;font-weight:600;width:16%;text-align:center;border-right:1px solid #ddd;">Score (1–3)</td>
-        <td style="padding:3px;font-weight:600;width:16%;text-align:center;">Level</td>
-      </tr>
-      <tr><td colspan="4" style="height:1px;padding:0;background:#ddd;"></td></tr>
-      {% for f in factors %}
-      <tr>
-        {% set nc = (f.counted is defined and not f.counted) %}
-        <td style="padding:2px;border-right:1px solid #e0e0e0;{% if nc %}color:#888;{% endif %}">{{ f.label }}</td>
-        {% if responses %}<td style="padding:2px;border-right:1px solid #e0e0e0;{% if nc %}color:#888;{% endif %}">{{ f.answer or '—' }}{% if f.note %}<div style="font-size:8px;color:{% if 'High Risk' in f.note %}#b91c1c{% else %}#888{% endif %};font-style:italic;">{{ f.note }}</div>{% endif %}</td>{% endif %}
-        <td style="padding:2px;text-align:center;border-right:1px solid #e0e0e0;font-weight:600;{% if nc %}color:#888;text-decoration:line-through;{% endif %}">{% if f.score %}{{ '%g' % f.score }}{% else %}—{% endif %}</td>
-        <td style="padding:2px;text-align:center;color:{% if nc %}#888{% elif f.level=='Low' %}#15803d{% elif f.level=='Medium' %}#b45309{% else %}#b91c1c{% endif %};font-weight:600;">{% if nc %}NOT COUNTED{% else %}{{ f.level|upper }}{% endif %}</td>
-      </tr>
-      {% endfor %}
-    </table>
-  </div>
+  .info{display:grid;grid-template-columns:2.2fr 1fr 1.3fr 1fr 1fr;border:1px solid var(--line);border-radius:2mm;overflow:hidden;margin-bottom:3mm;}
+  .info div{padding:1.5mm 3mm;border-right:1px solid var(--line);}
+  .info div:last-child{border-right:none;}
+  .lbl{display:block;font-size:6.6pt;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:.6mm;}
+  .val{font-size:9.4pt;font-weight:600;color:var(--ink);}
 
-  <!-- HOW THE SCORE IS CALCULATED -->
-  <div style="margin-bottom:8px;border:1px solid #ccc;border-radius:3px;padding:6px 8px;background:#fafafa;">
-    <div style="font-size:9px;font-weight:700;margin-bottom:3px;">HOW THIS SCORE WAS DERIVED</div>
-    <div style="font-size:9px;color:#333;line-height:1.5;">
-      Overall Score = average of the {{ calc.count }} counted answer(s):
-      <strong>{{ '%g' % calc.total }} ÷ {{ calc.count }} = {{ assessment.final_score }}</strong>.
-      Each answer is scored 1 (Low), 2 (Medium) or 3 (High); answers marked "not counted" are left out, as in the official risk sheet.
-      {% if assessment.rating_note %}<br><strong style="color:#b91c1c;">{{ assessment.rating_note }} — the rating is High Risk regardless of the average.</strong>{% endif %}
-    </div>
-    <table style="width:100%;font-size:8px;border-collapse:collapse;margin-top:5px;">
-      <tr style="text-align:center;">
-        <td style="padding:3px;border:1px solid #ddd;background:#dcfce7;">Score ≤ 1.00 → <strong>LOW RISK</strong></td>
-        <td style="padding:3px;border:1px solid #ddd;background:#fef3c7;">1.01 – 2.00 → <strong>MEDIUM RISK</strong></td>
-        <td style="padding:3px;border:1px solid #ddd;background:#fee2e2;">&gt; 2.00 → <strong>HIGH RISK</strong></td>
-      </tr>
-    </table>
-    <div style="font-size:9px;margin-top:5px;text-align:center;font-weight:700;">
-      Result: {{ assessment.final_score }} →
-      <span style="color:{% if assessment.risk_rating == 'Low' %}#15803d{% elif assessment.risk_rating == 'Medium' %}#b45309{% else %}#b91c1c{% endif %};">{{ assessment.risk_rating|upper }} RISK</span>
-    </div>
-  </div>
+  .body{display:grid;grid-template-columns:1fr 70mm;gap:5mm;flex:1;align-items:start;}
+  .sec-t{font-size:7.4pt;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--brand);margin:0 0 1.6mm;}
 
-  <!-- FOOTER -->
-  <div style="margin-top:6px;padding-top:5px;border-top:1px solid #ddd;font-size:8px;color:#666;text-align:center;">
-    Confidential - Internal Use Only | {{ assessment.assessment_date }}
-  </div>
-</div>
+  table.q{width:100%;border-collapse:collapse;}
+  table.q th{background:var(--brand);color:#fff;font-size:7pt;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+             text-align:left;padding:1.3mm 2mm;}
+  table.q th.c,table.q td.c{text-align:center;}
+  table.q td{padding:.9mm 2mm;border-bottom:1px solid var(--line);vertical-align:top;}
+  table.q tbody tr:nth-child(even) td{background:var(--zebra);}
+  table.q tr{break-inside:avoid;}
+  .qno{color:var(--brand);font-weight:700;white-space:nowrap;}
+  .ans{font-weight:600;}
+  .note{font-size:7pt;color:var(--muted);font-style:italic;font-weight:400;margin-top:.4mm;}
+  .note.hi{color:var(--high);font-style:normal;font-weight:600;}
+  .sc{font-weight:700;font-size:9pt;}
+  tr.nc td{color:#98a2b3;}
+  tr.nc .sc{text-decoration:line-through;}
+  .pill{display:inline-block;white-space:nowrap;min-width:15mm;padding:.5mm 2mm;border-radius:10mm;font-size:6.8pt;font-weight:700;letter-spacing:.05em;text-transform:uppercase;text-align:center;}
+  .pill.low{background:var(--low-bg);color:var(--low);}
+  .pill.medium{background:var(--med-bg);color:var(--med);}
+  .pill.high{background:var(--high-bg);color:var(--high);}
+  .pill.nc{background:#f2f4f7;color:#98a2b3;}
 
-<!-- ACTION BUTTONS - HIDDEN IN PRINT -->
-<div style="display:none;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:10px;margin-top:20px;padding:20px;" id="buttons">
-  <button onclick="window.print()" style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;color:var(--text);">
-    🖨 Print
-  </button>
-  <button onclick="alert('Email feature coming soon')" style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;color:var(--text);">
-    📧 Email
-  </button>
-  <button onclick="window.print()" style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-weight:600;font-size:13px;cursor:pointer;color:var(--text);">
-    📥 Download PDF
-  </button>
-  {% if assessment_type == 'walkin' %}
-  <a href="{{ url_for('risk_assessment_walkin') }}" style="padding:12px;background:#f59e0b;color:white;border:none;border-radius:6px;font-weight:600;font-size:13px;text-decoration:none;text-align:center;">
-    🔄 New Walk-in
-  </a>
-  {% elif assessment_type == 'company' %}
-  <a href="/risk-assessment/company/{{ company.id }}" style="padding:12px;background:#f59e0b;color:white;border:none;border-radius:6px;font-weight:600;font-size:13px;text-decoration:none;text-align:center;">
-    🔄 Retest
-  </a>
-  {% else %}
-  <a href="/risk-assessment/individual/{{ individual.id }}" style="padding:12px;background:#f59e0b;color:white;border:none;border-radius:6px;font-weight:600;font-size:13px;text-decoration:none;text-align:center;">
-    🔄 Retest
-  </a>
-  {% endif %}
-  <a href="{{ url_for('risk_assessment_list') }}" style="padding:12px;background:var(--primary);color:white;border:none;border-radius:6px;font-weight:600;font-size:13px;text-decoration:none;text-align:center;">
-    ← Back
-  </a>
-</div>
+  .panel{border:1px solid var(--line);border-radius:2mm;overflow:hidden;}
+  .rate{padding:3mm;text-align:center;border-bottom:1px solid var(--line);}
+  .rate.low{background:var(--low-bg);} .rate.medium{background:var(--med-bg);} .rate.high{background:var(--high-bg);} .rate.unspecified{background:#f2f4f7;}
+  .rate-word{font-size:19pt;font-weight:800;letter-spacing:.04em;line-height:1.1;margin:1mm 0;}
+  .rate.low .rate-word{color:var(--low);} .rate.medium .rate-word{color:var(--med);} .rate.high .rate-word{color:var(--high);}
+  .rate-score{font-size:9pt;font-weight:600;}
+  .rate-score b{font-size:12pt;}
+  .override{margin-top:2mm;padding:1.6mm 2mm;border-radius:1.2mm;background:#fff;border:1px solid var(--high);color:var(--high);font-size:7.4pt;font-weight:700;}
+  .blk{padding:2.4mm 3.2mm;border-bottom:1px solid var(--line);}
+  .blk:last-child{border-bottom:none;}
+  .calc{font-size:8pt;}
+  .calc .eq{font-size:10pt;font-weight:700;color:var(--brand);margin:1mm 0;}
+  .bands{width:100%;border-collapse:collapse;font-size:7.4pt;}
+  .bands td{padding:1.1mm 1.6mm;border-bottom:1px solid var(--line);}
+  .bands tr:last-child td{border-bottom:none;}
+  .bands tr.on td{font-weight:700;}
+  .dot{display:inline-block;width:2.4mm;height:2.4mm;border-radius:50%;margin-right:1.4mm;vertical-align:middle;}
+  .notes{font-size:8pt;white-space:pre-wrap;}
 
-<!-- CRITICAL PRINT STYLES -->
-<style media="print">
-  * { margin: 0 !important; padding: 0 !important; }
-  body { background: white !important; color: black !important; font-size: 10px !important; }
-  html, body { height: 100% !important; }
-  #printContent { page-break-inside: avoid !important; orphans: 2 !important; widows: 2 !important; }
-  @page { size: A4; margin: 10mm !important; }
-  div { page-break-inside: avoid !important; }
-  table { page-break-inside: avoid !important; }
-  tr { page-break-inside: avoid !important; }
+  .sign{display:grid;gap:9mm;margin-top:11mm;}
+  .sign div{border-top:1px solid var(--ink);padding-top:1.2mm;font-size:7.4pt;color:var(--muted);}
+  .sign b{color:var(--ink);font-size:8pt;}
+
+  .ftr{display:flex;justify-content:space-between;margin-top:3mm;padding-top:2mm;border-top:1px solid var(--line);
+       font-size:6.8pt;color:var(--muted);}
+  .ftr .conf{color:var(--brand);font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
+
+  @page{size:A4 landscape;margin:0;}
+  @media print{
+    body{background:#fff;}
+    .toolbar{display:none !important;}
+    .sheet{width:297mm;min-height:0;height:auto;margin:0;box-shadow:none;}
+  }
 </style>
+</head>
+<body>
 
-{% endblock %}
-{% block scripts %}
-<script>
-// Show buttons in web, hide in print
-document.getElementById('buttons').style.display = 'grid';
-window.addEventListener('beforeprint', () => { document.getElementById('buttons').style.display = 'none'; });
-window.addEventListener('afterprint', () => { document.getElementById('buttons').style.display = 'grid'; });
-</script>
-{% endblock %}
+<div class="toolbar">
+  <div class="grp">
+    <a class="tb" href="{{ url_for('risk_assessment_list') }}">← Back</a>
+  </div>
+  <div class="grp" style="align-items:center;">
+    <span class="tb-hint">Choose “Save as PDF” in the print window to download</span>
+    {% if assessment_type == 'walkin' %}
+    <a class="tb" href="{{ url_for('risk_assessment_walkin') }}">New Walk-in</a>
+    {% elif assessment_type == 'company' %}
+    <a class="tb" href="/risk-assessment/company/{{ company.id }}">Re-assess</a>
+    {% else %}
+    <a class="tb" href="/risk-assessment/individual/{{ individual.id }}">Re-assess</a>
+    {% endif %}
+    <button class="tb primary" onclick="window.print()">Print / Save PDF</button>
+  </div>
+</div>
+
+<div class="sheet">
+  <div class="hdr">
+    <img src="{{ url_for('static', filename='zewer-logo.png') }}" alt="Zewer Jewellery LLC">
+    <div class="hdr-r">
+      <div class="doc-title">CUSTOMER RISK ASSESSMENT</div>
+      <div class="doc-sub">AML / CFT · Customer Due Diligence</div>
+    </div>
+  </div>
+  <div class="gold-rule"></div>
+
+  <div class="info">
+    <div><span class="lbl">Customer Name</span><span class="val">{{ cust_name }}</span></div>
+    <div><span class="lbl">Customer Code</span><span class="val">{{ cust_code }}</span></div>
+    <div><span class="lbl">Customer Type</span><span class="val">{{ cust_type }}</span></div>
+    <div><span class="lbl">Assessment Date</span><span class="val">{{ assessment.assessment_date or '—' }}</span></div>
+    <div><span class="lbl">Reference No.</span><span class="val">{{ ref_no }}</span></div>
+  </div>
+
+  <div class="body">
+    <div>
+      <div class="sec-t">{% if responses %}Risk Factors — Questions, Answers &amp; Scores{% else %}Risk Factors &amp; Scores{% endif %}</div>
+      <table class="q">
+        <thead>
+          <tr>
+            <th style="width:{% if responses %}49%{% else %}70%{% endif %};">{% if responses %}Question{% else %}Risk Factor{% endif %}</th>
+            {% if responses %}<th style="width:32%;">Answer</th>{% endif %}
+            <th class="c" style="width:7%;">Score</th>
+            <th class="c" style="width:12%;">Risk Level</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for f in factors %}
+          {% set nc = (f.counted is defined and not f.counted) %}
+          {% set lab = f.label or '' %}
+          {% set parts = lab.split('. ', 1) %}
+          <tr class="{% if nc %}nc{% endif %}">
+            <td>{% if parts|length == 2 and parts[0]|length <= 8 %}<span class="qno">{{ parts[0] }}</span>&nbsp; {{ parts[1] }}{% else %}{{ lab }}{% endif %}</td>
+            {% if responses %}
+            <td><span class="ans">{{ f.answer or '—' }}</span>
+              {% if f.note %}<div class="note {% if 'High Risk' in f.note %}hi{% endif %}">{{ f.note }}</div>{% endif %}</td>
+            {% endif %}
+            <td class="c"><span class="sc">{% if f.score %}{{ '%g' % f.score }}{% else %}—{% endif %}</span></td>
+            <td class="c">{% if nc %}<span class="pill nc">Not counted</span>{% elif f.level %}<span class="pill {{ f.level|lower }}">{{ f.level }}</span>{% else %}—{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div>
+    <div class="panel">
+      <div class="rate {{ rkey }}">
+        <span class="lbl">Overall Risk Rating</span>
+        <div class="rate-word">{{ rating|upper }}{% if rating in ['Low','Medium','High'] %} RISK{% endif %}</div>
+        <div class="rate-score">Score <b>{{ score_txt }}</b> / 3.00</div>
+        {% if assessment.rating_note %}<div class="override">⚠ {{ assessment.rating_note }}</div>{% endif %}
+      </div>
+
+      <div class="blk calc">
+        <span class="lbl">Score Calculation</span>
+        <div class="eq">{{ '%g' % calc.total }} ÷ {{ calc.count }} = {{ score_txt }}</div>
+        Average of the {{ calc.count }} counted answer{{ '' if calc.count == 1 else 's' }}. Each answer scores 1 (Low), 2 (Medium) or 3 (High); answers marked “Not counted” are excluded.
+        {% if assessment.rating_note %}<div style="margin-top:1mm;color:var(--high);font-weight:600;">Automatic High Risk trigger applies — rated High regardless of the average.</div>{% endif %}
+      </div>
+
+      <div class="blk">
+        <span class="lbl">Rating Scale</span>
+        <table class="bands">
+          <tr class="{% if rkey=='low' %}on{% endif %}"><td><span class="dot" style="background:var(--low);"></span>Low Risk</td><td style="text-align:right;">≤ 1.00</td></tr>
+          <tr class="{% if rkey=='medium' %}on{% endif %}"><td><span class="dot" style="background:var(--med);"></span>Medium Risk</td><td style="text-align:right;">1.01 – 2.00</td></tr>
+          <tr class="{% if rkey=='high' %}on{% endif %}"><td><span class="dot" style="background:var(--high);"></span>High Risk</td><td style="text-align:right;">&gt; 2.00</td></tr>
+        </table>
+      </div>
+
+      {% if assessment.notes %}
+      <div class="blk">
+        <span class="lbl">Notes</span>
+        <div class="notes">{{ assessment.notes }}</div>
+      </div>
+      {% endif %}
+    </div>
+    <div class="sign">
+      <div><b>Assessed by</b><br>Name, signature &amp; date</div>
+      <div><b>Reviewed &amp; approved by</b><br>Compliance Officer / MLRO</div>
+    </div>
+    </div>
+  </div>
+
+  <div class="ftr">
+    <span>Zewer Jewellery LLC · Customer Risk Assessment · {{ ref_no }}</span>
+    <span class="conf">Confidential — Internal AML/CFT use only</span>
+  </div>
+</div>
+
+</body>
+</html>
