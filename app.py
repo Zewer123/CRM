@@ -4263,12 +4263,110 @@ def regular_tasks():
     return redirect(url_for('tasks', tab='regular'))
 
 
+# ── EXPORT: every task and its status, one workbook ──────────
+@app.route('/export/tasks-all')
+@require_perm('tasks_view')
+def export_tasks_all():
+    """One click → Excel with One-time tasks, Recurring tasks (status per person),
+       Recurring logs and Additional tasks. Admin gets everyone; others get their own."""
+    if not HAS_XL: return "openpyxl not installed", 500
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+    conn = get_db(); uid = session.get('user_id'); role = session.get('user_role')
+    everyone = role == 'admin'
+    today = dubai_today(); tstr = str(today)
+    wb = openpyxl.Workbook()
+    hdr_fill = PatternFill(start_color='1C1917', end_color='1C1917', fill_type='solid')
+    def sheet(ws, title, headers, rows):
+        ws.title = title
+        ws.append(headers)
+        for c_ in ws[1]:
+            c_.font = Font(bold=True, color='F59E0B'); c_.fill = hdr_fill
+            c_.alignment = Alignment(vertical='center', wrap_text=True)
+        for r in rows:
+            ws.append(['' if v is None else v for v in r])
+        for i, h in enumerate(headers, 1):
+            w = max([len(str(h))] + [len(str(r[i - 1] or '')) for r in rows[:300]]) + 2
+            ws.column_dimensions[get_column_letter(i)].width = max(10, min(w, 50))
+        ws.freeze_panes = 'A2'
+        if rows: ws.auto_filter.ref = ws.dimensions
+
+    # 1) One-time tasks
+    q = """SELECT t.*, u.name AS assignee, cb.name AS creator, c.ac_code, c.client_name
+           FROM tasks t LEFT JOIN users u ON t.assigned_to=u.id LEFT JOIN users cb ON t.created_by=cb.id
+           LEFT JOIN companies c ON t.company_id=c.id"""
+    tasks_ = all_(conn, q + ' ORDER BY t.due_date') if everyone else \
+        all_(conn, q + ' WHERE t.assigned_to=? OR t.created_by=? ORDER BY t.due_date', (uid, uid))
+    one_rows = []
+    for t in tasks_:
+        st = t.get('status') or 'todo'; due = str(t.get('due_date') or '')[:10]
+        od = (today - datetime.strptime(due, '%Y-%m-%d').date()).days if (due and due < tstr and st not in ('done', 'pending_close')) else ''
+        one_rows.append([t['id'], t.get('title'), t.get('description'), t.get('assignee'), t.get('creator'),
+                         t.get('ac_code'), t.get('client_name'), (t.get('priority') or 'normal').title(), due,
+                         TASK_STATUS_LABELS.get(st, st), od, str(t.get('created_at') or '')[:16], str(t.get('updated_at') or '')[:16]])
+    sheet(wb.active, 'One-time Tasks', ['ID', 'Task', 'Description', 'Assigned To', 'Created By', 'AC Code', 'Company',
+                                        'Priority', 'Due Date', 'Status', 'Days Overdue', 'Created', 'Last Updated'], one_rows)
+
+    # 2) Recurring tasks — current status per responsible person
+    users_all = all_(conn, 'SELECT id,name,role FROM users WHERE is_active=1 ORDER BY name')
+    rec_rows = []
+    for t in all_(conn, """SELECT rt.*, au.name AS assigned_user_name FROM regular_task_templates rt
+                           LEFT JOIN users au ON rt.assigned_user_id=au.id ORDER BY rt.frequency, rt.title"""):
+        state = _template_state(conn, t, today)
+        nxt = _template_next_due(conn, t, today)
+        for pid, pname in _recurring_people(t, users_all):
+            if not everyone and pid != uid:
+                continue
+            missed = _regular_missed_dates(conn, t, pid, today, True)
+            past = [d for d in missed if d < today]
+            last = one(conn, """SELECT MAX(logged_at) AS m FROM regular_task_logs WHERE template_id=? AND user_id=?
+                                AND COALESCE(status,'done') <> 'reopened'""", (t['id'], pid))
+            status = {'paused': 'Paused', 'ended': 'Ended'}.get(state) or (
+                f'{len(past)} missed' if past else ('Due today' if today in missed else 'Up to date'))
+            rec_rows.append([t['title'], (t.get('frequency') or '').title(),
+                             _rule_text(t.get('frequency'), t.get('weekday'), t.get('month_day')), pname,
+                             status, len(past), str(past[0]) if past else '',
+                             str((last or {}).get('m') or '')[:16], str(nxt) if nxt else '', str(t.get('end_date') or '')[:10]])
+    sheet(wb.create_sheet(), 'Recurring Tasks', ['Task', 'Frequency', 'Schedule', 'Person', 'Status', 'Missed Days',
+                                                 'Oldest Missed', 'Last Logged', 'Next Due', 'End Date'], rec_rows)
+
+    # 3) Recurring logs (last 12 months)
+    since = str(today - timedelta(days=365))
+    q = """SELECT l.*, u.name AS person, rt.title, rt.frequency, ru.name AS reopened_by_name
+           FROM regular_task_logs l JOIN regular_task_templates rt ON l.template_id=rt.id
+           LEFT JOIN users u ON l.user_id=u.id LEFT JOIN users ru ON l.reopened_by=ru.id WHERE l.logged_at >= ?"""
+    logs = all_(conn, q + ' ORDER BY l.logged_at DESC', (since,)) if everyone else \
+        all_(conn, q + ' AND l.user_id=? ORDER BY l.logged_at DESC', (since, uid))
+    sheet(wb.create_sheet(), 'Recurring Logs', ['Date', 'Time', 'Task', 'Frequency', 'Person', 'Status', 'Notes', 'Reopened By', 'Reopen Reason'],
+          [[str(l['logged_at'])[:10], str(l['logged_at'])[11:16], l.get('title'), (l.get('frequency') or '').title(), l.get('person'),
+            (l.get('status') or 'done').title(), l.get('notes'), l.get('reopened_by_name'), l.get('reopen_reason')] for l in logs])
+
+    # 4) Additional tasks
+    try:
+        q = """SELECT a.*, u.name AS person FROM additional_tasks a LEFT JOIN users u ON a.created_by=u.id"""
+        adds = all_(conn, q + ' ORDER BY a.from_datetime DESC') if everyone else \
+            all_(conn, q + ' WHERE a.created_by=? ORDER BY a.from_datetime DESC', (uid,))
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+        adds = []
+    sheet(wb.create_sheet(), 'Additional Tasks', ['Task', 'Person', 'From', 'To', 'Status', 'Completed At', 'Details', 'Remarks'],
+          [[a.get('title'), a.get('person'), str(a.get('from_datetime') or '')[:16], str(a.get('to_datetime') or '')[:16],
+            'Completed' if a.get('status') == 'completed' else 'Open', str(a.get('completed_at') or '')[:16],
+            a.get('task_details'), a.get('remarks')] for a in adds])
+    conn.close()
+    out = io.BytesIO(); wb.save(out); out.seek(0)
+    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True,
+                     download_name=f'zewer_tasks_{datetime.now(DUBAI_TZ).strftime("%Y%m%d_%H%M")}.xlsx')
+
+
 # ── TASK HISTORY (completed / logged regular tasks) ──────────
 @app.route('/task-history')
 @require_perm('regular_tasks_view')
 def task_history():
-    """Unified 'Completed Tasks' page: regular-task logs (daily/weekly/monthly),
-       completed one-off tasks, and finished additional-task activities — merged."""
+    """Task Report: everything done AND everything still pending, in one list —
+       recurring logs + missed/due recurring days, one-off tasks (closed and open),
+       additional activities (completed and open). Managers see everyone; staff see their own."""
     conn = get_db(); uid = session.get('user_id'); role = session.get('user_role')
     is_mgr = role in ['admin', 'compliance']
     rows = []
@@ -4294,6 +4392,7 @@ def task_history():
             'user_id': l.get('user_id'), 'staff_name': l.get('staff_name') or '—',
             'status': l.get('status') or 'done', 'notes': l.get('notes') or '',
             'when': str(l.get('logged_at'))[:16] if l.get('logged_at') else '',
+            'group': 'reopened' if (l.get('status') or 'done') == 'reopened' else 'completed',
         })
 
     # 2) One-off tasks marked done
@@ -4314,6 +4413,7 @@ def task_history():
             'user_id': t.get('assigned_to'), 'staff_name': t.get('staff_name') or 'Unassigned',
             'status': 'done', 'notes': t.get('description') or '',
             'when': str(t.get('updated_at'))[:16] if t.get('updated_at') else '',
+            'group': 'completed',
         })
 
     # 3) Additional tasks explicitly marked complete
@@ -4335,7 +4435,62 @@ def task_history():
             'kind': 'Additional', 'title': a.get('title') or '—', 'freq': '',
             'user_id': a.get('created_by'), 'staff_name': a.get('staff_name') or '—',
             'status': 'completed', 'notes': details,
-            'when': when[:16],
+            'when': when[:16], 'group': 'completed',
+        })
+
+    # ── PENDING ──
+    today = dubai_today(); tstr = str(today)
+    # 4) open one-off tasks
+    try:
+        q = """SELECT t.*,u.name AS staff_name,c.ac_code FROM tasks t LEFT JOIN users u ON t.assigned_to=u.id
+               LEFT JOIN companies c ON t.company_id=c.id
+               WHERE COALESCE(t.status,'todo') <> 'done'"""
+        opens = all_(conn, q + " ORDER BY t.due_date") if is_mgr else all_(conn, q + " AND t.assigned_to=? ORDER BY t.due_date", (uid,))
+    except Exception:
+        opens = []
+    for t in opens:
+        st = t.get('status') or 'todo'
+        due = str(t.get('due_date') or '')[:10]
+        overdue = bool(due) and due < tstr and st not in ('pending_close',)
+        rows.append({
+            'kind': 'One-off', 'title': t.get('title') or '—', 'freq': '',
+            'user_id': t.get('assigned_to'), 'staff_name': t.get('staff_name') or 'Unassigned',
+            'status': st, 'notes': (('[' + t['ac_code'] + '] ') if t.get('ac_code') else '') + (t.get('description') or ''),
+            'when': due, 'group': 'pending', 'overdue': overdue,
+        })
+    # 5) recurring days missed / due today (last 180 days per person)
+    try:
+        users_all = all_(conn, 'SELECT id,name,role FROM users WHERE is_active=1 ORDER BY name')
+        for t in all_(conn, """SELECT rt.*, au.name AS assigned_user_name FROM regular_task_templates rt
+                               LEFT JOIN users au ON rt.assigned_user_id=au.id ORDER BY rt.title"""):
+            for pid, pname in _recurring_people(t, users_all):
+                if not is_mgr and pid != uid:
+                    continue
+                for d in _regular_missed_dates(conn, t, pid, today, True)[-180:]:
+                    ds = str(d)
+                    rows.append({
+                        'kind': 'Regular', 'title': t['title'], 'freq': (t.get('frequency') or '').lower(),
+                        'user_id': pid, 'staff_name': pname,
+                        'status': 'due' if ds == tstr else 'missed', 'notes': '',
+                        'when': ds, 'group': 'pending', 'overdue': ds < tstr,
+                    })
+    except Exception as e:
+        logger.warning(f'task report recurring pending failed: {e}')
+        try: conn.rollback()
+        except Exception: pass
+    # 6) additional tasks still open
+    try:
+        q = """SELECT a.*,u.name AS staff_name FROM additional_tasks a LEFT JOIN users u ON a.created_by=u.id
+               WHERE COALESCE(a.status,'open') <> 'completed'"""
+        aopen = all_(conn, q) if is_mgr else all_(conn, q + " AND a.created_by=?", (uid,))
+    except Exception:
+        aopen = []
+    for a in aopen:
+        rows.append({
+            'kind': 'Additional', 'title': a.get('title') or '—', 'freq': '',
+            'user_id': a.get('created_by'), 'staff_name': a.get('staff_name') or '—',
+            'status': 'open', 'notes': a.get('task_details') or a.get('remarks') or '',
+            'when': str(a.get('to_datetime') or a.get('from_datetime') or '')[:16], 'group': 'pending',
         })
 
     rows.sort(key=lambda r: r['when'], reverse=True)
@@ -4347,6 +4502,15 @@ def task_history():
 # ════════════════════════════════════════════════════════════
 # ANALYTICS DASHBOARD (on-screen; Reports page keeps the exports)
 # ════════════════════════════════════════════════════════════
+def _recurring_people(t, users):
+    """[(user_id, name)] responsible for template t: a named assignee wins; 'All Staff' means
+       staff-role users; otherwise users with the assigned role."""
+    if t.get('assigned_user_id'):
+        return [(t['assigned_user_id'], t.get('assigned_user_name') or f"#{t['assigned_user_id']}")]
+    ar = t.get('assigned_role') or 'all'
+    want = 'staff' if ar == 'all' else ar
+    return [(u['id'], u['name']) for u in users if (u['role'] or '').lower() == want]
+
 def _recurring_performance(conn, today, start, end):
     """Per recurring task and responsible person, for days due in [start, end] (up to today):
        expected, done (incl. partial), skipped, missed, completion %.
@@ -4362,12 +4526,7 @@ def _recurring_performance(conn, today, start, end):
         due = [d for d in _template_due_dates(conn, t, end_eff) if d >= start]
         if not due:
             continue
-        if t.get('assigned_user_id'):
-            people = [(t['assigned_user_id'], t.get('assigned_user_name') or f"#{t['assigned_user_id']}")]
-        else:
-            ar = t.get('assigned_role') or 'all'
-            want = 'staff' if ar == 'all' else ar
-            people = [(u['id'], u['name']) for u in users if (u['role'] or '').lower() == want]
+        people = _recurring_people(t, users)
         own_from = _to_date(t.get('assigned_from'))
         for pid, pname in people:
             leave = _leave_periods(conn, user_id=pid)

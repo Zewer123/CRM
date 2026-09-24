@@ -1,13 +1,32 @@
 {% extends "base.html" %}
-{% block title %}Completed Tasks - Zewer AML{% endblock %}
+{% block title %}Task Report - Zewer AML{% endblock %}
 {% block content %}
 
+<style>
+.tr-staff{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:16px;}
+.tr-sc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease;}
+.tr-sc:hover{transform:translateY(-1px);box-shadow:var(--shadow-md);}
+.tr-sc.sel{outline:2px solid var(--primary);outline-offset:-2px;}
+.tr-sc .nm{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tr-sc .nums{display:flex;gap:10px;margin-top:6px;font-size:12px;}
+.tr-sc .nums b{font-size:15px;}
+.tr-sc .bar{height:5px;border-radius:3px;background:var(--surface3);overflow:hidden;margin-top:7px;}
+.tr-sc .bar div{height:100%;background:var(--success);}
+.st-b{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;}
+</style>
+
 <div class="page-header">
-  <div class="page-title">✅ Completed Tasks</div>
-  <a href="{{ url_for('tasks', tab='regular') }}" class="btn btn-ghost btn-sm">← Back to Tasks</a>
+  <div class="page-title">📋 Task Report</div>
+  <div style="display:flex;gap:8px;">
+    <a href="{{ url_for('export_tasks_all') }}" class="btn btn-ghost btn-sm">⬇️ Export all (Excel)</a>
+    <a href="{{ url_for('tasks') }}" class="btn btn-ghost btn-sm">← Back to Tasks</a>
+  </div>
 </div>
 
-<div style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">Everything that's been done — regular task logs (daily/weekly/monthly), completed one-off tasks, and finished additional activities.</div>
+<div style="color:var(--text-dim);font-size:13px;margin-bottom:14px;">Everything done <strong>and</strong> everything still pending, in one place — one-off tasks, recurring (daily / weekly / monthly) days and additional activities. Use <strong>Status</strong> to switch between completed and pending, and click a staff card to see one person.</div>
+
+<!-- STAFF SUMMARY CARDS (follow the filters) -->
+<div class="tr-staff" id="staffCards"></div>
 
 <!-- FILTERS -->
 <div class="search-bar" style="margin-bottom:16px;">
@@ -20,32 +39,49 @@
     </select>
   </div>
   {% endif %}
-  <div class="form-group" style="min-width:150px;">
+  <div class="form-group" style="min-width:170px;">
+    <label>STATUS</label>
+    <select id="hFilterStatus" onchange="filterHistory()">
+      <option value="">Everything</option>
+      <optgroup label="Groups">
+        <option value="@completed">✅ All completed</option>
+        <option value="@pending">⏳ All pending</option>
+        <option value="@overdue">⚠️ Overdue / missed only</option>
+      </optgroup>
+      <optgroup label="Completed">
+        <option value="done">Done / Closed</option>
+        <option value="completed">Completed (additional)</option>
+        <option value="partial">Partial</option>
+        <option value="skipped">Skipped</option>
+        <option value="reopened">Reopened by manager</option>
+      </optgroup>
+      <optgroup label="Pending">
+        <option value="todo">Pending (not started)</option>
+        <option value="inprogress">In Progress</option>
+        <option value="hold">On Hold</option>
+        <option value="pending_close">Awaiting Closure</option>
+        <option value="missed">Missed (recurring)</option>
+        <option value="due">Due today (recurring)</option>
+        <option value="open">Open (additional)</option>
+      </optgroup>
+    </select>
+  </div>
+  <div class="form-group" style="min-width:140px;">
     <label>TYPE</label>
     <select id="hFilterKind" onchange="filterHistory()">
       <option value="">All types</option>
-      <option value="Regular">Regular</option>
+      <option value="Regular">Recurring</option>
       <option value="One-off">One-off</option>
       <option value="Additional">Additional</option>
     </select>
   </div>
-  <div class="form-group" style="min-width:140px;">
+  <div class="form-group" style="min-width:130px;">
     <label>FREQUENCY</label>
     <select id="hFilterFreq" onchange="filterHistory()">
       <option value="">All</option>
       <option value="daily">Daily</option>
       <option value="weekly">Weekly</option>
       <option value="monthly">Monthly</option>
-    </select>
-  </div>
-  <div class="form-group" style="min-width:130px;">
-    <label>STATUS</label>
-    <select id="hFilterStatus" onchange="filterHistory()">
-      <option value="">All</option>
-      <option value="done">Done</option>
-      <option value="completed">Completed</option>
-      <option value="partial">Partial</option>
-      <option value="skipped">Skipped</option>
     </select>
   </div>
   <div class="form-group" style="min-width:130px;">
@@ -56,12 +92,12 @@
     <label>TO DATE</label>
     <input type="date" id="hFilterTo" onchange="filterHistory()">
   </div>
-  <div class="form-group" style="min-width:80px;display:flex;align-items:flex-end;">
+  <div class="form-group" style="min-width:70px;display:flex;align-items:flex-end;">
     <button class="btn btn-ghost btn-sm" onclick="clearHistoryFilters()">Clear</button>
   </div>
 </div>
 
-<div style="color:var(--text-dim);font-size:12px;margin-bottom:8px;"><span id="histCount">{{ logs|length }}</span> completed items</div>
+<div style="color:var(--text-dim);font-size:12px;margin-bottom:8px;"><span id="histCount">{{ logs|length }}</span> items · <span id="histSplit"></span></div>
 
 <div class="card" style="padding:0;overflow:hidden;">
   <div class="table-wrap">
@@ -73,12 +109,13 @@
           <th>Staff</th>
           <th>Status</th>
           <th>Notes</th>
-          <th>When</th>
+          <th title="Completed items: when it was done. Pending items: the due date.">When / Due</th>
         </tr>
       </thead>
       <tbody id="historyBody">
         {% for l in logs %}
-        <tr data-user="{{ l.user_id }}" data-kind="{{ l.kind }}" data-freq="{{ l.freq }}" data-status="{{ l.status }}" data-date="{{ l.when[:10] }}">
+        <tr data-user="{{ l.user_id }}" data-staff="{{ l.staff_name }}" data-kind="{{ l.kind }}" data-freq="{{ l.freq }}" data-status="{{ l.status }}"
+            data-group="{{ l.group }}" data-overdue="{{ '1' if l.overdue else '' }}" data-date="{{ (l.when or '')[:10] }}">
           <td style="font-weight:500;color:var(--text);">{{ l.title }}</td>
           <td>
             {% if l.kind == 'Regular' %}
@@ -92,17 +129,26 @@
           </td>
           <td style="color:var(--text-muted);">{{ l.staff_name }}</td>
           <td>
-            {% if l.status == 'done' %}<span class="badge badge-active">✅ Done</span>
-            {% elif l.status == 'completed' %}<span class="badge badge-active">✅ Completed</span>
-            {% elif l.status == 'partial' %}<span class="badge badge-compliance">⚠️ Partial</span>
-            {% elif l.status == 'reopened' %}<span class="badge" style="background:rgba(239,68,68,0.15);color:#fca5a5;" title="Reopened by a manager — the day counts as missed again">↩ Reopened</span>
-            {% else %}<span class="badge" style="background:var(--surface3);color:var(--text-muted);">⏭️ Skipped</span>{% endif %}
+            {% set st = l.status %}
+            {% if st == 'done' %}<span class="st-b" style="background:var(--success-bg);color:var(--success);">✅ {{ 'Closed' if l.kind == 'One-off' else 'Done' }}</span>
+            {% elif st == 'completed' %}<span class="st-b" style="background:var(--success-bg);color:var(--success);">✅ Completed</span>
+            {% elif st == 'partial' %}<span class="st-b" style="background:var(--warning-bg);color:var(--warning);">◐ Partial</span>
+            {% elif st == 'skipped' %}<span class="st-b" style="background:var(--surface3);color:var(--text-muted);">⏭️ Skipped</span>
+            {% elif st == 'reopened' %}<span class="st-b" style="background:var(--danger-bg);color:var(--danger);" title="Reopened by a manager — the day counts as missed again">↩ Reopened</span>
+            {% elif st == 'missed' %}<span class="st-b" style="background:var(--danger-bg);color:var(--danger);">✕ Missed</span>
+            {% elif st == 'due' %}<span class="st-b" style="background:var(--warning-bg);color:var(--warning);">• Due today</span>
+            {% elif st == 'inprogress' %}<span class="st-b" style="background:var(--blue-bg);color:var(--blue);">🔄 In Progress</span>
+            {% elif st == 'hold' %}<span class="st-b" style="background:rgba(168,85,247,0.14);color:#a855f7;">⏸ On Hold</span>
+            {% elif st == 'pending_close' %}<span class="st-b" style="background:var(--warning-bg);color:var(--warning);">⏳ Awaiting Closure</span>
+            {% elif st == 'open' %}<span class="st-b" style="background:var(--surface3);color:var(--text-muted);">○ Open</span>
+            {% else %}<span class="st-b" style="background:var(--surface3);color:var(--text-muted);">📋 Pending</span>{% endif %}
+            {% if l.overdue and st not in ['missed'] %}<div style="font-size:10px;color:var(--danger);font-weight:700;margin-top:2px;">⚠️ overdue</div>{% endif %}
           </td>
           <td style="font-size:12px;color:var(--text-dim);">{{ l.notes or '—' }}</td>
-          <td style="font-size:12px;color:var(--text-muted);">{{ l.when or '—' }}</td>
+          <td style="font-size:12px;color:{% if l.overdue %}var(--danger){% else %}var(--text-muted){% endif %};white-space:nowrap;">{{ l.when or '—' }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-dim);">No completed tasks yet.</td></tr>
+        <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-dim);">No tasks yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -112,34 +158,79 @@
 {% endblock %}
 {% block scripts %}
 <script>
-function filterHistory() {
+function _rowMatch(row, ignoreUser) {
   const u = document.getElementById('hFilterUser') ? document.getElementById('hFilterUser').value : '';
   const k = document.getElementById('hFilterKind').value;
   const f = document.getElementById('hFilterFreq').value;
   const s = document.getElementById('hFilterStatus').value;
   const from = document.getElementById('hFilterFrom').value;
   const to = document.getElementById('hFilterTo').value;
-  let shown = 0;
-  document.querySelectorAll('#historyBody tr[data-status]').forEach(row => {
-    let show = true;
-    if (u && row.dataset.user !== u) show = false;
-    if (k && row.dataset.kind !== k) show = false;
-    if (f && row.dataset.freq !== f) show = false;
-    if (s && row.dataset.status !== s) show = false;
-    const d = row.dataset.date;
-    if (from && d && d < from) show = false;
-    if (to && d && d > to) show = false;
-    row.style.display = show ? '' : 'none';
-    if (show) shown++;
-  });
-  const cnt = document.getElementById('histCount');
-  if (cnt) cnt.textContent = shown;
+  if (!ignoreUser && u && row.dataset.user !== u) return false;
+  if (k && row.dataset.kind !== k) return false;
+  if (f && row.dataset.freq !== f) return false;
+  if (s === '@completed' && row.dataset.group !== 'completed') return false;
+  if (s === '@pending' && row.dataset.group !== 'pending') return false;
+  if (s === '@overdue' && !row.dataset.overdue) return false;
+  if (s && s[0] !== '@' && row.dataset.status !== s) return false;
+  const d = row.dataset.date;
+  if (from && (!d || d < from)) return false;
+  if (to && (!d || d > to)) return false;
+  return true;
 }
+
+function filterHistory() {
+  let shown = 0, done = 0, pend = 0;
+  const staff = {};
+  document.querySelectorAll('#historyBody tr[data-status]').forEach(row => {
+    const show = _rowMatch(row, false);
+    row.style.display = show ? '' : 'none';
+    if (show) { shown++; if (row.dataset.group === 'completed') done++; else if (row.dataset.group === 'pending') pend++; }
+    // staff cards: everything except the staff filter itself
+    if (_rowMatch(row, true)) {
+      const id = row.dataset.user || '0';
+      const sc = staff[id] || (staff[id] = {name: row.dataset.staff || '—', done: 0, pending: 0, overdue: 0});
+      if (row.dataset.group === 'completed') sc.done++;
+      else if (row.dataset.group === 'pending') { sc.pending++; if (row.dataset.overdue) sc.overdue++; }
+    }
+  });
+  document.getElementById('histCount').textContent = shown;
+  document.getElementById('histSplit').textContent = `${done} completed · ${pend} pending`;
+  renderStaffCards(staff);
+}
+
+function renderStaffCards(staff) {
+  const box = document.getElementById('staffCards');
+  const sel = document.getElementById('hFilterUser');
+  const cur = sel ? sel.value : '';
+  const esc2 = t => { const e = document.createElement('div'); e.textContent = t; return e.innerHTML; };
+  const list = Object.entries(staff).sort((a, b) => (b[1].pending + b[1].done) - (a[1].pending + a[1].done));
+  box.innerHTML = list.map(([id, s]) => {
+    const tot = s.done + s.pending, pct = tot ? Math.round(100 * s.done / tot) : 0;
+    return `<div class="tr-sc${cur === id ? ' sel' : ''}" onclick="pickStaff('${id}')" title="Show only ${esc2(s.name)}">
+      <div class="nm">👤 ${esc2(s.name)}</div>
+      <div class="nums">
+        <span style="color:var(--success);"><b>${s.done}</b> done</span>
+        <span style="color:var(--text-muted);"><b>${s.pending}</b> pending</span>
+        ${s.overdue ? `<span style="color:var(--danger);"><b>${s.overdue}</b> late</span>` : ''}
+      </div>
+      <div class="bar"><div style="width:${pct}%;"></div></div>
+    </div>`;
+  }).join('') || '';
+}
+
+function pickStaff(id) {
+  const sel = document.getElementById('hFilterUser');
+  if (!sel) return;
+  sel.value = (sel.value === id) ? '' : id;
+  filterHistory();
+}
+
 function clearHistoryFilters() {
   ['hFilterUser','hFilterKind','hFilterFreq','hFilterStatus','hFilterFrom','hFilterTo'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   filterHistory();
 }
+document.addEventListener('DOMContentLoaded', filterHistory);
 </script>
 {% endblock %}
