@@ -37,6 +37,12 @@
   .tr-chip{font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;white-space:nowrap;}
   .tr-body{border-top:1px solid var(--border);padding:14px 16px;display:none;}
   .tr-body.open{display:block;}
+  .tr-arrow{display:inline-block;color:var(--text-dim);font-size:13px;transition:transform .15s ease;width:12px;}
+  .tr-card.is-open .tr-arrow{transform:rotate(90deg);color:var(--primary);}
+  .tr-hint{font-size:10px;font-weight:600;color:var(--text-dim);border:1px solid var(--border);border-radius:10px;padding:0 7px;margin-left:6px;vertical-align:middle;}
+  .tr-card.is-open .tr-hint{display:none;}
+  .tr-chip{cursor:pointer;}
+
   .tr-sub{font-size:12px;font-weight:700;color:var(--text);margin:14px 0 8px;text-transform:uppercase;letter-spacing:.4px;}
   .tr-sub:first-child{margin-top:0;}
   .tr-table{width:100%;border-collapse:collapse;}
@@ -439,19 +445,26 @@
   </div>
 
   <!-- ── DETAILED PER-STAFF DRILL-DOWN (same data as Reports → Task Report) ── -->
-  <div class="an-card-title" style="margin:22px 0 10px;">Detailed breakdown — click a staff member to expand ({{ period_label }})</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:22px 0 10px;flex-wrap:wrap;">
+    <div class="an-card-title" style="margin:0;">Detailed breakdown — click a person to see their tasks ({{ period_label }})</div>
+    <div style="display:flex;gap:6px;"><button class="btn btn-ghost btn-sm" onclick="trAll(true)">Expand all</button><button class="btn btn-ghost btn-sm" onclick="trAll(false)">Collapse all</button></div>
+  </div>
   {% for s in staff_report %}
   <div class="tr-card">
-    <div class="tr-head" onclick="this.parentElement.querySelector('.tr-body').classList.toggle('open')">
-      <div>
-        <div class="tr-name">{{ s.name }}</div>
-        <div class="tr-role">{{ s.role }}</div>
+    <div class="tr-head" onclick="trToggle(this)" title="Click to show / hide details">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="tr-arrow">▸</span>
+        <div>
+          <div class="tr-name">{{ s.name }} <span class="tr-hint">details</span></div>
+          <div class="tr-role">{{ s.role }}{% if s.login %} · {{ s.login }}{% endif %}</div>
+        </div>
       </div>
       <div class="tr-chips">
-        <span class="tr-chip b-done">✅ {{ s.done_total }} done</span>
-        <span class="tr-chip b-pend">⏳ {{ s.temp_pending|length + s.add_open }} pending</span>
-        <span class="tr-chip b-over">⚠️ {{ s.temp_overdue|length }} overdue</span>
-        <span class="tr-chip b-back">🔁 {{ s.reg_pending }} backlog</span>
+        {% set open_n = s.temp_pending|length + s.temp_overdue|length + s.add_open %}
+        <span class="tr-chip b-done" title="Completed in this period">✅ {{ s.done_total }} done</span>
+        <span class="tr-chip b-pend" title="One-off + additional tasks still open (includes overdue)">⏳ {{ open_n }} open</span>
+        {% if s.temp_overdue %}<span class="tr-chip b-over" title="Open one-off tasks past their due date">⚠️ {{ s.temp_overdue|length }} overdue</span>{% endif %}
+        {% if s.reg_pending %}<span class="tr-chip b-back" title="Recurring days not logged yet">🔁 {{ s.reg_pending }} backlog</span>{% endif %}
       </div>
     </div>
     <div class="tr-body">
@@ -493,6 +506,19 @@
 
 {% endblock %}
 {% block scripts %}
+<script>
+function trToggle(head) {
+  const card = head.parentElement;
+  card.querySelector('.tr-body').classList.toggle('open');
+  card.classList.toggle('is-open', card.querySelector('.tr-body').classList.contains('open'));
+}
+function trAll(open) {
+  document.querySelectorAll('.tr-card').forEach(c => {
+    const b = c.querySelector('.tr-body'); if (!b) return;
+    b.classList.toggle('open', open); c.classList.toggle('is-open', open);
+  });
+}
+</script>
 <script>
 function switchAnTab(name, btn) {
   document.querySelectorAll('.an-tab-pane').forEach(p => p.style.display = 'none');

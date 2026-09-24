@@ -2216,7 +2216,7 @@ def _staff_task_report(conn, today, df, dt, staff_id=None):
     """Build the per-staff detailed task report (one-off + regular + additional) for a
        date range. Shared by the Reports page and the Analytics → Staff tab."""
     ps = df or '1900-01-01'; pe = (dt or str(today)) + ' 23:59:59'
-    all_users = all_(conn, 'SELECT id,name,role FROM users WHERE is_active=1 ORDER BY name')
+    all_users = all_(conn, 'SELECT id,name,role,username,email FROM users WHERE is_active=1 ORDER BY name')
     users = [u for u in all_users if (not staff_id or str(u['id']) == str(staff_id))]
 
     report = []
@@ -2284,7 +2284,7 @@ def _staff_task_report(conn, today, df, dt, staff_id=None):
         add_open = len(add_list) - add_done
 
         report.append({
-            'name': u['name'], 'role': (u['role'] or '').title(),
+            'name': u['name'], 'role': (u['role'] or '').title(), 'login': u.get('username') or u.get('email') or '',
             'temp_done': temp_done, 'temp_pending': temp_pending, 'temp_overdue': temp_overdue,
             'reg_list': reg_list, 'reg_pending': reg_pending,
             'add_list': add_list, 'add_done': add_done, 'add_open': add_open,
