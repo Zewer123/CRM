@@ -2246,7 +2246,7 @@ def _staff_task_report(conn, today, df, dt, staff_id=None):
             if urole in ('admin', 'compliance'):
                 tmpls = all_(conn, "SELECT * FROM regular_task_templates WHERE assigned_user_id=?", (uid,))
             else:
-                tmpls = all_(conn, "SELECT * FROM regular_task_templates WHERE assigned_role='all' OR assigned_user_id=? OR assigned_role=?", (uid, urole))
+                tmpls = all_(conn, "SELECT * FROM regular_task_templates WHERE assigned_user_id=? OR (assigned_user_id IS NULL AND (assigned_role='all' OR assigned_role=?))", (uid, urole))
             own_ids = set(tm['id'] for tm in tmpls)
             for tm in tmpls:
                 reg_pending += len(_regular_missed_dates(conn, tm, uid, today, True))
@@ -3160,7 +3160,7 @@ def api_delete_dropdown(id):
 def tasks():
     conn=get_db(); uid=session.get('user_id'); role=session.get('user_role')
     today=dubai_today()
-    active_tab=request.args.get('tab','temp')
+    active_tab=request.args.get('tab','today')
 
     # ── TEMP TASKS ──
     base='''SELECT t.*,u.name as assigned_name,u.mobile as assigned_mobile,
@@ -3198,7 +3198,7 @@ def tasks():
             rt_templates=all_(conn,"""SELECT rt.*,u.name as created_by_name,au.name as assigned_user_name
                 FROM regular_task_templates rt LEFT JOIN users u ON rt.created_by=u.id
                 LEFT JOIN users au ON rt.assigned_user_id=au.id
-                WHERE rt.assigned_role='all' OR rt.assigned_user_id=? OR rt.assigned_role=?
+                WHERE rt.assigned_user_id=? OR (rt.assigned_user_id IS NULL AND (rt.assigned_role='all' OR rt.assigned_role=?))
                 ORDER BY rt.frequency,rt.title""", (uid,role))
             rt_logs=all_(conn,"""SELECT l.*,u.name as staff_name,rt.title as task_title,rt.frequency
                 FROM regular_task_logs l JOIN users u ON l.user_id=u.id
@@ -3286,11 +3286,80 @@ def tasks():
         } for t in add_tasks]
     except: add_tasks = []
 
+    myday = _build_my_day(conn, uid, role, today, tl, rt_templates, task_status)
     conn.close()
     return render_template('tasks.html',tasks=tl,all_users=users,all_companies=cos,task_templates=tmpls,
                            rt_templates=rt_templates,rt_logs=rt_logs,task_status=task_status,
                            active_tab=active_tab,today=str(today),add_tasks=add_tasks,
-                           current_user_id=uid,my_leave_until=my_leave_until)
+                           current_user_id=uid,my_leave_until=my_leave_until,myday=myday)
+
+def _build_my_day(conn, uid, role, today, tl, rt_templates, task_status):
+    """'What do I need to do?' — one-time + recurring work for the signed-in user, bucketed.
+       Recurring tasks count as mine when assigned to me (managers: only personally assigned,
+       same rule as the reports), when my role/all staff is assigned (staff), or when I cover."""
+    tstr, week = str(today), str(today + timedelta(days=7))
+    md = {k: [] for k in ('closure', 'overdue', 'today', 'hold', 'upcoming', 'done_today')}
+    for t in tl:
+        st = t.get('status') or 'todo'
+        closer = role == 'admin' or t.get('created_by') == uid
+        due = (t.get('due_date') or '')[:10]
+        item = {'kind': 'task', 'id': t['id'], 'title': t['title'], 'status': st, 'due': due,
+                'priority': t.get('priority') or 'normal', 'company': t.get('ac_code') or '',
+                'who': t.get('assigned_name') or '', 'by': t.get('created_by_name') or '',
+                'self_close': closer and t.get('assigned_to') == uid}
+        if st == 'pending_close' and closer:
+            md['closure'].append(item); continue
+        if t.get('assigned_to') != uid or st in ('done', 'pending_close'):
+            continue
+        if st == 'hold': md['hold'].append(item)
+        elif due and due < tstr: md['overdue'].append({**item, 'days': (today - datetime.strptime(due, '%Y-%m-%d').date()).days})
+        elif due == tstr: md['today'].append(item)
+        else: md['upcoming'].append(item)          # due within the week, later, or no due date
+    md['upcoming'] = [i for i in md['upcoming'] if not i['due'] or i['due'] <= week]
+    for t in rt_templates:
+        s_ = task_status.get(t['id'], {})
+        mine = bool(t.get('covering_for')) or t.get('assigned_user_id') == uid or (
+            not t.get('assigned_user_id') and role not in ('admin', 'compliance')
+            and (t.get('assigned_role') or 'all') in ('all', role))
+        if not mine:
+            continue
+        freq = t.get('frequency') or 'daily'
+        base = {'kind': 'recurring', 'id': t['id'], 'title': t['title'], 'freq': freq,
+                'schedule': s_.get('schedule', ''), 'covering': t.get('covering_for')}
+        missed = [d for d in (s_.get('missed_all') or []) if d != tstr]
+        if missed:
+            md['overdue'].append({**base, 'missed': len(missed), 'since': missed[0], 'backlog': s_.get('overdue_count', 0)})
+        if s_.get('is_due_today'):
+            md['today'].append({**base, 'backlog': s_.get('overdue_count', 0)})
+        elif s_.get('next_due') and s_.get('next_due') <= week and s_.get('state', 'active') == 'active' and not missed:
+            md['upcoming'].append({**base, 'due': s_['next_due']})
+    # done today: recurring logs + one-time tasks I marked done / closed
+    try:
+        for r in all_(conn, """SELECT rt.title, l.status, l.logged_at FROM regular_task_logs l
+                JOIN regular_task_templates rt ON l.template_id=rt.id
+                WHERE l.user_id=? AND l.logged_at >= ? AND l.logged_at < ? AND COALESCE(l.status,'done') <> 'reopened'
+                ORDER BY l.logged_at""", (uid, tstr, str(today + timedelta(days=1)))):
+            md['done_today'].append({'kind': 'recurring', 'title': r['title'], 'status': r['status'] or 'done',
+                                     'time': str(r['logged_at'])[11:16]})
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+    try:
+        for r in all_(conn, """SELECT t.title, a.action, a.created_at FROM task_activity a JOIN tasks t ON a.task_id=t.id
+                WHERE a.user_id=? AND a.action IN ('marked_done','closed') AND a.created_at >= ? AND a.created_at < ?
+                ORDER BY a.created_at""", (uid, tstr, str(today + timedelta(days=1)))):
+            md['done_today'].append({'kind': 'task', 'title': r['title'], 'status': r['action'],
+                                     'time': str(r['created_at'])[11:16]})
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+    md['upcoming'].sort(key=lambda i: i.get('due') or '9999')
+    md['overdue'].sort(key=lambda i: i.get('due') or i.get('since') or '')
+    done_n = len(md['done_today'])
+    md['progress_total'] = done_n + len(md['today'])
+    md['progress_done'] = done_n
+    md['attention'] = len(md['closure']) + len(md['overdue']) + len(md['today'])
+    return md
 
 # ── ONE-TIME TASKS: workflow + audit trail ──
 # Status flow: todo (Pending) -> inprogress -> pending_close (assignee marked Done)
@@ -3306,10 +3375,10 @@ def _task_log(conn, task_id, action, old=None, new=None, comment=None):
     pg = is_pg(conn)
     try:
         if pg: x(conn, 'SAVEPOINT task_log')
-        x(conn, """INSERT INTO task_activity (task_id,user_id,action,old_value,new_value,comment)
-            VALUES (?,?,?,?,?,?)""", (task_id, session.get('user_id'), action,
-                                      None if old is None else str(old), None if new is None else str(new),
-                                      (comment or None)))
+        x(conn, """INSERT INTO task_activity (task_id,user_id,action,old_value,new_value,comment,created_at)
+            VALUES (?,?,?,?,?,?,?)""", (task_id, session.get('user_id'), action,
+                                        None if old is None else str(old), None if new is None else str(new),
+                                        (comment or None), datetime.now(DUBAI_TZ).strftime('%Y-%m-%d %H:%M:%S')))
         if pg: x(conn, 'RELEASE SAVEPOINT task_log')
     except Exception as e:
         logger.warning(f'task_activity log failed for task {task_id}: {e}')
@@ -4455,7 +4524,7 @@ def analytics():
                 if urole in ('admin', 'compliance'):
                     tmpls = all_(conn, "SELECT * FROM regular_task_templates WHERE assigned_user_id=?", (uid,))
                 else:
-                    tmpls = all_(conn, "SELECT * FROM regular_task_templates WHERE assigned_role='all' OR assigned_user_id=? OR assigned_role=?", (uid, urole))
+                    tmpls = all_(conn, "SELECT * FROM regular_task_templates WHERE assigned_user_id=? OR (assigned_user_id IS NULL AND (assigned_role='all' OR assigned_role=?))", (uid, urole))
                 own_ids = set(tm['id'] for tm in tmpls)
                 for tm in tmpls:
                     reg_pending += len(_regular_missed_dates(conn, tm, uid, today, True))
@@ -4797,8 +4866,10 @@ def _regular_is_own(t, uid, role):
     """True if the template is on this user's own list (not only via covering someone's leave)."""
     if role in ('admin', 'compliance'):
         return True
+    if t.get('assigned_user_id'):          # a named person always wins over the role
+        return t['assigned_user_id'] == uid
     ar = t.get('assigned_role') or 'all'
-    return ar == 'all' or t.get('assigned_user_id') == uid or ar == role
+    return ar == 'all' or ar == role
 
 def _regular_missed_dates(conn, t, user_id, today, own=True):
     """Due dates this user still owes for template row `t` (the backlog):

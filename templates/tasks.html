@@ -57,10 +57,174 @@
 
 <!-- TABS -->
 <div class="tab-bar main-tabs" style="margin-bottom:20px;">
+  <button class="tab-btn {% if active_tab == 'today' %}active{% endif %}" onclick="switchMainTab('today',this)">🎯 My Day{% if myday.attention %} <span class="cnt-badge">{{ myday.attention }}</span>{% endif %}</button>
   <button class="tab-btn {% if active_tab == 'temp' %}active{% endif %}" onclick="switchMainTab('temp',this)">📋 One-time Tasks</button>
   <button class="tab-btn {% if active_tab == 'regular' %}active{% endif %}" onclick="switchMainTab('regular',this)">🔁 Recurring Tasks</button>
   <button class="tab-btn {% if active_tab == 'additional' %}active{% endif %}" onclick="switchMainTab('additional',this)">🚗 Additional Tasks</button>
 </div>
+
+
+<!-- TAB: MY DAY -->
+<style>
+.cnt-badge{display:inline-block;min-width:18px;padding:0 6px;border-radius:9px;background:var(--danger);color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center;margin-left:4px;}
+.md-sum{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:14px;}
+@media (max-width:900px){.md-sum{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@media (max-width:520px){.md-sum{grid-template-columns:repeat(2,minmax(0,1fr));}}
+.md-sum a{text-decoration:none;}
+.md-prog{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:18px;}
+.md-bar{height:10px;border-radius:6px;background:var(--surface3);overflow:hidden;margin-top:8px;}
+.md-bar div{height:100%;background:var(--success);border-radius:6px;}
+.md-sec{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden;}
+.md-sec h3{margin:0;padding:11px 16px;font-size:13px;font-weight:700;color:var(--text);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;letter-spacing:.2px;}
+.md-sec h3 .n{font-size:12px;color:var(--text-dim);font-weight:600;}
+.md-row{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);}
+.md-row:last-child{border-bottom:0;}
+.md-main{flex:1;min-width:0;}
+.md-title{font-weight:600;color:var(--text);font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.md-meta{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
+.md-type{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap;text-transform:uppercase;letter-spacing:.4px;}
+.md-type.task{background:var(--surface3);color:var(--text-muted);}
+.md-type.daily{background:var(--blue-bg);color:var(--blue);}
+.md-type.weekly{background:rgba(168,85,247,.14);color:#a855f7;}
+.md-type.monthly{background:var(--warning-bg);color:var(--warning);}
+.md-acts{display:flex;gap:6px;flex-shrink:0;}
+.md-empty{padding:14px 16px;font-size:12.5px;color:var(--text-dim);}
+@media (max-width:560px){.md-row{flex-wrap:wrap;}.md-acts{width:100%;justify-content:flex-end;}}
+</style>
+<div id="tab-today" {% if active_tab != 'today' %}style="display:none;"{% endif %}>
+
+{% macro md_type(i) -%}
+  {%- if i.kind == 'task' -%}<span class="md-type task">One-time</span>
+  {%- else -%}<span class="md-type {{ i.freq }}">{{ i.freq }}</span>{%- endif -%}
+{%- endmacro %}
+{% macro md_task_btns(i) -%}
+  {% if i.status == 'todo' %}<button class="btn btn-sm btn-go" onclick="quickStatus({{ i.id }},'inprogress')">▶ Start</button>
+  {% elif i.status == 'hold' %}<button class="btn btn-sm btn-go" onclick="quickStatus({{ i.id }},'inprogress')">▶ Resume</button>
+  {% elif i.status == 'inprogress' %}<button class="btn btn-sm btn-go" onclick="quickStatus({{ i.id }},'{{ 'done' if i.self_close else 'pending_close' }}')">✓ Done</button>{% endif %}
+  <button class="btn btn-ghost btn-sm btn-icon" onclick="viewTask({{ i.id }})" title="Open">👁️</button>
+{%- endmacro %}
+{% macro md_rec_btns(i) -%}
+  <button class="btn btn-primary btn-sm" onclick="openLogModal({{ i.id }}, {{ i.title|tojson|forceescape }}, {{ i.backlog or 0 }})">✅ Log</button>
+  <button class="btn btn-ghost btn-sm btn-icon" onclick="openHistory({{ i.id }})" title="History">📊</button>
+{%- endmacro %}
+
+{% if my_leave_until %}
+<div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.35);color:#93c5fd;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;">🏖️ You're on leave until <strong>{{ my_leave_until }}</strong> — your recurring tasks are paused for those days.</div>
+{% endif %}
+
+<div class="md-sum">
+  <a href="#md-overdue"><div class="stat-card danger"><div class="stat-label">Overdue</div><div class="stat-value">{{ myday.overdue|length }}</div></div></a>
+  <a href="#md-today"><div class="stat-card warning"><div class="stat-label">Due Today</div><div class="stat-value">{{ myday.today|length }}</div></div></a>
+  <a href="#md-closure"><div class="stat-card" style="border-left-color:var(--primary);"><div class="stat-label">Awaiting My Closure</div><div class="stat-value" style="color:var(--primary);">{{ myday.closure|length }}</div></div></a>
+  <a href="#md-upcoming"><div class="stat-card" style="border-left-color:var(--blue);"><div class="stat-label">Next 7 Days</div><div class="stat-value" style="color:var(--blue);">{{ myday.upcoming|length }}</div></div></a>
+  <a href="#md-done"><div class="stat-card success"><div class="stat-label">Done Today</div><div class="stat-value">{{ myday.done_today|length }}</div></div></a>
+</div>
+
+{% if myday.progress_total %}
+{% set pct = (100 * myday.progress_done / myday.progress_total)|round|int %}
+<div class="md-prog">
+  <div style="display:flex;justify-content:space-between;font-size:13px;">
+    <strong style="color:var(--text);">Today's progress</strong>
+    <span style="color:var(--text-muted);">{{ myday.progress_done }} of {{ myday.progress_total }} done · {{ pct }}%</span>
+  </div>
+  <div class="md-bar"><div style="width:{{ pct }}%;"></div></div>
+</div>
+{% endif %}
+
+{% if myday.closure %}
+<div class="md-sec" id="md-closure">
+  <h3>✋ Waiting for my closure <span class="n">{{ myday.closure|length }}</span></h3>
+  {% for i in myday.closure %}
+  <div class="md-row">
+    {{ md_type(i) }}
+    <div class="md-main">
+      <div class="md-title">{{ i.title }}</div>
+      <div class="md-meta">{{ i.who or '—' }} marked this Done{% if i.company %} · {{ i.company }}{% endif %}{% if i.due %} · due {{ i.due }}{% endif %}</div>
+    </div>
+    <div class="md-acts">
+      <button class="btn btn-sm btn-close-task" onclick="quickStatus({{ i.id }},'done')">✅ Close</button>
+      <button class="btn btn-ghost btn-sm" onclick="viewTask({{ i.id }})">Review</button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="md-sec" id="md-overdue">
+  <h3>⚠️ Overdue <span class="n">{{ myday.overdue|length }}</span></h3>
+  {% for i in myday.overdue %}
+  <div class="md-row">
+    {{ md_type(i) }}
+    <div class="md-main">
+      <div class="md-title">{{ i.title }}</div>
+      <div class="md-meta" style="color:var(--danger);">
+        {% if i.kind == 'task' %}{{ i.days }} day{{ 's' if i.days != 1 }} overdue (due {{ i.due }}){% if i.company %} · <span style="color:var(--text-dim);">{{ i.company }}</span>{% endif %}
+        {% else %}{{ i.missed }} missed day{{ 's' if i.missed != 1 }} since {{ i.since }}{% if i.covering %} · covering for {{ i.covering }}{% endif %}{% endif %}
+      </div>
+    </div>
+    <div class="md-acts">{% if i.kind == 'task' %}{{ md_task_btns(i) }}{% else %}{{ md_rec_btns(i) }}{% endif %}</div>
+  </div>
+  {% else %}<div class="md-empty">Nothing overdue. 👍</div>{% endfor %}
+</div>
+
+<div class="md-sec" id="md-today">
+  <h3>📅 Due today <span class="n">{{ myday.today|length }}</span></h3>
+  {% for i in myday.today %}
+  <div class="md-row">
+    {{ md_type(i) }}
+    <div class="md-main">
+      <div class="md-title">{{ i.title }}</div>
+      <div class="md-meta">
+        {% if i.kind == 'task' %}{{ {'todo':'Pending','inprogress':'In progress'}.get(i.status, i.status) }}{% if i.company %} · {{ i.company }}{% endif %}{% if i.by and i.by != '—' %} · from {{ i.by }}{% endif %}
+        {% else %}{{ i.schedule }}{% if i.covering %} · covering for {{ i.covering }}{% endif %}{% endif %}
+      </div>
+    </div>
+    <div class="md-acts">{% if i.kind == 'task' %}{{ md_task_btns(i) }}{% else %}{{ md_rec_btns(i) }}{% endif %}</div>
+  </div>
+  {% else %}<div class="md-empty">Nothing due today.</div>{% endfor %}
+</div>
+
+{% if myday.hold %}
+<div class="md-sec">
+  <h3>⏸ On hold <span class="n">{{ myday.hold|length }}</span></h3>
+  {% for i in myday.hold %}
+  <div class="md-row">
+    {{ md_type(i) }}
+    <div class="md-main"><div class="md-title">{{ i.title }}</div><div class="md-meta">{% if i.due %}due {{ i.due }}{% else %}no due date{% endif %}{% if i.company %} · {{ i.company }}{% endif %}</div></div>
+    <div class="md-acts">{{ md_task_btns(i) }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="md-sec" id="md-upcoming">
+  <h3>🔜 Next 7 days <span class="n">{{ myday.upcoming|length }}</span></h3>
+  {% for i in myday.upcoming %}
+  <div class="md-row">
+    {{ md_type(i) }}
+    <div class="md-main">
+      <div class="md-title">{{ i.title }}</div>
+      <div class="md-meta">{% if i.due %}due {{ i.due }}{% else %}no due date{% endif %}{% if i.kind == 'task' and i.company %} · {{ i.company }}{% endif %}{% if i.kind != 'task' %} · {{ i.schedule }}{% endif %}</div>
+    </div>
+    <div class="md-acts">{% if i.kind == 'task' %}{{ md_task_btns(i) }}{% else %}<button class="btn btn-ghost btn-sm btn-icon" onclick="openHistory({{ i.id }})" title="History">📊</button>{% endif %}</div>
+  </div>
+  {% else %}<div class="md-empty">Nothing scheduled in the next 7 days.</div>{% endfor %}
+</div>
+
+<div class="md-sec" id="md-done">
+  <h3>✅ Done today <span class="n">{{ myday.done_today|length }}</span></h3>
+  {% for i in myday.done_today %}
+  <div class="md-row">
+    {% if i.kind == 'task' %}<span class="md-type task">One-time</span>{% else %}<span class="md-type daily">Recurring</span>{% endif %}
+    <div class="md-main">
+      <div class="md-title" style="font-weight:500;">{{ i.title }}</div>
+      <div class="md-meta">{{ i.time }} · {{ {'done':'Done','partial':'Partially done','skipped':'Skipped','marked_done':'Marked done — waiting for closure','closed':'Closed'}.get(i.status, i.status) }}</div>
+    </div>
+  </div>
+  {% else %}<div class="md-empty">Nothing logged yet today.</div>{% endfor %}
+</div>
+
+</div><!-- end tab-today -->
 
 <!-- TAB: ONE-TIME TASKS -->
 <div id="tab-temp" {% if active_tab != 'temp' %}style="display:none;"{% endif %}>
@@ -229,128 +393,6 @@
   <div id="taskEmpty" style="display:none;text-align:center;padding:40px;color:var(--text-dim);">{% if tasks %}No tasks match this view.{% else %}No tasks yet — click <strong>+ New Task</strong> to create one.{% endif %}</div>
 </div>
 
-<!-- VIEW / MANAGE TASK MODAL -->
-<div class="modal-overlay" id="viewTaskModal">
-  <div class="modal-box" style="max-width:660px;">
-    <div id="viewTaskContent"></div>
-    <div id="vtNote"></div>
-    <div id="vtActions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;"></div>
-
-    <div class="form-group" style="margin-top:16px;">
-      <label>Comment <span style="color:var(--text-dim);font-weight:400;text-transform:none;">(saved with the next action, or on its own)</span></label>
-      <textarea id="vtComment" rows="2" placeholder="Progress update, reason for hold / reopen, ask for an extension…"></textarea>
-    </div>
-    <div style="display:flex;justify-content:flex-end;margin-top:6px;">
-      <button class="btn btn-ghost btn-sm" onclick="postComment()">💬 Add Comment</button>
-    </div>
-
-    <div style="font-size:12px;font-weight:700;color:var(--text);letter-spacing:0.3px;margin-top:6px;">ACTIVITY</div>
-    <div id="vtActivity" class="tl"></div>
-
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('viewTaskModal')">Back</button>
-    </div>
-  </div>
-</div>
-
-<!-- ADD TASK MODAL -->
-<div class="modal-overlay" id="addTaskModal">
-  <div class="modal-box" style="max-width:580px;">
-    <div class="modal-title">➕ New Task</div>
-
-    {% if task_templates %}
-    <div class="form-group" style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
-      <label>Quick Template <span style="color:var(--text-dim);font-weight:400;text-transform:none;">(optional — fills title)</span></label>
-      <select id="taskTemplate" onchange="applyTemplate()">
-        <option value="">— Start from scratch / type below —</option>
-        {% for t in task_templates %}
-        <option value="{{ t.value }}" data-desc="{{ t.description or '' }}">{{ t.value }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    {% endif %}
-
-    <div class="form-grid">
-      <div class="form-group form-full">
-        <label>Task Title * <span style="color:var(--text-dim);font-weight:400;text-transform:none;">(type freely or use template above)</span></label>
-        <input type="text" id="tTitle" placeholder="Describe what needs to be done...">
-      </div>
-      <div class="form-group form-full">
-        <label>Description / Notes</label>
-        <textarea id="tDesc" rows="2" placeholder="Additional details..."></textarea>
-      </div>
-      <div class="form-group">
-        <label>Assign To *</label>
-        <select id="tAssign">
-          <option value="">— Select user —</option>
-          {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>{% endfor %}
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Priority</label>
-        <select id="tPriority">
-          <option value="normal">Normal</option>
-          <option value="high">High</option>
-          <option value="urgent">Urgent</option>
-          <option value="low">Low</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Due Date</label>
-        <input type="date" id="tDue">
-      </div>
-      <div class="form-group">
-        <label>Linked Company</label>
-        <select id="tCompany">
-          <option value="">— None —</option>
-          {% for c in all_companies %}<option value="{{ c.id }}">{{ c.ac_code }} — {{ c.client_name }}</option>{% endfor %}
-        </select>
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('addTaskModal')">Cancel</button>
-      <button class="btn btn-primary" id="saveTaskBtn" onclick="saveTask()">Create Task</button>
-    </div>
-  </div>
-</div>
-
-<!-- EDIT TASK MODAL -->
-<div class="modal-overlay" id="editTaskModal">
-  <div class="modal-box" style="max-width:580px;">
-    <div class="modal-title">✏️ Edit Task</div>
-    <input type="hidden" id="etId">
-    <div class="form-grid">
-      <div class="form-group form-full"><label>Title *</label><input type="text" id="etTitle"></div>
-      <div class="form-group form-full"><label>Description</label><textarea id="etDesc" rows="2"></textarea></div>
-      <div class="form-group">
-        <label>Assign To</label>
-        <select id="etAssign">
-          <option value="">— None —</option>
-          {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>{% endfor %}
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Priority</label>
-        <select id="etPriority">
-          <option value="normal">Normal</option><option value="high">High</option>
-          <option value="urgent">Urgent</option><option value="low">Low</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Due Date</label><input type="date" id="etDue"></div>
-      <div class="form-group">
-        <label>Linked Company</label>
-        <select id="etCompany">
-          <option value="">— None —</option>
-          {% for c in all_companies %}<option value="{{ c.id }}">{{ c.ac_code }} — {{ c.client_name }}</option>{% endfor %}
-        </select>
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('editTaskModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveEditTask()">Save Changes</button>
-    </div>
-  </div>
-</div>
 </div>
 
 <!-- TAB: REGULAR TASKS -->
@@ -663,6 +705,130 @@
 </div>
 
 <!-- ADD TEMPLATE MODAL -->
+<!-- one-time task modals: outside the tabs so they open from any tab -->
+<!-- VIEW / MANAGE TASK MODAL -->
+<div class="modal-overlay" id="viewTaskModal">
+  <div class="modal-box" style="max-width:660px;">
+    <div id="viewTaskContent"></div>
+    <div id="vtNote"></div>
+    <div id="vtActions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;"></div>
+
+    <div class="form-group" style="margin-top:16px;">
+      <label>Comment <span style="color:var(--text-dim);font-weight:400;text-transform:none;">(saved with the next action, or on its own)</span></label>
+      <textarea id="vtComment" rows="2" placeholder="Progress update, reason for hold / reopen, ask for an extension…"></textarea>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+      <button class="btn btn-ghost btn-sm" onclick="postComment()">💬 Add Comment</button>
+    </div>
+
+    <div style="font-size:12px;font-weight:700;color:var(--text);letter-spacing:0.3px;margin-top:6px;">ACTIVITY</div>
+    <div id="vtActivity" class="tl"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('viewTaskModal')">Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD TASK MODAL -->
+<div class="modal-overlay" id="addTaskModal">
+  <div class="modal-box" style="max-width:580px;">
+    <div class="modal-title">➕ New Task</div>
+
+    {% if task_templates %}
+    <div class="form-group" style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+      <label>Quick Template <span style="color:var(--text-dim);font-weight:400;text-transform:none;">(optional — fills title)</span></label>
+      <select id="taskTemplate" onchange="applyTemplate()">
+        <option value="">— Start from scratch / type below —</option>
+        {% for t in task_templates %}
+        <option value="{{ t.value }}" data-desc="{{ t.description or '' }}">{{ t.value }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+
+    <div class="form-grid">
+      <div class="form-group form-full">
+        <label>Task Title * <span style="color:var(--text-dim);font-weight:400;text-transform:none;">(type freely or use template above)</span></label>
+        <input type="text" id="tTitle" placeholder="Describe what needs to be done...">
+      </div>
+      <div class="form-group form-full">
+        <label>Description / Notes</label>
+        <textarea id="tDesc" rows="2" placeholder="Additional details..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Assign To *</label>
+        <select id="tAssign">
+          <option value="">— Select user —</option>
+          {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Priority</label>
+        <select id="tPriority">
+          <option value="normal">Normal</option>
+          <option value="high">High</option>
+          <option value="urgent">Urgent</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Due Date</label>
+        <input type="date" id="tDue">
+      </div>
+      <div class="form-group">
+        <label>Linked Company</label>
+        <select id="tCompany">
+          <option value="">— None —</option>
+          {% for c in all_companies %}<option value="{{ c.id }}">{{ c.ac_code }} — {{ c.client_name }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('addTaskModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveTaskBtn" onclick="saveTask()">Create Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT TASK MODAL -->
+<div class="modal-overlay" id="editTaskModal">
+  <div class="modal-box" style="max-width:580px;">
+    <div class="modal-title">✏️ Edit Task</div>
+    <input type="hidden" id="etId">
+    <div class="form-grid">
+      <div class="form-group form-full"><label>Title *</label><input type="text" id="etTitle"></div>
+      <div class="form-group form-full"><label>Description</label><textarea id="etDesc" rows="2"></textarea></div>
+      <div class="form-group">
+        <label>Assign To</label>
+        <select id="etAssign">
+          <option value="">— None —</option>
+          {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Priority</label>
+        <select id="etPriority">
+          <option value="normal">Normal</option><option value="high">High</option>
+          <option value="urgent">Urgent</option><option value="low">Low</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Due Date</label><input type="date" id="etDue"></div>
+      <div class="form-group">
+        <label>Linked Company</label>
+        <select id="etCompany">
+          <option value="">— None —</option>
+          {% for c in all_companies %}<option value="{{ c.id }}">{{ c.ac_code }} — {{ c.client_name }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('editTaskModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditTask()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="addTemplateModal">
   <div class="modal-box" style="max-width:540px;">
     <div class="modal-title" id="tmplModalTitle">🔁 New Recurring Task</div>
@@ -1490,19 +1656,20 @@ function deleteTemplate(id) {
 function switchMainTab(tab, btn) {
   document.querySelectorAll('.main-tabs .tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  document.getElementById('tab-today').style.display = tab === 'today' ? '' : 'none';
   document.getElementById('tab-temp').style.display = tab === 'temp' ? '' : 'none';
   document.getElementById('tab-regular').style.display = tab === 'regular' ? '' : 'none';
   document.getElementById('tab-additional').style.display = tab === 'additional' ? '' : 'none';
-  document.getElementById('btnNewTask').style.display = tab === 'temp' ? '' : 'none';
-  document.getElementById('btnNewRegular').style.display = tab === 'regular' ? '' : 'none';
+  document.getElementById('btnNewTask').style.display = (tab === 'temp' || tab === 'today') ? '' : 'none';
+  if (document.getElementById('btnNewRegular')) document.getElementById('btnNewRegular').style.display = tab === 'regular' ? '' : 'none';
   const url = new URL(window.location);
   url.searchParams.set('tab', tab);
   window.history.replaceState({}, '', url);
 }
 document.addEventListener('DOMContentLoaded', function() {
-  const tab = new URLSearchParams(window.location.search).get('tab') || 'temp';
-  document.getElementById('btnNewTask').style.display = tab === 'temp' ? '' : 'none';
-  document.getElementById('btnNewRegular').style.display = tab === 'regular' ? '' : 'none';
+  const tab = new URLSearchParams(window.location.search).get('tab') || 'today';
+  document.getElementById('btnNewTask').style.display = (tab === 'temp' || tab === 'today') ? '' : 'none';
+  if (document.getElementById('btnNewRegular')) document.getElementById('btnNewRegular').style.display = tab === 'regular' ? '' : 'none';
 
   // Apply default sort/order to the regular-tasks list
   if (document.getElementById('regularBody')) filterRegular();
