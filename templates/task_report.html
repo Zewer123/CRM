@@ -102,7 +102,7 @@
       {% for t in s.temp_pending %}<tr><td style="color:var(--text);">{{ t.title }}</td><td>{{ t.company or '—' }}</td><td>{{ t.due or '—' }}</td><td><span style="color:#93c5fd;">Pending</span></td></tr>{% endfor %}
     </tbody></table>
     {% else %}<div class="tr-none">Nothing pending.</div>{% endif %}
-    {% if s.reg_pending %}<div class="tr-none" style="color:#fcd34d;margin-top:8px;">🔁 Plus {{ s.reg_pending }} unlogged recurring occurrence(s) — clear from Tasks → Regular → Log → "Catch up all".</div>{% endif %}
+    {% if s.reg_pending %}<div class="tr-none" style="color:#fcd34d;margin-top:8px;">🔁 Plus {{ s.reg_pending }} unlogged recurring occurrence(s) — clear from Tasks → Recurring → Log → "Catch up all".</div>{% endif %}
 
   </div>
 </div>

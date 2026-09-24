@@ -378,7 +378,7 @@
       </table>
     </div>
   </div>
-  <div style="font-size:12px;color:var(--text-dim);"><strong>Done</strong> counts everything completed inside <strong>{{ period_label }}</strong> (one-off tasks closed + regular logs + additional tasks completed). <strong>Pending / Overdue / Due Today</strong> are the live position right now. <strong>Reg. Backlog</strong> is unlogged recurring occurrences — clear it from Tasks → Regular → Log → "Catch up all". Use the period buttons at the top to change the window.</div>
+  <div style="font-size:12px;color:var(--text-dim);"><strong>Done</strong> counts everything completed inside <strong>{{ period_label }}</strong> (one-off tasks closed + regular logs + additional tasks completed). <strong>Pending / Overdue / Due Today</strong> are the live position right now. <strong>Reg. Backlog</strong> is unlogged recurring occurrences — clear it from Tasks → Recurring → Log → "Catch up all". Use the period buttons at the top to change the window.</div>
 
   <!-- ── DETAILED PER-STAFF DRILL-DOWN (same data as Reports → Task Report) ── -->
   <div class="an-card-title" style="margin:22px 0 10px;">Detailed breakdown — click a staff member to expand ({{ period_label }})</div>
@@ -425,7 +425,7 @@
         {% for t in s.temp_pending %}<tr><td style="color:var(--text);">{{ t.title }}</td><td>{{ t.company or '—' }}</td><td>{{ t.due or '—' }}</td><td><span style="color:#93c5fd;">Pending</span></td></tr>{% endfor %}
       </tbody></table>
       {% else %}<div class="tr-none">Nothing pending.</div>{% endif %}
-      {% if s.reg_pending %}<div class="tr-none" style="color:#fcd34d;margin-top:8px;">🔁 Plus {{ s.reg_pending }} unlogged recurring occurrence(s) — clear from Tasks → Regular → Log → "Catch up all".</div>{% endif %}
+      {% if s.reg_pending %}<div class="tr-none" style="color:#fcd34d;margin-top:8px;">🔁 Plus {{ s.reg_pending }} unlogged recurring occurrence(s) — clear from Tasks → Recurring → Log → "Catch up all".</div>{% endif %}
     </div>
   </div>
   {% else %}

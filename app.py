@@ -269,6 +269,9 @@ def _pg_ensure_columns():
         "ALTER TABLE additional_tasks ADD COLUMN IF NOT EXISTS completed_by INTEGER",
         # Staff leave (pauses regular tasks; optional cover person)
         "CREATE TABLE IF NOT EXISTS staff_leave (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, start_date DATE NOT NULL, end_date DATE NOT NULL, cover_user_id INTEGER, notes TEXT, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        # One-time task audit trail (status changes, edits, comments)
+        "CREATE TABLE IF NOT EXISTS task_activity (id SERIAL PRIMARY KEY, task_id INTEGER NOT NULL, user_id INTEGER, action TEXT NOT NULL, old_value TEXT, new_value TEXT, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE INDEX IF NOT EXISTS idx_task_activity_task ON task_activity (task_id)",
     ]
     # (risk_questions seeding for PG happens in _run_migrations via _seed_risk_questions)
     try:
@@ -328,6 +331,7 @@ def _run_migrations(conn):
         "risk_responses (id {pk}, assessment_type TEXT, assessment_id INTEGER, question_id INTEGER, question_text TEXT, answer_label TEXT, score INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "login_history (id {pk}, user_id INTEGER, username TEXT, success BOOLEAN DEFAULT FALSE, ip_address TEXT, user_agent TEXT, logout_at TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "staff_leave (id {pk}, user_id INTEGER NOT NULL, start_date DATE NOT NULL, end_date DATE NOT NULL, cover_user_id INTEGER, notes TEXT, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "task_activity (id {pk}, task_id INTEGER NOT NULL, user_id INTEGER, action TEXT NOT NULL, old_value TEXT, new_value TEXT, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
     ]
     pk = "SERIAL PRIMARY KEY" if pg else "INTEGER PRIMARY KEY AUTOINCREMENT"
     for t in new_tables:
@@ -980,7 +984,7 @@ def healthz():
             try: conn.rollback()
             except: pass
             checks['login_history.logout_at'] = 'MISSING'
-        for t in ['risk_country_scores', 'login_history', 'risk_questions', 'risk_answer_options', 'risk_responses', 'walkin_risk_assessments', 'staff_leave']:
+        for t in ['risk_country_scores', 'login_history', 'risk_questions', 'risk_answer_options', 'risk_responses', 'walkin_risk_assessments', 'staff_leave', 'task_activity']:
             try:
                 x(conn, f'SELECT 1 FROM {t} LIMIT 1').fetchone()
                 checks[t] = 'ok'
@@ -3270,6 +3274,39 @@ def tasks():
                            active_tab=active_tab,today=str(today),add_tasks=add_tasks,
                            current_user_id=uid,my_leave_until=my_leave_until)
 
+# ── ONE-TIME TASKS: workflow + audit trail ──
+# Status flow: todo (Pending) -> inprogress -> pending_close (assignee marked Done)
+#   -> done (Closed, by initiator/admin only). hold = On Hold. Overdue is derived from due_date.
+TASK_STATUSES = ('todo', 'inprogress', 'hold', 'pending_close', 'done')
+TASK_STATUS_LABELS = {'todo': 'Pending', 'inprogress': 'In Progress', 'hold': 'On Hold',
+                      'pending_close': 'Awaiting Closure', 'done': 'Closed'}
+
+def _task_log(conn, task_id, action, old=None, new=None, comment=None):
+    """Append one audit row. Never lets a logging failure break the actual change:
+       on Postgres a failed INSERT would abort the whole transaction, so it runs
+       inside a savepoint that is rolled back on error."""
+    pg = is_pg(conn)
+    try:
+        if pg: x(conn, 'SAVEPOINT task_log')
+        x(conn, """INSERT INTO task_activity (task_id,user_id,action,old_value,new_value,comment)
+            VALUES (?,?,?,?,?,?)""", (task_id, session.get('user_id'), action,
+                                      None if old is None else str(old), None if new is None else str(new),
+                                      (comment or None)))
+        if pg: x(conn, 'RELEASE SAVEPOINT task_log')
+    except Exception as e:
+        logger.warning(f'task_activity log failed for task {task_id}: {e}')
+        if pg:
+            try: x(conn, 'ROLLBACK TO SAVEPOINT task_log')
+            except Exception: pass
+
+def _task_can_close(t):
+    """Only the initiator (creator) or an admin may close or reopen a handed-over task."""
+    return session.get('user_role') == 'admin' or (t.get('created_by') and t['created_by'] == session.get('user_id'))
+
+def _task_can_see(t):
+    uid = session.get('user_id')
+    return session.get('user_role') == 'admin' or uid in (t.get('assigned_to'), t.get('created_by'))
+
 @app.route('/api/task/add',methods=['POST'])
 @require_perm('tasks_create')
 def api_add_task():
@@ -3279,6 +3316,8 @@ def api_add_task():
         x(conn,'INSERT INTO tasks (title,description,assigned_to,created_by,company_id,priority,due_date,status) VALUES (?,?,?,?,?,?,?,?)',
           (d.get('title'),d.get('description'),d.get('assigned_to') or None,session.get('user_id'),
            d.get('company_id') or None,d.get('priority','normal'),d.get('due_date') or None,'todo'))
+        tid = lastid(conn)
+        if tid: _task_log(conn, tid, 'created')
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
@@ -3290,9 +3329,31 @@ def api_edit_task(id):
     d=request.get_json()
     try:
         conn=get_db()
+        old = one(conn, 'SELECT * FROM tasks WHERE id=?', (id,))
+        if not old:
+            conn.close(); return jsonify({'success': False, 'error': 'Task not found'}), 404
+        if not _task_can_close(old):
+            conn.close()
+            return jsonify({'success': False, 'error': 'Only the person who created this task, or an admin, can edit it. Add a comment to ask for a change.'}), 403
         x(conn,'UPDATE tasks SET title=?,description=?,assigned_to=?,company_id=?,priority=?,due_date=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',
           (d.get('title'),d.get('description'),d.get('assigned_to') or None,d.get('company_id') or None,
            d.get('priority','normal'),d.get('due_date') or None,id))
+        # audit the fields that matter for accountability
+        def _v(v): return '' if v is None else str(v)
+        new_assign = d.get('assigned_to') or None
+        if _v(old.get('assigned_to')) != _v(new_assign):
+            names = {}
+            for uid_ in (old.get('assigned_to'), new_assign):
+                if uid_:
+                    r = one(conn, 'SELECT name FROM users WHERE id=?', (uid_,))
+                    names[str(uid_)] = r['name'] if r else f'#{uid_}'
+            _task_log(conn, id, 'reassigned', names.get(_v(old.get('assigned_to')), '—'), names.get(_v(new_assign), '—'))
+        if _v(old.get('due_date'))[:10] != _v(d.get('due_date') or None)[:10]:
+            _task_log(conn, id, 'due_changed', _v(old.get('due_date'))[:10] or '—', _v(d.get('due_date'))[:10] or '—')
+        if _v(old.get('priority') or 'normal') != _v(d.get('priority', 'normal')):
+            _task_log(conn, id, 'priority_changed', old.get('priority') or 'normal', d.get('priority', 'normal'))
+        if _v(old.get('title')) != _v(d.get('title')) or _v(old.get('description')) != _v(d.get('description')):
+            _task_log(conn, id, 'edited')
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
@@ -3301,13 +3362,84 @@ def api_edit_task(id):
 @app.route('/api/task/<int:id>/status',methods=['POST'])
 @require_perm('tasks_edit')
 def api_task_status(id):
-    d=request.get_json()
+    d=request.get_json() or {}
+    new = d.get('status')
+    comment = (d.get('comment') or '').strip()
+    if new not in TASK_STATUSES:
+        return jsonify({'success': False, 'error': 'Unknown status'}), 400
     try:
         conn=get_db()
-        x(conn,'UPDATE tasks SET status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',(d.get('status'),id))
+        t = one(conn, 'SELECT id,status,assigned_to,created_by FROM tasks WHERE id=?', (id,))
+        if not t:
+            conn.close(); return jsonify({'success': False, 'error': 'Task not found'}), 404
+        if not _task_can_see(t):
+            conn.close(); return jsonify({'success': False, 'error': 'This task is not assigned to you'}), 403
+        old = t.get('status') or 'todo'
+        closer = _task_can_close(t)
+        if new == 'done' and not closer:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Only the person who created this task, or an admin, can close it. Use "Mark Done" instead.'}), 403
+        if old in ('pending_close', 'done') and new != old and not closer:
+            conn.close()
+            return jsonify({'success': False, 'error': 'This task has been handed over — only the person who created it, or an admin, can close or reopen it.'}), 403
+        if new == old:
+            if comment: _task_log(conn, id, 'comment', comment=comment)
+            commit(conn); conn.close(); return jsonify({'success': True})
+        x(conn,'UPDATE tasks SET status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',(new,id))
+        if new == 'done': action = 'closed'
+        elif old in ('pending_close', 'done'): action = 'reopened'
+        elif new == 'pending_close': action = 'marked_done'
+        else: action = 'status'
+        _task_log(conn, id, action, old, new, comment)
         commit(conn); conn.close(); return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
+        return _fail(e)
+
+@app.route('/api/task/<int:id>/comment',methods=['POST'])
+@require_perm('tasks_view')
+def api_task_comment(id):
+    comment = ((request.get_json() or {}).get('comment') or '').strip()
+    if not comment:
+        return jsonify({'success': False, 'error': 'Comment is empty'}), 400
+    try:
+        conn = get_db()
+        t = one(conn, 'SELECT id,assigned_to,created_by FROM tasks WHERE id=?', (id,))
+        if not t or not _task_can_see(t):
+            conn.close(); return jsonify({'success': False, 'error': 'Task not found'}), 404
+        _task_log(conn, id, 'comment', comment=comment[:2000])
+        commit(conn); conn.close(); return jsonify({'success': True})
+    except Exception as e:
+        return _fail(e)
+
+@app.route('/api/task/<int:id>/activity')
+@require_perm('tasks_view')
+def api_task_activity(id):
+    try:
+        conn = get_db()
+        t = one(conn, """SELECT t.id,t.assigned_to,t.created_by,t.created_at,u.name AS creator
+            FROM tasks t LEFT JOIN users u ON t.created_by=u.id WHERE t.id=?""", (id,))
+        if not t or not _task_can_see(t):
+            conn.close(); return jsonify({'success': False, 'error': 'Task not found'}), 404
+        try:
+            rows = all_(conn, """SELECT a.action,a.old_value,a.new_value,a.comment,a.created_at,u.name AS user_name
+                FROM task_activity a LEFT JOIN users u ON a.user_id=u.id
+                WHERE a.task_id=? ORDER BY a.created_at ASC, a.id ASC""", (id,))
+        except Exception:
+            try: conn.rollback()
+            except Exception: pass
+            rows = []
+        conn.close()
+        items = [{**r, 'created_at': str(r['created_at'])[:16]} for r in rows]
+        if not any(r['action'] == 'created' for r in items):
+            # tasks created before the audit trail existed
+            items.insert(0, {'action': 'created', 'user_name': t.get('creator'), 'old_value': None,
+                             'new_value': None, 'comment': None, 'created_at': str(t.get('created_at') or '')[:16]})
+        for r in items:
+            for k in ('old_value', 'new_value'):
+                if r.get(k) in TASK_STATUS_LABELS: r[k] = TASK_STATUS_LABELS[r[k]]
+        return jsonify({'success': True, 'items': items})
+    except Exception as e:
         return _fail(e)
 
 @app.route('/api/task/<int:id>/delete',methods=['POST'])
@@ -3317,7 +3449,13 @@ def api_delete_task(id):
         return jsonify({'success':False,'error':'Staff cannot delete tasks'}),403
     try:
         conn=get_db(); x(conn,'DELETE FROM tasks WHERE id=?',(id,))
-        commit(conn); conn.close(); return jsonify({'success':True})
+        commit(conn)
+        try:  # separate step: a failure here must not undo the delete
+            x(conn, 'DELETE FROM task_activity WHERE task_id=?', (id,)); commit(conn)
+        except Exception:
+            try: conn.rollback()
+            except Exception: pass
+        conn.close(); return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
         return _fail(e)

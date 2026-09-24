@@ -13,53 +13,111 @@
   </div>
 </div>
 
+<style>
+/* ── Tasks page: segmented controls, status pills, activity timeline ── */
+.seg{display:inline-flex;flex-wrap:wrap;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;}
+.seg button{border:0;background:transparent;color:var(--text-muted);padding:7px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-family:inherit;line-height:1.2;}
+.seg button:hover{color:var(--text);background:var(--surface3);}
+.seg button.active{background:var(--primary);color:#fff;}
+.seg .cnt{font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px;background:var(--surface3);color:var(--text-muted);}
+.seg button.active .cnt{background:rgba(255,255,255,0.22);color:#fff;}
+.seg .cnt.alert{background:var(--warning-bg);color:var(--warning);}
+.stat-grid.tk{grid-template-columns:repeat(6,minmax(0,1fr));}
+.stat-grid.tk4{grid-template-columns:repeat(4,minmax(0,1fr));}
+@media (max-width:1000px){.stat-grid.tk{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@media (max-width:560px){.stat-grid.tk,.stat-grid.tk4{grid-template-columns:repeat(2,minmax(0,1fr));}}
+.stat-card.click{cursor:pointer;transition:transform .12s ease, box-shadow .12s ease;}
+.stat-card.click:hover{transform:translateY(-1px);box-shadow:var(--shadow-md);}
+.stat-card.click.sel{outline:2px solid var(--primary);outline-offset:-2px;}
+.st-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;}
+.st-todo{background:var(--surface3);color:var(--text-muted);}
+.st-inprogress{background:var(--blue-bg);color:var(--blue);}
+.st-hold{background:rgba(168,85,247,0.14);color:#a855f7;}
+.st-pending_close{background:var(--warning-bg);color:var(--warning);}
+.st-done{background:var(--success-bg);color:var(--success);}
+.row-act{display:flex;gap:5px;align-items:center;justify-content:flex-end;flex-wrap:wrap;}
+.btn-go{background:var(--primary);color:#fff;border:0;}
+.btn-close-task{background:var(--success);color:#fff;border:0;}
+.vt-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);}
+@media (max-width:560px){.vt-grid{grid-template-columns:1fr 1fr;}}
+.vt-k{font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;}
+.vt-v{font-size:13px;margin-top:3px;color:var(--text);}
+.vt-note{padding:10px 12px;border-radius:8px;font-size:13px;margin-top:12px;}
+.tl{border-left:2px solid var(--border);margin:6px 0 0 6px;padding-left:16px;max-height:280px;overflow:auto;}
+.tl-item{position:relative;padding:0 0 12px;}
+.tl-item:before{content:'';position:absolute;left:-22px;top:3px;width:10px;height:10px;border-radius:50%;background:var(--surface);border:2px solid var(--border-light);}
+.tl-item.k-closed:before{background:var(--success);border-color:var(--success);}
+.tl-item.k-marked_done:before{background:var(--warning);border-color:var(--warning);}
+.tl-item.k-reopened:before{background:var(--danger);border-color:var(--danger);}
+.tl-item.k-comment:before{background:var(--blue);border-color:var(--blue);}
+.tl-text{font-size:13px;color:var(--text);}
+.tl-meta{font-size:11px;color:var(--text-dim);margin-top:1px;}
+.tl-comment{margin-top:5px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text-muted);white-space:pre-wrap;}
+</style>
+
 <!-- TABS -->
 <div class="tab-bar main-tabs" style="margin-bottom:20px;">
-  <button class="tab-btn {% if active_tab == 'temp' %}active{% endif %}" onclick="switchMainTab('temp',this)">📋 Temp Tasks</button>
-  <button class="tab-btn {% if active_tab == 'regular' %}active{% endif %}" onclick="switchMainTab('regular',this)">🔁 Regular Tasks</button>
+  <button class="tab-btn {% if active_tab == 'temp' %}active{% endif %}" onclick="switchMainTab('temp',this)">📋 One-time Tasks</button>
+  <button class="tab-btn {% if active_tab == 'regular' %}active{% endif %}" onclick="switchMainTab('regular',this)">🔁 Recurring Tasks</button>
   <button class="tab-btn {% if active_tab == 'additional' %}active{% endif %}" onclick="switchMainTab('additional',this)">🚗 Additional Tasks</button>
 </div>
 
-<!-- TAB: TEMP TASKS -->
+<!-- TAB: ONE-TIME TASKS -->
 <div id="tab-temp" {% if active_tab != 'temp' %}style="display:none;"{% endif %}>
 
-<!-- STATS -->
-<div class="stat-grid" style="margin-bottom:20px;">
-  <div class="stat-card purple"><div class="stat-label">Total</div><div class="stat-value" id="sc-total">{{ tasks|length }}</div></div>
-  <div class="stat-card danger"><div class="stat-label">Overdue</div><div class="stat-value" id="sc-overdue">{{ tasks|selectattr('is_overdue')|list|length }}</div></div>
-  <div class="stat-card warning"><div class="stat-label">In Progress</div><div class="stat-value" id="sc-inprogress">{{ tasks|selectattr('status','eq','inprogress')|list|length }}</div></div>
-  <div class="stat-card"><div class="stat-label">To Do</div><div class="stat-value" id="sc-todo">{{ tasks|selectattr('status','eq','todo')|list|length }}</div></div>
-  <div class="stat-card warning"><div class="stat-label">Awaiting Close</div><div class="stat-value" id="sc-pending">{{ tasks|selectattr('status','eq','pending_close')|list|length }}</div></div>
-  <div class="stat-card success"><div class="stat-label">Closed</div><div class="stat-value" id="sc-done">{{ tasks|selectattr('status','eq','done')|list|length }}</div></div>
+<!-- STATS (click a card to filter) -->
+<div class="stat-grid tk" style="margin-bottom:16px;">
+  <div class="stat-card danger click" data-card="overdue" onclick="cardFilter('overdue')"><div class="stat-label">Overdue</div><div class="stat-value" id="sc-overdue">0</div></div>
+  <div class="stat-card click" data-card="todo" onclick="cardFilter('todo')"><div class="stat-label">Pending</div><div class="stat-value" id="sc-todo">0</div></div>
+  <div class="stat-card click" style="border-left-color:var(--blue);" data-card="inprogress" onclick="cardFilter('inprogress')"><div class="stat-label">In Progress</div><div class="stat-value" id="sc-inprogress" style="color:var(--blue);">0</div></div>
+  <div class="stat-card click" style="border-left-color:#a855f7;" data-card="hold" onclick="cardFilter('hold')"><div class="stat-label">On Hold</div><div class="stat-value" id="sc-hold" style="color:#a855f7;">0</div></div>
+  <div class="stat-card warning click" data-card="pending_close" onclick="cardFilter('pending_close')"><div class="stat-label">Awaiting Closure</div><div class="stat-value" id="sc-pending">0</div><div class="stat-sub" id="sc-mine-close"></div></div>
+  <div class="stat-card success click" data-card="done" onclick="cardFilter('done')"><div class="stat-label">Closed</div><div class="stat-value" id="sc-done">0</div></div>
+</div>
+
+<!-- QUICK VIEWS -->
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+  <div class="seg" id="quickSeg">
+    <button data-q="open" class="active" onclick="setQuick('open')">Open <span class="cnt" id="qc-open">0</span></button>
+    <button data-q="mine" onclick="setQuick('mine')">👤 My Tasks <span class="cnt" id="qc-mine">0</span></button>
+    <button data-q="close" onclick="setQuick('close')">✋ Needs My Closure <span class="cnt" id="qc-close">0</span></button>
+    <button data-q="overdue" onclick="setQuick('overdue')">⚠️ Overdue <span class="cnt" id="qc-overdue">0</span></button>
+    <button data-q="closed" onclick="setQuick('closed')">Closed</button>
+    <button data-q="all" onclick="setQuick('all')">All</button>
+  </div>
+  <div class="form-group" style="margin:0;flex:0 1 320px;min-width:220px;">
+    <input type="search" id="taskSearch" oninput="filterTasks()" placeholder="🔍 Search task, company, person, #ID…">
+  </div>
 </div>
 
 <!-- FILTERS -->
 <div class="search-bar" style="margin-bottom:16px;">
-  <div class="form-group search-input">
+  <div class="form-group" style="min-width:140px;">
     <label>STATUS</label>
     <select id="filterStatus" onchange="filterTasks()">
-      <option value="">All</option>
-      <option value="todo">To Do</option>
+      <option value="">Any</option>
+      <option value="todo">Pending</option>
       <option value="inprogress">In Progress</option>
-      <option value="pending_close">Awaiting Close</option>
+      <option value="hold">On Hold</option>
+      <option value="pending_close">Awaiting Closure</option>
       <option value="done">Closed</option>
     </select>
   </div>
-  <div class="form-group" style="min-width:160px;">
+  <div class="form-group" style="min-width:150px;">
     <label>ASSIGNED TO</label>
     <select id="filterUser" onchange="filterTasks()">
       <option value="">Everyone</option>
       {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
     </select>
   </div>
-  <div class="form-group" style="min-width:160px;">
-    <label>ASSIGNED BY</label>
+  <div class="form-group" style="min-width:150px;">
+    <label>CREATED BY</label>
     <select id="filterCreatedBy" onchange="filterTasks()">
       <option value="">Everyone</option>
       {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
     </select>
   </div>
-  <div class="form-group" style="min-width:130px;">
+  <div class="form-group" style="min-width:120px;">
     <label>PRIORITY</label>
     <select id="filterPriority" onchange="filterTasks()">
       <option value="">All</option>
@@ -77,7 +135,7 @@
     <label>DUE TO</label>
     <input type="date" id="filterDateTo" onchange="filterTasks()">
   </div>
-  <div class="form-group" style="min-width:80px;display:flex;align-items:flex-end;">
+  <div class="form-group" style="min-width:70px;display:flex;align-items:flex-end;">
     <button class="btn btn-ghost btn-sm" onclick="clearTaskFilters()">Clear</button>
   </div>
 </div>
@@ -92,22 +150,26 @@
           <th>ASSIGNED TO</th>
           <th>COMPANY</th>
           <th>PRIORITY</th>
-          <th>DUE DATE</th>
+          <th>DUE</th>
           <th>STATUS</th>
-          <th>ACTIONS</th>
+          <th style="text-align:right;">ACTION</th>
         </tr>
       </thead>
       <tbody>
         {% for t in tasks %}
-        <tr data-status="{{ t.status }}" data-user="{{ t.assigned_to or '' }}" data-priority="{{ t.priority }}" data-created-by="{{ t.created_by or '' }}" data-due="{{ t.due_date[:10] if t.due_date else '' }}" data-overdue="{{ 'yes' if t.is_overdue else 'no' }}">
+        {% set can_close = (user_role == 'admin') or (t.created_by == current_user_id) %}
+        {% set is_mine = (t.assigned_to == current_user_id) %}
+        {% set st = t.status or 'todo' %}
+        <tr data-status="{{ st }}" data-user="{{ t.assigned_to or '' }}" data-priority="{{ t.priority }}" data-created-by="{{ t.created_by or '' }}"
+            data-due="{{ t.due_date[:10] if t.due_date else '' }}" data-overdue="{{ 'yes' if t.is_overdue else 'no' }}"
+            data-closer="{{ '1' if can_close else '' }}" data-mine="{{ '1' if is_mine else '' }}"
+            data-search="{{ ((t.title or '') ~ ' ' ~ (t.description or '') ~ ' ' ~ (t.company_name or '') ~ ' ' ~ (t.ac_code or '') ~ ' ' ~ (t.assigned_name or '') ~ ' ' ~ (t.created_by_name or '') ~ ' #' ~ t.id)|lower }}">
           <td>
-            <div style="font-weight:600;color:var(--text);">📋 {{ t.title }}</div>
+            <a href="#" onclick="viewTask({{ t.id }});return false;" style="font-weight:600;color:var(--text);text-decoration:none;">{{ t.title }}</a>
             {% if t.description %}<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">{{ t.description[:80] }}{% if t.description|length > 80 %}…{% endif %}</div>{% endif %}
-            <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">By: {{ t.created_by_name or '—' }}</div>
+            <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">#{{ t.id }} · by {{ t.created_by_name or '—' }}</div>
           </td>
-          <td>
-            <div style="color:var(--text-muted);">{{ t.assigned_name or '—' }}</div>
-          </td>
+          <td style="color:var(--text-muted);">{{ t.assigned_name or '—' }}{% if is_mine %} <span style="font-size:10px;color:var(--primary);font-weight:700;">(you)</span>{% endif %}</td>
           <td style="color:var(--text-muted);font-size:12px;">
             {% if t.company_id %}
             <a href="{{ url_for('company_detail', id=t.company_id) }}" style="color:var(--primary-light);text-decoration:none;">{{ t.ac_code }}</a>
@@ -119,40 +181,40 @@
               {{ (t.priority or 'normal').upper() }}
             </span>
           </td>
-          <td>
+          <td style="font-size:12px;white-space:nowrap;">
             {% if t.due_date %}
-              {% if t.is_overdue and t.status not in ['done','pending_close'] %}
-              <span class="exp-expired" style="font-weight:600;">{{ t.due_date[:10] }}</span>
-              <div class="exp-expired" style="font-size:11px;">{{ t.days_until_due|abs }}d overdue</div>
-              {% elif t.days_until_due is not none and t.days_until_due <= 3 and t.status not in ['done','pending_close'] %}
-              <span class="exp-critical" style="font-weight:600;">{{ t.due_date[:10] }}</span>
-              <div class="exp-critical" style="font-size:11px;">{{ t.days_until_due }}d left</div>
-              {% else %}
-              <span style="color:var(--text-muted);">{{ t.due_date[:10] }}</span>
+              <div style="color:var(--text-muted);">{{ t.due_date[:10] }}</div>
+              {% if st not in ['done','pending_close'] %}
+                {% if t.is_overdue %}<div style="font-size:11px;color:var(--danger);font-weight:700;">⚠️ {{ t.days_until_due|abs }}d overdue</div>
+                {% elif t.days_until_due == 0 %}<div style="font-size:11px;color:var(--warning);font-weight:700;">Due today</div>
+                {% elif t.days_until_due is not none and t.days_until_due <= 3 %}<div style="font-size:11px;color:var(--warning);">{{ t.days_until_due }}d left</div>{% endif %}
               {% endif %}
-            {% else %}—{% endif %}
+            {% else %}<span style="color:var(--text-dim);">—</span>{% endif %}
           </td>
           <td>
-            {% if t.status == 'done' %}
-              <span class="badge badge-active">✅ Closed</span>
-            {% elif t.status == 'pending_close' %}
-              <span style="font-size:11px;color:#fcd34d;font-weight:600;">⏳ Awaiting Close</span>
-            {% elif t.status == 'inprogress' %}
-              <span class="badge badge-compliance">🔄 In Progress</span>
-            {% else %}
-              <span class="badge" style="background:var(--surface3);color:var(--text-muted);">📋 To Do</span>
-            {% endif %}
+            <span class="st-pill st-{{ st }}">
+              {% if st == 'done' %}✅ Closed{% elif st == 'pending_close' %}⏳ Awaiting Closure{% elif st == 'inprogress' %}🔄 In Progress{% elif st == 'hold' %}⏸ On Hold{% else %}📋 Pending{% endif %}
+            </span>
           </td>
           <td>
-            <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;">
-              {% set wa = t.assigned_mobile %}
-              {% if wa %}
+            <div class="row-act">
+              {# one primary, context-aware action per row; everything else lives in the task view #}
+              {% if st == 'pending_close' and can_close %}
+                <button class="btn btn-sm btn-close-task" onclick="quickStatus({{ t.id }},'done')">✅ Close</button>
+              {% elif st == 'pending_close' %}
+                <span style="font-size:11px;color:var(--text-dim);">With {{ t.created_by_name or 'initiator' }}</span>
+              {% elif st != 'done' and (is_mine or can_close) %}
+                {% if st == 'todo' %}<button class="btn btn-sm btn-go" onclick="quickStatus({{ t.id }},'inprogress')">▶ Start</button>
+                {% elif st == 'hold' %}<button class="btn btn-sm btn-go" onclick="quickStatus({{ t.id }},'inprogress')">▶ Resume</button>
+                {% else %}<button class="btn btn-sm btn-go" onclick="quickStatus({{ t.id }},'{{ 'done' if (is_mine and can_close) else 'pending_close' }}')">✓ Done</button>{% endif %}
+              {% endif %}
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="viewTask({{ t.id }})" title="Open">👁️</button>
+              {% if t.assigned_mobile and not is_mine %}
               <button class="btn btn-wa btn-sm btn-icon" title="WhatsApp {{ t.assigned_name }}"
-                onclick="sendTaskWA('{{ wa|replace('+','')|replace(' ','')|replace('-','') }}', '{{ t.assigned_name|replace("'","\'") }}', '{{ t.title|replace("'","\'") }}', '{{ t.due_date[:10] if t.due_date else "" }}', '{{ t.priority }}')">💬</button>
+                onclick="sendTaskWA('{{ t.assigned_mobile|replace('+','')|replace(' ','')|replace('-','') }}', '{{ t.assigned_name|replace("'","\\'") }}', '{{ t.title|replace("'","\\'") }}', '{{ t.due_date[:10] if t.due_date else "" }}', '{{ t.priority }}')">💬</button>
               {% endif %}
-              <button class="btn btn-ghost btn-sm btn-icon" onclick="viewTask({{ t.id }})" title="View">👁️</button>
-              {% if t.status != 'done' %}
-              <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditTask({{ t.id }},'{{ t.title|replace("'","\\'") }}','{{ (t.description or '')|replace("'","\\'") }}','{{ t.assigned_to or "" }}','{{ t.priority or "normal" }}','{{ t.due_date[:10] if t.due_date else "" }}','{{ t.status or "todo" }}','{{ t.company_id or "" }}')" title="Edit">✏️</button>
+              {% if can_close and st != 'done' %}
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditTaskById({{ t.id }})" title="Edit">✏️</button>
               {% endif %}
               {% if user_role == 'admin' %}
               <button class="btn btn-danger btn-sm btn-icon" onclick="deleteTask({{ t.id }})" title="Delete">🗑️</button>
@@ -160,63 +222,33 @@
             </div>
           </td>
         </tr>
-        {% else %}
-        <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-dim);">No tasks yet. Create one!</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  <div id="taskEmpty" style="display:none;text-align:center;padding:40px;color:var(--text-dim);">{% if tasks %}No tasks match this view.{% else %}No tasks yet — click <strong>+ New Task</strong> to create one.{% endif %}</div>
 </div>
 
 <!-- VIEW / MANAGE TASK MODAL -->
 <div class="modal-overlay" id="viewTaskModal">
-  <div class="modal-box" style="max-width:600px;">
-    <div class="modal-title">📋 Task Details</div>
+  <div class="modal-box" style="max-width:660px;">
     <div id="viewTaskContent"></div>
-    
-    <!-- UPDATE SECTION -->
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
-      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px;">Update Task</div>
-      <div class="form-grid" style="gap:12px;">
-        <div class="form-group">
-          <label>Status</label>
-          <select id="vtStatus">
-            <option value="todo">📋 To Do</option>
-            <option value="inprogress">🔄 In Progress</option>
-            <option value="pending_close">✋ Mark as Done</option>
-            <option value="done">✅ Close</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Re-assign To</label>
-          <select id="vtAssign">
-            <option value="">— Keep current —</option>
-            {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Priority</label>
-          <select id="vtPriority">
-            <option value="normal">Normal</option>
-            <option value="high">High</option>
-            <option value="urgent">Urgent</option>
-            <option value="low">Low</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Due Date</label>
-          <input type="date" id="vtDue">
-        </div>
-        <div class="form-group form-full">
-          <label>Remarks / Notes</label>
-          <textarea id="vtRemarks" rows="3" placeholder="Add remarks, update notes, or reason for status change..."></textarea>
-        </div>
-      </div>
+    <div id="vtNote"></div>
+    <div id="vtActions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;"></div>
+
+    <div class="form-group" style="margin-top:16px;">
+      <label>Comment <span style="color:var(--text-dim);font-weight:400;text-transform:none;">(saved with the next action, or on its own)</span></label>
+      <textarea id="vtComment" rows="2" placeholder="Progress update, reason for hold / reopen, ask for an extension…"></textarea>
     </div>
-    
+    <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+      <button class="btn btn-ghost btn-sm" onclick="postComment()">💬 Add Comment</button>
+    </div>
+
+    <div style="font-size:12px;font-weight:700;color:var(--text);letter-spacing:0.3px;margin-top:6px;">ACTIVITY</div>
+    <div id="vtActivity" class="tl"></div>
+
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('viewTaskModal')">Close</button>
-      <button class="btn btn-primary" id="vtSaveBtn" onclick="saveTaskUpdate()">💾 Save Update</button>
+      <button class="btn btn-ghost" onclick="closeModal('viewTaskModal')">Back</button>
     </div>
   </div>
 </div>
@@ -338,19 +370,21 @@
   {% elif s.get('is_due_today', false) %}{% set ns.due_today = ns.due_today + 1 %}
   {% else %}{% set ns.ok = ns.ok + 1 %}{% endif %}
 {% endfor %}
-<div class="stat-grid" style="margin-bottom:20px;">
-  <div class="stat-card"><div class="stat-label">Total Tasks</div><div class="stat-value" style="color:var(--text);">{{ ns.total }}</div></div>
-  <div class="stat-card {% if ns.overdue > 0 %}danger{% endif %}"><div class="stat-label">Overdue</div><div class="stat-value">{{ ns.overdue }}</div></div>
-  <div class="stat-card warning"><div class="stat-label">Due Today</div><div class="stat-value">{{ ns.due_today }}</div></div>
-  <div class="stat-card active"><div class="stat-label">Up to Date</div><div class="stat-value" style="color:#86efac;">{{ ns.ok }}</div></div>
+{% set fc = namespace(daily=0, weekly=0, monthly=0) %}
+{% for t in rt_templates %}{% if t.frequency == 'daily' %}{% set fc.daily = fc.daily + 1 %}{% elif t.frequency == 'weekly' %}{% set fc.weekly = fc.weekly + 1 %}{% else %}{% set fc.monthly = fc.monthly + 1 %}{% endif %}{% endfor %}
+<div class="stat-grid tk4" style="margin-bottom:16px;">
+  <div class="stat-card click" data-rcard="" onclick="rtCard('')"><div class="stat-label">All Recurring</div><div class="stat-value" style="color:var(--text);">{{ ns.total }}</div></div>
+  <div class="stat-card danger click" data-rcard="overdue" onclick="rtCard('overdue')"><div class="stat-label">Behind (missed days)</div><div class="stat-value">{{ ns.overdue }}</div></div>
+  <div class="stat-card warning click" data-rcard="due" onclick="rtCard('due')"><div class="stat-label">Due Today</div><div class="stat-value">{{ ns.due_today }}</div></div>
+  <div class="stat-card success click" data-rcard="ok" onclick="rtCard('ok')"><div class="stat-label">Up to Date</div><div class="stat-value">{{ ns.ok }}</div></div>
 </div>
 
-<!-- FREQUENCY TABS -->
-<div class="tab-bar" style="margin-bottom:16px;">
-  <button class="freq-btn active" data-freq="all" onclick="setFreq('all',this)">All</button>
-  <button class="freq-btn" data-freq="daily" onclick="setFreq('daily',this)">📅 Daily</button>
-  <button class="freq-btn" data-freq="weekly" onclick="setFreq('weekly',this)">📆 Weekly</button>
-  <button class="freq-btn" data-freq="monthly" onclick="setFreq('monthly',this)">🗓️ Monthly</button>
+<!-- FREQUENCY -->
+<div class="seg" style="margin-bottom:16px;">
+  <button class="freq-btn active" data-freq="all" onclick="setFreq('all',this)">All <span class="cnt">{{ ns.total }}</span></button>
+  <button class="freq-btn" data-freq="daily" onclick="setFreq('daily',this)">📅 Daily <span class="cnt">{{ fc.daily }}</span></button>
+  <button class="freq-btn" data-freq="weekly" onclick="setFreq('weekly',this)">📆 Weekly <span class="cnt">{{ fc.weekly }}</span></button>
+  <button class="freq-btn" data-freq="monthly" onclick="setFreq('monthly',this)">🗓️ Monthly <span class="cnt">{{ fc.monthly }}</span></button>
 </div>
 
 <!-- FILTERS + SORT -->
@@ -720,23 +754,36 @@ window._rtMissed = {
 </script>
 
 <script>
-// Build task lookup for view modal
+const ME = {{ (current_user_id or 0) | tojson }};
+const IS_ADMIN = {{ (user_role == 'admin') | tojson }};
+
+// Task lookup for the view / edit modals
 const TASKS_DATA = {
   {% for t in tasks %}
   {{ t.id }}: {
+    id: {{ t.id }},
     title: {{ t.title | tojson }},
     description: {{ (t.description or '') | tojson }},
+    assigned_to: {{ (t.assigned_to or none) | tojson }},
     assigned_name: {{ (t.assigned_name or '—') | tojson }},
     assigned_mobile: {{ (t.assigned_mobile or '') | tojson }},
+    created_by: {{ (t.created_by or none) | tojson }},
     created_by_name: {{ (t.created_by_name or '—') | tojson }},
+    company_id: {{ (t.company_id or none) | tojson }},
     company_name: {{ (t.company_name or '') | tojson }},
     ac_code: {{ (t.ac_code or '') | tojson }},
     priority: {{ (t.priority or 'normal') | tojson }},
     status: {{ (t.status or 'todo') | tojson }},
     due_date: {{ (t.due_date[:10] if t.due_date else '') | tojson }},
+    is_overdue: {{ (t.is_overdue and (t.status or 'todo') not in ['done','pending_close']) | tojson }},
   },
   {% endfor %}
 };
+
+const STATUS_LABEL = { todo:'📋 Pending', inprogress:'🔄 In Progress', hold:'⏸ On Hold', pending_close:'⏳ Awaiting Closure', done:'✅ Closed' };
+const PRIORITY_LABEL = { urgent:'🔴 Urgent', high:'🟠 High', normal:'🔵 Normal', low:'⚪ Low' };
+function canClose(t) { return IS_ADMIN || (t.created_by && t.created_by === ME); }
+function isMine(t) { return t.assigned_to && t.assigned_to === ME; }
 
 // Set default due date = tomorrow
 function getTomorrow() {
@@ -790,14 +837,16 @@ function saveTask() {
     .catch(e => { btn.disabled=false; btn.textContent='Create Task'; alert('Network error: '+e); });
 }
 
-function openEditTask(id, title, desc, assignedTo, priority, due, status, companyId) {
+function openEditTaskById(id) {
+  const t = TASKS_DATA[id]; if (!t) return;
   document.getElementById('etId').value = id;
-  document.getElementById('etTitle').value = title;
-  document.getElementById('etDesc').value = desc;
-  document.getElementById('etAssign').value = assignedTo || '';
-  document.getElementById('etPriority').value = priority || 'normal';
-  document.getElementById('etDue').value = due || '';
-  document.getElementById('etCompany').value = companyId || '';
+  document.getElementById('etTitle').value = t.title;
+  document.getElementById('etDesc').value = t.description;
+  document.getElementById('etAssign').value = t.assigned_to || '';
+  document.getElementById('etPriority').value = t.priority || 'normal';
+  document.getElementById('etDue').value = t.due_date || '';
+  document.getElementById('etCompany').value = t.company_id || '';
+  closeModal('viewTaskModal');
   openModal('editTaskModal');
 }
 
@@ -816,83 +865,129 @@ function saveEditTask() {
     .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
 }
 
+// ── Task view: details, contextual actions, comments, activity ──
 let _currentViewTaskId = null;
 
 function viewTask(id) {
   const t = TASKS_DATA[id];
   if (!t) return;
   _currentViewTaskId = id;
-  
-  const statusMap = { todo:'📋 To Do', inprogress:'🔄 In Progress', pending_close:'⏳ Awaiting Close', done:'✅ Closed' };
-  const priorityMap = { urgent:'🔴 Urgent', high:'🟠 High', normal:'🔵 Normal', low:'⚪ Low' };
-  
+  const kv = (k, v) => `<div><div class="vt-k">${k}</div><div class="vt-v">${v}</div></div>`;
   document.getElementById('viewTaskContent').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
-      <div style="grid-column:1/-1;"><div style="font-size:16px;font-weight:700;color:var(--text);">${esc(t.title)}</div>
-        ${t.description ? `<div style="color:var(--text-muted);font-size:13px;margin-top:4px;line-height:1.5;">${esc(t.description)}</div>` : ''}
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;">
+      <div>
+        <div style="font-size:11px;color:var(--text-dim);">Task #${t.id}</div>
+        <div style="font-size:18px;font-weight:700;color:var(--text);line-height:1.3;">${esc(t.title)}</div>
       </div>
-      <div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Assigned To</div>
-        <div style="font-size:13px;margin-top:2px;">${esc(t.assigned_name||'—')}${t.assigned_mobile ? ` <a href="https://wa.me/${esc(t.assigned_mobile.replace(/[+\s\-]/g,''))}" target="_blank" style="color:#16a34a;margin-left:6px;font-size:12px;">💬 WA</a>` : ''}</div></div>
-      <div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Created By</div><div style="font-size:13px;margin-top:2px;">${esc(t.created_by_name||'—')}</div></div>
-      <div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Current Status</div><div style="font-size:13px;margin-top:2px;">${statusMap[t.status]||t.status}</div></div>
-      <div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Priority</div><div style="font-size:13px;margin-top:2px;">${priorityMap[t.priority]||t.priority}</div></div>
-      <div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Due Date</div><div style="font-size:13px;margin-top:2px;">${t.due_date||'—'}</div></div>
-      ${t.company_name ? `<div><div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Company</div><div style="font-size:13px;margin-top:2px;color:var(--primary);">${esc(t.ac_code)} — ${esc(t.company_name)}</div></div>` : ''}
+      <span class="st-pill st-${t.status}" style="font-size:12px;">${STATUS_LABEL[t.status] || esc(t.status)}</span>
+    </div>
+    ${t.description ? `<div style="color:var(--text-muted);font-size:13px;line-height:1.55;margin-bottom:12px;white-space:pre-wrap;">${esc(t.description)}</div>` : ''}
+    <div class="vt-grid">
+      ${kv('Assigned To', esc(t.assigned_name || '—') + (isMine(t) ? ' <span style="color:var(--primary);font-size:11px;">(you)</span>' : ''))}
+      ${kv('Initiated By', esc(t.created_by_name || '—'))}
+      ${kv('Priority', PRIORITY_LABEL[t.priority] || esc(t.priority))}
+      ${kv('Due', (t.due_date || '—') + (t.is_overdue ? ' <span style="color:var(--danger);font-weight:700;">· overdue</span>' : ''))}
+      ${t.company_name ? kv('Company', `<span style="color:var(--primary);">${esc(t.ac_code)} — ${esc(t.company_name)}</span>`) : ''}
     </div>`;
-  
-  // Pre-fill update form
-  document.getElementById('vtStatus').value = t.status || 'todo';
-  document.getElementById('vtAssign').value = '';
-  document.getElementById('vtPriority').value = t.priority || 'normal';
-  document.getElementById('vtDue').value = t.due_date || '';
-  document.getElementById('vtRemarks').value = '';
-  
+
+  // Who can do what (server enforces the same rules)
+  const closer = canClose(t), worker = isMine(t) || closer, s = t.status;
+  const btn = (label, cls, fn) => `<button class="btn ${cls}" onclick="${fn}">${label}</button>`;
+  let acts = [], note = '';
+  if (s === 'pending_close') {
+    if (closer) {
+      note = `<div class="vt-note" style="background:var(--warning-bg);color:var(--warning);">✋ ${esc(t.assigned_name)} has marked this task as Done — please check and close it, or reopen it.</div>`;
+      acts.push(btn('✅ Close Task', 'btn-close-task', `taskAction('done')`), btn('↩ Reopen', 'btn-ghost', `taskAction('inprogress', true)`));
+    } else {
+      note = `<div class="vt-note" style="background:var(--warning-bg);color:var(--warning);">⏳ Marked as Done — waiting for ${esc(t.created_by_name)} to close it.</div>`;
+    }
+  } else if (s === 'done') {
+    note = `<div class="vt-note" style="background:var(--success-bg);color:var(--success);">✅ This task is closed.</div>`;
+    if (closer) acts.push(btn('↩ Reopen', 'btn-ghost', `taskAction('inprogress', true)`));
+  } else if (worker) {
+    if (s === 'todo') acts.push(btn('▶ Start', 'btn-go', `taskAction('inprogress')`));
+    if (s === 'hold') acts.push(btn('▶ Resume', 'btn-go', `taskAction('inprogress')`));
+    if (s !== 'hold') acts.push(btn('⏸ Put On Hold', 'btn-ghost', `taskAction('hold')`));
+    const doneTarget = (isMine(t) && closer) ? 'done' : 'pending_close';
+    acts.push(btn(doneTarget === 'done' ? '✓ Mark Done & Close' : '✓ Mark Done', 'btn-primary', `taskAction('${doneTarget}')`));
+    if (closer && !isMine(t)) acts.push(btn('✅ Close Task', 'btn-close-task', `taskAction('done')`));
+  }
+  if (closer && s !== 'done') acts.push(btn('✏️ Edit', 'btn-ghost', `openEditTaskById(${t.id})`));
+  document.getElementById('vtNote').innerHTML = note;
+  document.getElementById('vtActions').innerHTML = acts.join('');
+  document.getElementById('vtComment').value = '';
+  loadActivity(id);
   openModal('viewTaskModal');
 }
 
-function saveTaskUpdate() {
-  const id = _currentViewTaskId;
-  if (!id) return;
-  
-  const btn = document.getElementById('vtSaveBtn');
-  btn.disabled = true; btn.textContent = '⏳ Saving...';
-  
-  const t = TASKS_DATA[id];
-  const newAssign = document.getElementById('vtAssign').value;
-  const remarks = document.getElementById('vtRemarks').value.trim();
-  
-  // Build update data
-  const statusData = { status: document.getElementById('vtStatus').value };
-  fetch(`/api/task/${id}/status`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(statusData) })
-    .then(r => r.json())
-    .then(d => {
-      if (!d.success) throw new Error(d.error);
-      // Also update other fields
-      const editData = {
-        title: t.title,
-        description: remarks ? (t.description ? t.description + '\n\n[Update]: ' + remarks : '[Update]: ' + remarks) : t.description,
-        assigned_to: newAssign || t.assigned_to || null,
-        priority: document.getElementById('vtPriority').value,
-        due_date: document.getElementById('vtDue').value || t.due_date || null,
-        company_id: t.company_id || null,
-      };
-      return fetch(`/api/task/${id}/edit`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(editData) });
-    })
-    .then(r => r.json())
-    .then(d => {
-      if (d.success) { closeModal('viewTaskModal'); location.reload(); }
-      else { btn.disabled=false; btn.textContent='💾 Save Update'; alert('Error: '+d.error); }
-    })
-    .catch(e => { btn.disabled=false; btn.textContent='💾 Save Update'; alert('Error: '+e); });
+const ACT_TEXT = {
+  created: () => 'created the task',
+  status: (a) => `changed status ${esc(a.old_value)} → <strong>${esc(a.new_value)}</strong>`,
+  marked_done: () => 'marked the task as <strong>Done</strong> — waiting for closure',
+  closed: () => '<strong>closed</strong> the task',
+  reopened: (a) => `<strong>reopened</strong> the task (${esc(a.old_value)} → ${esc(a.new_value)})`,
+  reassigned: (a) => `reassigned ${esc(a.old_value)} → <strong>${esc(a.new_value)}</strong>`,
+  due_changed: (a) => `changed due date ${esc(a.old_value)} → <strong>${esc(a.new_value)}</strong>`,
+  priority_changed: (a) => `changed priority ${esc(a.old_value)} → <strong>${esc(a.new_value)}</strong>`,
+  edited: () => 'edited the title / description',
+  comment: () => 'commented',
+};
+
+function loadActivity(id) {
+  const box = document.getElementById('vtActivity');
+  box.innerHTML = '<div style="font-size:12px;color:var(--text-dim);">Loading…</div>';
+  fetch(`/api/task/${id}/activity`).then(r => r.json()).then(d => {
+    if (!d.success) { box.innerHTML = `<div style="font-size:12px;color:var(--danger);">${esc(d.error || 'Could not load activity')}</div>`; return; }
+    box.innerHTML = d.items.map(a => `
+      <div class="tl-item k-${esc(a.action)}">
+        <div class="tl-text"><strong>${esc(a.user_name || 'System')}</strong> ${(ACT_TEXT[a.action] || (() => esc(a.action)))(a)}</div>
+        <div class="tl-meta">${esc(a.created_at || '')}</div>
+        ${a.comment ? `<div class="tl-comment">${esc(a.comment)}</div>` : ''}
+      </div>`).join('') || '<div style="font-size:12px;color:var(--text-dim);">No activity yet.</div>';
+    box.scrollTop = box.scrollHeight;
+  }).catch(() => { box.innerHTML = '<div style="font-size:12px;color:var(--danger);">Network error</div>'; });
 }
 
-function setStatus(id, status) {
-  fetch(`/api/task/${id}/status`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}) })
-    .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
+function _postStatus(id, status, comment) {
+  return fetch(`/api/task/${id}/status`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status, comment}) })
+    .then(r => r.json());
+}
+
+function taskAction(status, needReason) {
+  const id = _currentViewTaskId; if (!id) return;
+  let comment = document.getElementById('vtComment').value.trim();
+  if (needReason && !comment) {
+    comment = (prompt('Reason for reopening (the assignee will see this):') || '').trim();
+    if (!comment) return;
+  }
+  if (status === 'hold' && !comment) {
+    comment = (prompt('Why is this on hold? (optional)') || '').trim();
+  }
+  _postStatus(id, status, comment).then(d => {
+    if (d.success) location.reload(); else alert(d.error || 'Could not update the task');
+  }).catch(() => alert('Network error'));
+}
+
+function quickStatus(id, status) {
+  if (status === 'done' && !confirm('Close this task?')) return;
+  _postStatus(id, status, '').then(d => {
+    if (d.success) location.reload(); else alert(d.error || 'Could not update the task');
+  }).catch(() => alert('Network error'));
+}
+
+function postComment() {
+  const id = _currentViewTaskId; if (!id) return;
+  const comment = document.getElementById('vtComment').value.trim();
+  if (!comment) { document.getElementById('vtComment').focus(); return; }
+  fetch(`/api/task/${id}/comment`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({comment}) })
+    .then(r => r.json()).then(d => {
+      if (d.success) { document.getElementById('vtComment').value = ''; loadActivity(id); }
+      else alert(d.error || 'Could not add comment');
+    }).catch(() => alert('Network error'));
 }
 
 function deleteTask(id) {
-  if (!confirm('Delete this task?')) return;
+  if (!confirm('Delete this task? Its history is deleted too.')) return;
   fetch(`/api/task/${id}/delete`, {method:'POST'})
     .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
 }
@@ -902,6 +997,33 @@ function sendTaskWA(mobile, name, title, due, priority) {
   window.open(`https://wa.me/${mobile}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
+// ── Filtering: quick view + status card + dropdowns + search ──
+let _quick = 'open';
+function setQuick(q) {
+  _quick = q;
+  document.querySelectorAll('#quickSeg button').forEach(b => b.classList.toggle('active', b.dataset.q === q));
+  document.getElementById('filterStatus').value = '';
+  filterTasks();
+}
+function cardFilter(status) {
+  const sel = document.getElementById('filterStatus');
+  if (status === 'overdue') { setQuick(_quick === 'overdue' ? 'open' : 'overdue'); return; }
+  sel.value = (sel.value === status) ? '' : status;
+  _quick = 'all';
+  document.querySelectorAll('#quickSeg button').forEach(b => b.classList.toggle('active', b.dataset.q === 'all'));
+  filterTasks();
+}
+
+function _quickMatch(row, q) {
+  const s = row.dataset.status, overdue = row.dataset.overdue === 'yes' && s !== 'done' && s !== 'pending_close';
+  if (q === 'open') return s !== 'done';
+  if (q === 'mine') return row.dataset.mine === '1' && s !== 'done';
+  if (q === 'close') return s === 'pending_close' && row.dataset.closer === '1';
+  if (q === 'overdue') return overdue;
+  if (q === 'closed') return s === 'done';
+  return true;
+}
+
 function filterTasks() {
   const status = document.getElementById('filterStatus').value;
   const user = document.getElementById('filterUser').value;
@@ -909,48 +1031,55 @@ function filterTasks() {
   const priority = document.getElementById('filterPriority').value;
   const dateFrom = document.getElementById('filterDateFrom').value;
   const dateTo = document.getElementById('filterDateTo').value;
+  const q = (document.getElementById('taskSearch').value || '').trim().toLowerCase();
 
-  let total=0, overdue=0, inprogress=0, todo=0, pending=0, done=0;
+  const c = {overdue:0, todo:0, inprogress:0, hold:0, pending_close:0, done:0, mineClose:0};
+  const qc = {open:0, mine:0, close:0, overdue:0};
+  let shown = 0;
 
   document.querySelectorAll('#taskTable tbody tr[data-status]').forEach(row => {
     const rowDue = row.dataset.due;
-    let show = true;
+    // base filters (dropdowns + search) — the cards and quick views count within these
+    let base = true;
+    if (user && row.dataset.user !== user) base = false;
+    if (createdBy && row.dataset.createdBy !== createdBy) base = false;
+    if (priority && row.dataset.priority !== priority) base = false;
+    if (dateFrom && (!rowDue || rowDue < dateFrom)) base = false;
+    if (dateTo && (!rowDue || rowDue > dateTo)) base = false;
+    if (q && !row.dataset.search.includes(q)) base = false;
 
-    if (status && row.dataset.status !== status) show = false;
-    if (user && row.dataset.user !== user) show = false;
-    if (createdBy && row.dataset.createdBy !== createdBy) show = false;
-    if (priority && row.dataset.priority !== priority) show = false;
-    if (dateFrom && rowDue && rowDue < dateFrom) show = false;
-    if (dateTo && rowDue && rowDue > dateTo) show = false;
-    if ((dateFrom || dateTo) && !rowDue) show = false;
-
-    row.style.display = show ? '' : 'none';
-
-    if (show) {
-      total++;
-      const s = row.dataset.status;
-      const isOverdue = row.dataset.overdue === 'yes' && s !== 'done' && s !== 'pending_close';
-      if (isOverdue) overdue++;
-      if (s === 'inprogress') inprogress++;
-      if (s === 'todo') todo++;
-      if (s === 'pending_close') pending++;
-      if (s === 'done') done++;
+    const s = row.dataset.status;
+    if (base) {
+      if (c[s] !== undefined) c[s]++;
+      if (_quickMatch(row, 'overdue')) c.overdue++;
+      if (s === 'pending_close' && row.dataset.closer === '1') c.mineClose++;
+      ['open','mine','close','overdue'].forEach(k => { if (_quickMatch(row, k)) qc[k]++; });
     }
+    const show = base && _quickMatch(row, _quick) && (!status || s === status);
+    row.style.display = show ? '' : 'none';
+    if (show) shown++;
   });
 
-  document.getElementById('sc-total').textContent = total;
-  document.getElementById('sc-overdue').textContent = overdue;
-  document.getElementById('sc-inprogress').textContent = inprogress;
-  document.getElementById('sc-todo').textContent = todo;
-  document.getElementById('sc-pending').textContent = pending;
-  document.getElementById('sc-done').textContent = done;
+  document.getElementById('sc-overdue').textContent = c.overdue;
+  document.getElementById('sc-todo').textContent = c.todo;
+  document.getElementById('sc-inprogress').textContent = c.inprogress;
+  document.getElementById('sc-hold').textContent = c.hold;
+  document.getElementById('sc-pending').textContent = c.pending_close;
+  document.getElementById('sc-done').textContent = c.done;
+  document.getElementById('sc-mine-close').textContent = c.mineClose ? c.mineClose + ' waiting for you' : '';
+  Object.keys(qc).forEach(k => { const el = document.getElementById('qc-' + k); if (el) el.textContent = qc[k]; });
+  const cl = document.getElementById('qc-close'); if (cl) cl.classList.toggle('alert', qc.close > 0);
+  document.querySelectorAll('.stat-card[data-card]').forEach(card => {
+    card.classList.toggle('sel', card.dataset.card === status || (card.dataset.card === 'overdue' && _quick === 'overdue'));
+  });
+  document.getElementById('taskEmpty').style.display = shown ? 'none' : 'block';
 }
 
 function clearTaskFilters() {
-  ['filterStatus','filterUser','filterCreatedBy','filterPriority'].forEach(id => document.getElementById(id).value = '');
-  ['filterDateFrom','filterDateTo'].forEach(id => document.getElementById(id).value = '');
-  filterTasks();
+  ['filterStatus','filterUser','filterCreatedBy','filterPriority','filterDateFrom','filterDateTo','taskSearch'].forEach(id => document.getElementById(id).value = '');
+  setQuick('open');
 }
+document.addEventListener('DOMContentLoaded', filterTasks);
 </script>
 
 
@@ -1018,6 +1147,13 @@ function filterRegular() {
   const empty = document.getElementById('regularEmpty');
   const hasTasks = rows.length > 0;
   if (empty) empty.style.display = (hasTasks && visible === 0) ? 'block' : 'none';
+}
+
+function rtCard(v) {
+  const sel = document.getElementById('rtStatus');
+  sel.value = (sel.value === v) ? '' : v;
+  document.querySelectorAll('.stat-card[data-rcard]').forEach(c => c.classList.toggle('sel', !!sel.value && c.dataset.rcard === sel.value));
+  filterRegular();
 }
 
 function clearRegularFilters() {
