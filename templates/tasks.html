@@ -474,7 +474,7 @@
             {% endif %}
           </td>
           <td>
-            <div style="font-weight:600;color:var(--text);">{{ t.title }}</div>
+            <a href="#" onclick="openHistory({{ t.id }});return false;" style="font-weight:600;color:var(--text);text-decoration:none;">{{ t.title }}</a>
             {% if t.description %}<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">{{ t.description[:70] }}{% if t.description|length > 70 %}…{% endif %}</div>{% endif %}
             {% if overdue > 0 and s.get('missed_dates') %}<div style="font-size:10px;color:#fca5a5;margin-top:2px;">Missed: {{ s.missed_dates | join(', ') }}{% if overdue > 3 %} +{{ overdue - 3 }}{% endif %}</div>{% endif %}
           </td>
@@ -500,6 +500,7 @@
           <td>
             <div style="display:flex;gap:6px;align-items:center;">
               <button class="btn btn-primary btn-sm" onclick="openLogModal({{ t.id }},'{{ t.title|replace("'","\\'") }}',{{ overdue }})">✅ Log</button>
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="openHistory({{ t.id }})" title="History">📊</button>
               {% if has_perm('regular_tasks_manage') and not t.get('_cover_only') %}
               <button class="btn btn-ghost btn-sm btn-icon" onclick="openTemplateModal({{ t.id }})" title="Edit">✏️</button>
               {% if state == 'paused' %}
@@ -731,6 +732,65 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('addTemplateModal')">Cancel</button>
       <button class="btn btn-primary" id="tmplSaveBtn" onclick="saveTemplate()">🔁 Create Recurring Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECURRING HISTORY MODAL -->
+<style>
+.hc-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;}
+.hc-dow{font-size:10px;font-weight:700;color:var(--text-dim);text-align:center;text-transform:uppercase;letter-spacing:.5px;padding-bottom:2px;}
+.hc{height:42px;border-radius:7px;border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;color:var(--text-dim);background:var(--surface2);position:relative;}
+.hc .n{font-size:10px;position:absolute;top:3px;left:5px;opacity:.75;}
+.hc .m{font-size:13px;font-weight:700;margin-top:8px;}
+.hc.blank{visibility:hidden;}
+.hc.done{background:var(--success-bg);border-color:var(--success);color:var(--success);}
+.hc.partial{background:var(--warning-bg);border-color:var(--warning);color:var(--warning);}
+.hc.skipped{background:var(--surface3);color:var(--text-muted);}
+.hc.missed{background:var(--danger-bg);border-color:var(--danger);color:var(--danger);}
+.hc.due{border:2px dashed var(--warning);color:var(--warning);}
+.hc.upcoming{border-style:dashed;color:var(--text-muted);}
+.hc.leave,.hc.covered{background:var(--blue-bg);border-color:var(--blue);color:var(--blue);}
+.hc.paused,.hc.na{opacity:.45;}
+.hc.today{box-shadow:0 0 0 2px var(--primary);}
+.hs-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:12px 0;}
+@media (max-width:560px){.hs-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
+.hs{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 10px;}
+.hs .k{font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;}
+.hs .v{font-size:20px;font-weight:700;color:var(--text);margin-top:2px;}
+.hl{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--text-dim);margin:10px 0 4px;}
+.hl span{display:inline-flex;align-items:center;gap:4px;}
+.hl i{display:inline-block;width:10px;height:10px;border-radius:3px;border:1px solid var(--border);}
+</style>
+<div class="modal-overlay" id="historyModal">
+  <div class="modal-box" style="max-width:640px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+      <div>
+        <div class="modal-title" id="hTitle" style="margin-bottom:2px;">📊 History</div>
+        <div id="hSchedule" style="font-size:12px;color:var(--text-dim);"></div>
+      </div>
+      <select id="hPerson" onchange="loadHistory()" style="max-width:190px;display:none;"></select>
+    </div>
+    <div id="hStats" class="hs-grid"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:4px 0 8px;">
+      <button class="btn btn-ghost btn-sm" onclick="shiftMonth(-1)">‹ Prev</button>
+      <div id="hMonth" style="font-weight:700;color:var(--text);"></div>
+      <button class="btn btn-ghost btn-sm" id="hNext" onclick="shiftMonth(1)">Next ›</button>
+    </div>
+    <div class="hc-grid" id="hCal"></div>
+    <div class="hl">
+      <span><i style="background:var(--success-bg);border-color:var(--success);"></i>Done</span>
+      <span><i style="background:var(--warning-bg);border-color:var(--warning);"></i>Partial</span>
+      <span><i style="background:var(--surface3);"></i>Skipped</span>
+      <span><i style="background:var(--danger-bg);border-color:var(--danger);"></i>Missed</span>
+      <span><i style="border:2px dashed var(--warning);"></i>Due today</span>
+      <span><i style="background:var(--blue-bg);border-color:var(--blue);"></i>Leave / covered</span>
+      <span><i style="opacity:.45;background:var(--surface2);"></i>Paused / not assigned</span>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:var(--text);margin-top:12px;">LOGS THIS MONTH</div>
+    <div id="hLogs" style="max-height:210px;overflow:auto;margin-top:6px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('historyModal')">Close</button>
     </div>
   </div>
 </div>
@@ -1336,6 +1396,77 @@ function saveTemplate() {
     if (d.success) { closeModal('addTemplateModal'); location.reload(); }
     else alert('Error: ' + d.error);
   }).catch(() => { btn.disabled = false; alert('Network error'); });
+}
+
+// ── Recurring history (calendar + stats) ──
+let _hId = null, _hMonth = null, _hToday = null;
+function openHistory(id) {
+  _hId = id; _hMonth = null;
+  const sel = document.getElementById('hPerson'); sel.innerHTML = ''; sel.dataset.loaded = '';
+  document.getElementById('hCal').innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:var(--text-dim);">Loading…</div>';
+  openModal('historyModal');
+  loadHistory();
+}
+function shiftMonth(delta) {
+  if (!_hMonth) return;
+  let [y, m] = _hMonth.split('-').map(Number);
+  m += delta; if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; }
+  _hMonth = y + '-' + String(m).padStart(2, '0');
+  loadHistory();
+}
+function loadHistory() {
+  const sel = document.getElementById('hPerson');
+  const params = new URLSearchParams();
+  if (_hMonth) params.set('month', _hMonth);
+  if (sel.value) params.set('user_id', sel.value);
+  fetch(`/api/regular-task/${_hId}/history?` + params).then(r => r.json()).then(d => {
+    if (!d.success) { document.getElementById('hCal').innerHTML = `<div style="grid-column:1/-1;color:var(--danger);font-size:12px;">${esc(d.error || 'Could not load')}</div>`; return; }
+    _hMonth = d.month; _hToday = d.today;
+    document.getElementById('hTitle').textContent = '📊 ' + d.title;
+    document.getElementById('hSchedule').textContent = d.schedule;
+    document.getElementById('hMonth').textContent = d.month_label;
+    document.getElementById('hNext').disabled = d.month >= d.today.slice(0, 7);
+    if (!sel.dataset.loaded) {
+      sel.innerHTML = d.people.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+      sel.style.display = d.people.length > 1 ? '' : 'none';
+      sel.dataset.loaded = '1';
+    }
+    sel.value = d.person;
+    const st = d.stats;
+    const box = (k, v, color) => `<div class="hs"><div class="k">${k}</div><div class="v" ${color ? `style="color:${color}"` : ''}>${v}</div></div>`;
+    document.getElementById('hStats').innerHTML =
+      box('Completion', st.completion === null ? '—' : st.completion + '%', st.completion === null ? '' : (st.completion >= 90 ? 'var(--success)' : st.completion >= 70 ? 'var(--warning)' : 'var(--danger)')) +
+      box('Done', st.done + (st.partial ? ` <span style="font-size:11px;color:var(--warning);">+${st.partial} partial</span>` : '')) +
+      box('Missed', st.missed, st.missed ? 'var(--danger)' : '') +
+      box('Streak', st.streak + (st.streak === 1 ? ' day' : ' days')) +
+      box('Last Done', `<span style="font-size:13px;">${st.last_done || '—'}</span>`);
+    const mark = {done:'✓', partial:'◐', skipped:'⏭', missed:'✕', due:'•', upcoming:'○', leave:'🏖', covered:'🤝', paused:'⏸', na:'', none:''};
+    const title = {done:'Done', partial:'Partially done', skipped:'Skipped', missed:'Missed', due:'Due today', upcoming:'Upcoming', leave:'On leave', covered:'Covered', paused:'Paused', na:'Before assignment', none:'Not a due day'};
+    let html = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(x => `<div class="hc-dow">${x}</div>`).join('');
+    if (d.cells.length) for (let i = 0; i < d.cells[0].dow; i++) html += '<div class="hc blank"></div>';
+    d.cells.forEach(c => {
+      const tip = title[c.state] + (c.by ? ' by ' + c.by : '');
+      html += `<div class="hc ${c.state}${c.date === d.today ? ' today' : ''}" title="${c.date} — ${esc(tip)}"><span class="n">${c.day}</span><span class="m">${mark[c.state] || ''}</span></div>`;
+    });
+    document.getElementById('hCal').innerHTML = html;
+    const sLabel = {done:'✅ Done', partial:'⚠️ Partial', skipped:'⏭️ Skipped', reopened:'↩ Reopened'};
+    document.getElementById('hLogs').innerHTML = d.logs.length ? d.logs.slice().reverse().map(l => `
+      <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;font-size:12px;${l.status === 'reopened' ? 'opacity:.75;' : ''}">
+        <div style="min-width:0;">
+          <div><strong>${l.date}</strong> <span style="color:var(--text-dim);">${l.time}</span> · ${esc(l.user_name || '')} · ${sLabel[l.status] || esc(l.status)}</div>
+          ${l.notes ? `<div style="color:var(--text-muted);margin-top:2px;white-space:pre-wrap;">${esc(l.notes)}</div>` : ''}
+          ${l.status === 'reopened' ? `<div style="color:var(--danger);margin-top:2px;">Reopened by ${esc(l.reopened_by || '—')}: ${esc(l.reopen_reason)}</div>` : ''}
+        </div>
+        ${d.can_reopen && l.status !== 'reopened' ? `<button class="btn btn-ghost btn-sm" style="flex-shrink:0;" onclick="reopenLog(${l.id})">↩ Reopen</button>` : ''}
+      </div>`).join('') : '<div style="font-size:12px;color:var(--text-dim);">No logs this month.</div>';
+  }).catch(() => { document.getElementById('hCal').innerHTML = '<div style="grid-column:1/-1;color:var(--danger);font-size:12px;">Network error</div>'; });
+}
+function reopenLog(logId) {
+  const reason = (prompt('Why is this day being reopened? The person will need to log it again.') || '').trim();
+  if (!reason) return;
+  fetch(`/api/regular-task/log/${logId}/reopen`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({reason}) })
+    .then(r => r.json()).then(d => { if (d.success) loadHistory(); else alert('Error: ' + d.error); })
+    .catch(() => alert('Network error'));
 }
 
 function rtPause(id, pause) {

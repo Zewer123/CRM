@@ -278,6 +278,9 @@ def _pg_ensure_columns():
         "ALTER TABLE regular_task_templates ADD COLUMN IF NOT EXISTS end_date DATE",
         "ALTER TABLE regular_task_templates ADD COLUMN IF NOT EXISTS rule_from DATE",
         "ALTER TABLE regular_task_templates ADD COLUMN IF NOT EXISTS assigned_from DATE",
+        "ALTER TABLE regular_task_logs ADD COLUMN IF NOT EXISTS reopened_by INTEGER",
+        "ALTER TABLE regular_task_logs ADD COLUMN IF NOT EXISTS reopened_at TIMESTAMP",
+        "ALTER TABLE regular_task_logs ADD COLUMN IF NOT EXISTS reopen_reason TEXT",
         "CREATE TABLE IF NOT EXISTS regular_task_pauses (id SERIAL PRIMARY KEY, template_id INTEGER NOT NULL, start_date DATE NOT NULL, end_date DATE, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS regular_task_rule_history (id SERIAL PRIMARY KEY, template_id INTEGER NOT NULL, from_date DATE NOT NULL, to_date DATE NOT NULL, frequency TEXT, weekday INTEGER, month_day INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
     ]
@@ -409,6 +412,10 @@ def _run_migrations(conn):
     safe_alter('regular_task_templates', 'end_date', 'DATE')
     safe_alter('regular_task_templates', 'rule_from', 'DATE')
     safe_alter('regular_task_templates', 'assigned_from', 'DATE')
+    # Manager can reopen a logged recurring day (log kept, status='reopened')
+    safe_alter('regular_task_logs', 'reopened_by', 'INTEGER')
+    safe_alter('regular_task_logs', 'reopened_at', 'TIMESTAMP')
+    safe_alter('regular_task_logs', 'reopen_reason', 'TEXT')
     # One-time backfill: close out all additional tasks that existed before the
     # Complete button shipped. They were records of activity that already
     # happened, so we mark them complete with completed_at = their own end time.
@@ -985,7 +992,7 @@ def healthz():
         conn = get_db()
         for tbl, col in [('companies', 'disabled'), ('clients', 'disabled'), ('clients', 'pep'),
                          ('ubos', 'pep_status'), ('aml_tracker', 'exchange_rate'),
-                         ('internal_documents', 'file_url'), ('regular_task_templates', 'month_day')]:
+                         ('internal_documents', 'file_url'), ('regular_task_templates', 'month_day'), ('regular_task_logs', 'reopen_reason')]:
             try:
                 x(conn, f'SELECT {col} FROM {tbl} LIMIT 1').fetchone()
                 checks[f'{tbl}.{col}'] = 'ok'
@@ -2226,7 +2233,8 @@ def _staff_task_report(conn, today, df, dt, staff_id=None):
         try:
             reg = all_(conn, """SELECT rt.title,l.status,DATE(l.logged_at) AS d,l.notes
                 FROM regular_task_logs l JOIN regular_task_templates rt ON l.template_id=rt.id
-                WHERE l.user_id=? AND l.logged_at BETWEEN ? AND ? ORDER BY l.logged_at DESC""", (uid, ps, pe))
+                WHERE l.user_id=? AND l.logged_at BETWEEN ? AND ? AND COALESCE(l.status,'done') <> 'reopened'
+                ORDER BY l.logged_at DESC""", (uid, ps, pe))
         except Exception:
             reg = []
         reg_list = [{'title': r['title'], 'status': r['status'] or 'done',
@@ -3220,7 +3228,7 @@ def tasks():
         own = not t.get('_cover_only') and _regular_is_own(t, uid, role)
         try:
             user_logs=all_(conn,"""SELECT DATE(logged_at) as log_date FROM regular_task_logs
-                WHERE template_id=? AND user_id=? ORDER BY logged_at ASC""", (t['id'],uid))
+                WHERE template_id=? AND user_id=? AND COALESCE(status,'done') <> 'reopened' ORDER BY logged_at ASC""", (t['id'],uid))
             missed=_regular_missed_dates(conn, t, uid, today, own)
             # A cover-only task drops off the list once the leave is over and nothing is owed
             if t.get('_cover_only') and not missed and str(t.get('cover_until')) < str(today):
@@ -4147,7 +4155,7 @@ def analytics():
     t_done = c("SELECT COUNT(*) FROM tasks WHERE status='done'")
     try:
         reg_total = c('SELECT COUNT(*) FROM regular_task_templates')
-        logs_period = c('SELECT COUNT(*) FROM regular_task_logs WHERE logged_at BETWEEN ? AND ?', (ps, pe + ' 23:59:59'))
+        logs_period = c("SELECT COUNT(*) FROM regular_task_logs WHERE logged_at BETWEEN ? AND ? AND COALESCE(status,'done') <> 'reopened'", (ps, pe + ' 23:59:59'))
     except Exception:
         reg_total = logs_period = 0
     try:
@@ -4197,7 +4205,7 @@ def analytics():
             # completed within the selected period
             temp_done_p = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status='done' AND updated_at BETWEEN ? AND ?", (uid, ps, pe_end))
             try:
-                logs_c = c('SELECT COUNT(*) FROM regular_task_logs WHERE user_id=? AND logged_at BETWEEN ? AND ?', (uid, ps, pe_end))
+                logs_c = c("SELECT COUNT(*) FROM regular_task_logs WHERE user_id=? AND logged_at BETWEEN ? AND ? AND COALESCE(status,'done') <> 'reopened'", (uid, ps, pe_end))
             except Exception:
                 logs_c = 0
             try:
@@ -4565,7 +4573,8 @@ def _regular_missed_dates(conn, t, user_id, today, own=True):
        - plus days they are covering for the assigned person's leave."""
     try:
         user_logs = all_(conn, """SELECT DATE(logged_at) as log_date FROM regular_task_logs
-            WHERE template_id=? AND user_id=? ORDER BY logged_at ASC""", (t['id'], user_id))
+            WHERE template_id=? AND user_id=? AND COALESCE(status,'done') <> 'reopened'
+            ORDER BY logged_at ASC""", (t['id'], user_id))
         logged = set(str(r['log_date'])[:10] for r in user_logs)
         due = _template_due_dates(conn, t, today)
         own_from = _to_date(t.get('assigned_from'))
@@ -4719,15 +4728,188 @@ def api_log_regular_task(id):
                   (id, uid, d.get('notes', ''), d.get('status', 'done'), s + ' 12:00:00'))
             commit(conn); conn.close()
             return jsonify({'success': True, 'count': len(set(dates))})
-        x(conn, '''INSERT INTO regular_task_logs (template_id, user_id, notes, status)
-            VALUES (?,?,?,?)''',
-          (id, uid, d.get('notes', ''), d.get('status', 'done')))
+        # Dubai wall-clock time: the DB's CURRENT_TIMESTAMP is UTC, which filed logs made
+        # between 00:00 and 04:00 Dubai under the previous day.
+        x(conn, '''INSERT INTO regular_task_logs (template_id, user_id, notes, status, logged_at)
+            VALUES (?,?,?,?,?)''',
+          (id, uid, d.get('notes', ''), d.get('status', 'done'),
+           datetime.now(DUBAI_TZ).strftime('%Y-%m-%d %H:%M:%S')))
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
         try: conn.close()
         except: pass
         return _fail(e)
+
+def _regular_history(conn, t, person, today, m_start, m_end):
+    """Per-person record of one recurring task: lifetime stats up to today and a
+       day-by-day calendar for the month [m_start, m_end]."""
+    own_from = _to_date(t.get('assigned_from'))
+    due_all = _template_due_dates(conn, t, max(today, m_end))
+    due_set = set(str(d) for d in due_all)
+    leave = _leave_periods(conn, user_id=person)
+    pauses = _template_pauses(conn, t['id'])
+    try:
+        logs = all_(conn, """SELECT l.id,l.user_id,l.status,l.notes,l.logged_at,l.reopened_at,l.reopen_reason,
+                u.name AS user_name, ru.name AS reopened_by_name
+            FROM regular_task_logs l LEFT JOIN users u ON l.user_id=u.id LEFT JOIN users ru ON l.reopened_by=ru.id
+            WHERE l.template_id=? ORDER BY l.logged_at""", (t['id'],))
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+        logs = []
+    mine, others = {}, {}
+    for l in logs:
+        if (l.get('status') or 'done') == 'reopened':
+            continue
+        ds = str(l['logged_at'])[:10]
+        (mine if l['user_id'] == person else others).setdefault(ds, l)
+    tstr = str(today)
+    responsible = lambda ds: (not own_from or ds >= str(own_from)) and not _in_periods(ds, leave)
+
+    # lifetime stats (this person's responsibility only)
+    expected = done = partial = skipped = missed = 0
+    today_pending = False
+    past = []
+    for d in due_all:
+        ds = str(d)
+        if ds > tstr or not responsible(ds):
+            continue
+        expected += 1
+        l = mine.get(ds)
+        if l:
+            st = l.get('status') or 'done'
+            if st == 'partial': partial += 1
+            elif st == 'skipped': skipped += 1
+            else: done += 1
+        elif ds < tstr:
+            missed += 1
+        else:
+            today_pending = True
+        past.append(ds)
+    base = expected - (1 if today_pending else 0)
+    completion = round(100.0 * (done + partial) / base) if base else None
+    streak = 0
+    for ds in reversed(past):
+        if ds == tstr and ds not in mine:
+            continue
+        if ds in mine: streak += 1
+        else: break
+    last_done = max((ds for ds, l in mine.items() if (l.get('status') or 'done') in ('done', 'partial')), default=None)
+
+    # month calendar
+    cells = []
+    d = m_start
+    while d <= m_end:
+        ds = str(d)
+        cell = {'date': ds, 'day': d.day, 'dow': d.weekday(), 'state': 'none'}
+        if _in_periods(ds, pauses) and ds <= tstr:
+            cell['state'] = 'paused'
+        elif ds not in due_set:
+            cell['state'] = 'none'
+        elif own_from and ds < str(own_from):
+            cell['state'] = 'na'
+        elif _in_periods(ds, leave):
+            cell['state'] = 'leave'
+            if ds in others:
+                cell['state'] = 'covered'; cell['by'] = others[ds].get('user_name')
+        elif ds in mine:
+            cell['state'] = mine[ds].get('status') or 'done'
+            if cell['state'] not in ('done', 'partial', 'skipped'): cell['state'] = 'done'
+        elif ds > tstr:
+            cell['state'] = 'upcoming'
+        elif ds == tstr:
+            cell['state'] = 'due'
+        else:
+            cell['state'] = 'missed'
+        cells.append(cell)
+        d += timedelta(days=1)
+
+    ms, me = str(m_start), str(m_end)
+    month_logs = [{'id': l['id'], 'date': str(l['logged_at'])[:10], 'time': str(l['logged_at'])[11:16],
+                   'user_name': l.get('user_name'), 'status': l.get('status') or 'done', 'notes': l.get('notes') or '',
+                   'reopened_by': l.get('reopened_by_name'), 'reopen_reason': l.get('reopen_reason') or '',
+                   'reopened_at': str(l.get('reopened_at') or '')[:16]}
+                  for l in logs
+                  if ms <= str(l['logged_at'])[:10] <= me
+                  and (l['user_id'] == person or _in_periods(str(l['logged_at'])[:10], leave))]
+    return {'stats': {'expected': expected, 'done': done, 'partial': partial, 'skipped': skipped,
+                      'missed': missed, 'completion': completion, 'streak': streak, 'last_done': last_done,
+                      'today_pending': today_pending},
+            'cells': cells, 'logs': month_logs}
+
+@app.route('/api/regular-task/<int:id>/history')
+@require_perm('regular_tasks_view')
+def api_regular_task_history(id):
+    conn = get_db()
+    try:
+        t = one(conn, 'SELECT * FROM regular_task_templates WHERE id=?', (id,))
+        if not t:
+            conn.close(); return jsonify({'success': False, 'error': 'Task not found'}), 404
+        uid, role = session.get('user_id'), session.get('user_role')
+        manager = has_perm('regular_tasks_manage')
+        # people this task applies to
+        ar = t.get('assigned_role') or 'all'
+        if t.get('assigned_user_id'):
+            people = all_(conn, 'SELECT id,name FROM users WHERE id=?', (t['assigned_user_id'],))
+        elif ar == 'all':
+            people = all_(conn, 'SELECT id,name FROM users WHERE is_active=1 ORDER BY name')
+        else:
+            people = all_(conn, 'SELECT id,name FROM users WHERE is_active=1 AND role=? ORDER BY name', (ar,))
+        ids = [p['id'] for p in people]
+        if manager:
+            try: person = int(request.args.get('user_id') or 0)
+            except ValueError: person = 0
+            if not person:
+                person = t.get('assigned_user_id') or (uid if uid in ids else (ids[0] if ids else uid))
+        else:
+            person = uid          # staff only ever see their own record
+            people = [p for p in people if p['id'] == uid] or [{'id': uid, 'name': session.get('user_name', 'Me')}]
+        today = dubai_today()
+        try:
+            y, m = map(int, (request.args.get('month') or today.strftime('%Y-%m')).split('-'))
+            m_start = datetime(y, m, 1).date()
+        except Exception:
+            m_start = today.replace(day=1)
+        import calendar
+        m_end = m_start.replace(day=calendar.monthrange(m_start.year, m_start.month)[1])
+        h = _regular_history(conn, t, person, today, m_start, m_end)
+        conn.close()
+        return jsonify({'success': True, 'title': t['title'],
+                        'schedule': _rule_text(t.get('frequency'), t.get('weekday'), t.get('month_day')),
+                        'month': m_start.strftime('%Y-%m'), 'month_label': m_start.strftime('%B %Y'),
+                        'today': str(today), 'person': person, 'people': people,
+                        'can_reopen': manager, **h})
+    except Exception as e:
+        try: conn.close()
+        except Exception: pass
+        return _fail(e)
+
+@app.route('/api/regular-task/log/<int:log_id>/reopen', methods=['POST'])
+@require_perm('regular_tasks_manage')
+def api_reopen_regular_log(log_id):
+    """Manager rejects a logged day: the log is kept for the record (status 'reopened'),
+       and the day counts as missed again until the person logs it properly."""
+    reason = ((request.get_json() or {}).get('reason') or '').strip()
+    if not reason:
+        return jsonify({'success': False, 'error': 'Please give a reason'}), 400
+    conn = get_db()
+    try:
+        l = one(conn, 'SELECT id,status FROM regular_task_logs WHERE id=?', (log_id,))
+        if not l:
+            conn.close(); return jsonify({'success': False, 'error': 'Log not found'}), 404
+        if (l.get('status') or 'done') == 'reopened':
+            conn.close(); return jsonify({'success': False, 'error': 'Already reopened'}), 400
+        x(conn, """UPDATE regular_task_logs SET status='reopened', reopened_by=?, reopened_at=?, reopen_reason=?
+            WHERE id=?""", (session.get('user_id'), datetime.now(DUBAI_TZ).strftime('%Y-%m-%d %H:%M:%S'),
+                            reason[:1000], log_id))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        try: conn.close()
+        except Exception: pass
+        return _fail(e)
+
 
 # ════════════════════════════════════════════════════════════
 # ADDITIONAL TASKS

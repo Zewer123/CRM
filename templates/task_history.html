@@ -95,6 +95,7 @@
             {% if l.status == 'done' %}<span class="badge badge-active">✅ Done</span>
             {% elif l.status == 'completed' %}<span class="badge badge-active">✅ Completed</span>
             {% elif l.status == 'partial' %}<span class="badge badge-compliance">⚠️ Partial</span>
+            {% elif l.status == 'reopened' %}<span class="badge" style="background:rgba(239,68,68,0.15);color:#fca5a5;" title="Reopened by a manager — the day counts as missed again">↩ Reopened</span>
             {% else %}<span class="badge" style="background:var(--surface3);color:var(--text-muted);">⏭️ Skipped</span>{% endif %}
           </td>
           <td style="font-size:12px;color:var(--text-dim);">{{ l.notes or '—' }}</td>
