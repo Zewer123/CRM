@@ -180,7 +180,33 @@
               {% endif %}
               {% set wa_contact = row.contact_person_number or row.whatsapp_number or row.mobile %}
               {% if wa_contact %}
-              <a href="https://wa.me/{{ wa_contact|replace('+','')|replace(' ','')|replace('-','') }}" target="_blank"
+              {# Pre-filled reminder: who, which document, expiry date #}
+              {% set ed = row.expiry_date|string %}
+              {% set ed_fmt = (ed[8:10] ~ '/' ~ ed[5:7] ~ '/' ~ ed[0:4]) if ed|length >= 10 else ed %}
+              {% set dname = row.doc_type|replace(' (Individual)', '') %}
+              {% if row.client_id %}
+                {% set greet = row.client_name %}{% set what = 'your ' ~ dname %}
+              {% elif row.doc_type in ['Passport', 'Emirates ID'] %}
+                {% set greet = row.client_name %}{% set what = 'the ' ~ dname ~ ' of ' ~ (row.contact_person_name or 'your UBO') ~ ' (' ~ row.client_name ~ ')' %}
+              {% else %}
+                {% set greet = row.contact_person_name or row.client_name %}{% set what = 'the ' ~ dname ~ ' of ' ~ row.client_name %}
+              {% endif %}
+              {% if row.days < 0 %}
+                {% set when = 'expired on ' ~ ed_fmt %}
+              {% elif row.days == 0 %}
+                {% set when = 'expires today (' ~ ed_fmt ~ ')' %}
+              {% else %}
+                {% set when = 'will expire on ' ~ ed_fmt ~ ' (' ~ row.days ~ ' day' ~ ('s' if row.days != 1 else '') ~ ' left)' %}
+              {% endif %}
+              {# |safe is fine here: the whole message is URL-encoded below #}
+              {% set wa_msg %}Dear {{ greet|safe }},
+
+This is a reminder from Zewer Jewellery LLC that {{ what|safe }} {{ when }}.
+
+Kindly share the updated copy at your earliest convenience so we can keep your records up to date.
+
+Thank you.{% endset %}
+              <a href="https://wa.me/{{ wa_contact|replace('+','')|replace(' ','')|replace('-','') }}?text={{ wa_msg|trim|urlencode }}" target="_blank"
                  class="btn btn-wa btn-sm btn-icon" title="WhatsApp {{ row.contact_person_name or 'Contact' }}">💬</a>
               {% endif %}
               <button class="btn btn-ghost btn-sm btn-icon" title="Create Task"
