@@ -3338,24 +3338,69 @@ def api_browse_folder():
     except Exception:
         return jsonify({'success': False, 'error': 'Folder picker not available here — type the path manually.'})
 
+def _user_email(conn, email, username, exclude_id=None):
+    """users.email is UNIQUE NOT NULL, but the form treats it as optional.
+       Returns (email_to_store, error_message)."""
+    email = (email or '').strip()
+    ex = ' AND id<>?' if exclude_id else ''
+    args = (exclude_id,) if exclude_id else ()
+    if email:
+        other = one(conn, 'SELECT name FROM users WHERE LOWER(email)=LOWER(?)' + ex, (email,) + args)
+        if other:
+            return None, f"The email {email} is already used by {other['name']}. Use a different email or leave it blank."
+        return email, None
+    # Blank: only one user can hold '' — give later ones a unique placeholder.
+    if one(conn, "SELECT id FROM users WHERE email=''" + ex, args):
+        return f"{username or 'user'}@no-email.local", None
+    return '', None
+
+def _user_integrity_msg(e):
+    m = str(e).lower()
+    if 'unique' in m or 'duplicate' in m:
+        if 'email' in m: return 'That email is already used by another user.'
+        if 'username' in m: return 'That username is already taken.'
+    return None
+
 @app.route('/api/user/add',methods=['POST'])
 @require_perm('admin_users')
 def api_add_user():
     d=request.get_json()
     if len((d.get('password') or '')) < 8:
         return jsonify({'success':False,'error':'Password must be at least 8 characters'}),400
+    username = (d.get('username') or '').strip().lower()
+    if not username or not (d.get('name') or '').strip():
+        return jsonify({'success':False,'error':'Name and username are required'}),400
+    conn = None
     try:
         conn=get_db()
-        username = d.get('username','').strip().lower()
-        if username:
-            existing = one(conn,'SELECT id FROM users WHERE username=?',(username,))
-            if existing: return jsonify({'success':False,'error':'Username already taken'}),400
-        x(conn,'INSERT INTO users (email,password_hash,name,role,contact_number,username,permissions,is_active) VALUES (?,?,?,?,?,?,?,1)',
-          (d.get('email',''),generate_password_hash(d.get('password','')),d.get('name'),d.get('role','staff'),d.get('contact_number'),username or None,d.get('permissions','')))
-        commit(conn); conn.close(); return jsonify({'success':True})
+        if one(conn,'SELECT id FROM users WHERE LOWER(username)=?',(username,)):
+            return jsonify({'success':False,'error':'Username already taken'}),400
+        email, err = _user_email(conn, d.get('email'), username)
+        if err: return jsonify({'success':False,'error':err}),400
+        vals = (email,generate_password_hash(d.get('password','')),d.get('name').strip(),d.get('role','staff'),d.get('contact_number'),username,d.get('permissions',''))
+        sql = 'INSERT INTO users (email,password_hash,name,role,contact_number,username,permissions,is_active) VALUES (?,?,?,?,?,?,?,1)'
+        try:
+            x(conn, sql, vals)
+        except Exception as e:
+            # After a database restore the Postgres id counter can lag behind existing ids
+            # ("duplicate key ... users_pkey"): move it past the highest id and try once more.
+            if is_pg(conn) and 'users_pkey' in str(e):
+                conn.rollback()
+                x(conn, "SELECT setval(pg_get_serial_sequence('users','id'), (SELECT COALESCE(MAX(id),1) FROM users))")
+                x(conn, sql, vals)
+            else:
+                raise
+        commit(conn); return jsonify({'success':True})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
+        try: conn and conn.rollback()
+        except Exception: pass
+        msg = _user_integrity_msg(e)
+        if msg: return jsonify({'success':False,'error':msg}),400
         return _fail(e)
+    finally:
+        try: conn and conn.close()
+        except Exception: pass
 
 @app.route('/api/user/<int:id>/edit',methods=['POST'])
 @require_perm('admin_users')
@@ -3367,6 +3412,9 @@ def api_edit_user(id):
         if username:
             existing = one(conn,'SELECT id FROM users WHERE username=? AND id!=?',(username,id))
             if existing: return jsonify({'success':False,'error':'Username already taken'}),400
+        email, err = _user_email(conn, d.get('email'), username, exclude_id=id)
+        if err: return jsonify({'success':False,'error':err}),400
+        d = {**d, 'email': email}
         if d.get('password'):
             if len(d.get('password')) < 8:
                 return jsonify({'success':False,'error':'Password must be at least 8 characters'}),400
