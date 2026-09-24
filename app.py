@@ -3519,172 +3519,6 @@ def api_delete_document(did):
         logger.error(f'Error in %s: {e}', request.path)
         return _fail(e)
 
-@app.route('/export/template')
-@require_perm('companies_export')
-def export_template():
-    if not HAS_XL: return "openpyxl not installed",500
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    from openpyxl.utils import get_column_letter
-    from openpyxl.worksheet.datavalidation import DataValidation
-
-    wb = openpyxl.Workbook()
-
-    # ── SHEET 1: DATA ENTRY ──────────────────────────────────
-    ws = wb.active
-    ws.title = "Companies"
-
-    headers = ['ac_code','client_name','ac_opening_date','ac_status','nature','type_of_client',
-               'name_of_freezone','mode_of_ac','country_of_incorporation','region','address',
-               'telephone','mobile','whatsapp_number','email_id','contact_person_name',
-               'contact_person_number','account_manager','address_proof_type','address_proof_expiry',
-               'trade_license_no','issuing_authority','legal_type','incorporation_date',
-               'trade_license_expiry','tax_no_trn','vat_cert','vat_declaration','num_beneficial_owners',
-               'moa','pep','undertaking','source_of_fund','doc_status','risk_status','kyc_status',
-               'verified_by','followup_details','zewer_comments']
-
-    # Style header row
-    header_fill = PatternFill(start_color="1C1917", end_color="1C1917", fill_type="solid")
-    header_font = Font(color="D97706", bold=True, size=11)
-    header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
-
-    for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col, value=h.replace('_',' ').title())
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = header_align
-
-    ws.row_dimensions[1].height = 30
-
-    # Sample row
-    sample = ['TJ5003','SAMPLE COMPANY LLC','2020-01-01','Active','Legal entity','MainLand','N/A',
-              'Supplier','United Arab Emirates','Dubai','Unit 101, Gold Souq, Dubai','+97142258019',
-              '+971506594165','+971506594165','info@sample.com','Ahmed Ali','+971501234567','Jaseel',
-              'Ejari','2025-12-31','534230','Dubai Economy & Tourism','Limited Liability Company(LLC)',
-              '2019-06-01','2025-12-31','100003063300003','Yes','Yes',2,'Yes','Yes','Yes','Yes',
-              'Completed','Medium','Kyc 2025 Updated','Jaseel','','']
-    ws.append(sample)
-
-    # Style sample row
-    sample_fill = PatternFill(start_color="292524", end_color="292524", fill_type="solid")
-    sample_font = Font(color="A8A29E", size=10, italic=True)
-    for col in range(1, len(headers)+1):
-        cell = ws.cell(row=2, column=col)
-        cell.fill = sample_fill
-        cell.font = sample_font
-        cell.alignment = Alignment(horizontal="center")
-
-    # Column widths
-    col_widths = {'ac_code':12,'client_name':30,'ac_opening_date':16,'ac_status':12,'nature':16,
-                  'type_of_client':18,'name_of_freezone':20,'mode_of_ac':16,'country_of_incorporation':22,
-                  'region':16,'address':30,'telephone':18,'mobile':18,'whatsapp_number':18,
-                  'email_id':25,'contact_person_name':22,'contact_person_number':20,'account_manager':18,
-                  'address_proof_type':22,'address_proof_expiry':18,'trade_license_no':18,
-                  'issuing_authority':28,'legal_type':30,'incorporation_date':18,'trade_license_expiry':18,
-                  'tax_no_trn':16,'vat_cert':12,'vat_declaration':16,'num_beneficial_owners':12,
-                  'moa':8,'pep':8,'undertaking':14,'source_of_fund':16,'doc_status':14,
-                  'risk_status':12,'kyc_status':22,'verified_by':16,'followup_details':30,'zewer_comments':30}
-    for col, h in enumerate(headers, 1):
-        ws.column_dimensions[get_column_letter(col)].width = col_widths.get(h, 16)
-
-    # Freeze top 2 rows (header + sample)
-    ws.freeze_panes = 'A3'
-
-    # ── CELL DROPDOWN VALIDATION ──────────────────────────────
-    conn = get_db()
-    dd_rows = all_(conn, "SELECT field_name, value FROM dropdowns WHERE is_active=1 ORDER BY field_name, value")
-    conn.close()
-
-    dd = {}
-    for r in dd_rows:
-        dd.setdefault(r['field_name'], []).append(r['value'])
-
-    # Map column field names to DB dropdown field_names
-    dropdown_map = {
-        'ac_status': 'AC STATUS',
-        'nature': 'NATURE',
-        'type_of_client': 'TYPE OF CLIENT',
-        'name_of_freezone': 'NAME OF FREEZONE',
-        'mode_of_ac': 'MODE OF AC',
-        'country_of_incorporation': 'COUNTRY',
-        'region': 'REGION',
-        'address_proof_type': 'ADDRESS PROOF TYPE',
-        'account_manager': 'ACCOUNT MANAGER',
-        'issuing_authority': 'ISSUING AUTHORITY',
-        'legal_type': 'LEGAL TYPE',
-        'vat_cert': 'VAT CERT',
-        'vat_declaration': 'VAT DECLARATION',
-        'moa': 'MOA',
-        'pep': 'PEP',
-        'undertaking': 'UNDERTAKING',
-        'source_of_fund': 'SOURCE OF FUND',
-        'doc_status': 'DOC STATUS',
-        'risk_status': 'RISK STATUS',
-        'kyc_status': 'KYC STATUS',
-    }
-
-    for col_idx, h in enumerate(headers, 1):
-        db_field = dropdown_map.get(h)
-        if not db_field:
-            continue
-        values = dd.get(db_field, [])
-        if not values:
-            continue
-        joined = ','.join(values)
-        if len(joined) > 250:
-            joined = joined[:250].rsplit(',', 1)[0]  # trim to fit Excel limit
-        formula = '\"' + joined.replace(',', '\",\"') + '\"'
-        dv = DataValidation(
-            type="list",
-            formula1='"' + joined + '"',
-            allow_blank=True,
-            showDropDown=False,
-            showErrorMessage=True,
-            errorTitle="Invalid Value",
-            error="Please select a value from the dropdown list."
-        )
-        col_letter = get_column_letter(col_idx)
-        dv.sqref = f"{col_letter}3:{col_letter}1000"
-        ws.add_data_validation(dv)
-
-    # ── SHEET 2: INSTRUCTIONS ───────────────────────────────
-    ws3 = wb.create_sheet("Instructions")
-    instructions = [
-        ["ZEWER AML CRM — Company Import Template"],
-        [""],
-        ["HOW TO USE:"],
-        ["1. Fill in company data in the 'Companies' sheet starting from Row 3"],
-        ["2. Row 2 is a sample — you can delete it before importing"],
-        ["3. AC Code and Client Name are REQUIRED — all others are optional"],
-        ["4. For dropdown fields, click the cell — a dropdown arrow will appear to select valid values"],
-        ["5. Dates must be in YYYY-MM-DD format (e.g. 2025-12-31)"],
-        ["6. Phone numbers should include country code (e.g. +97142258019)"],
-        ["7. Duplicate AC Codes will be skipped on import"],
-        [""],
-        ["REQUIRED FIELDS:"],
-        ["  • ac_code — Unique account code (e.g. TJ5003)"],
-        ["  • client_name — Full legal company name"],
-        [""],
-        ["DATE FORMAT:"],
-        ["  • ac_opening_date, address_proof_expiry, incorporation_date,"],
-        ["    trade_license_expiry — all use YYYY-MM-DD"],
-    ]
-    for r, row_data in enumerate(instructions, 1):
-        cell = ws3.cell(row=r, column=1, value=row_data[0] if row_data else '')
-        if r == 1:
-            cell.font = Font(bold=True, size=14, color="D97706")
-        elif row_data and row_data[0].startswith(('HOW','REQUIRED','DATE')):
-            cell.font = Font(bold=True, size=11, color="F5F5F4")
-        else:
-            cell.font = Font(size=10, color="A8A29E")
-    ws3.column_dimensions['A'].width = 70
-    ws3.sheet_view.showGridLines = False
-
-    out = io.BytesIO()
-    wb.save(out)
-    out.seek(0)
-    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        as_attachment=True, download_name='zewer_company_template.xlsx')
-
 @app.route('/export/companies')
 @require_perm('companies_export')
 def export_companies():
@@ -3899,39 +3733,438 @@ def export_report():
     out.seek(0)
     return send_file(io.BytesIO(out.getvalue().encode()),mimetype='text/csv',as_attachment=True,download_name=fname+'.csv')
 
-@app.route('/api/import/companies',methods=['POST'])
+# ════════════════════════════════════════════════════════════════
+# EXCEL IMPORT TEMPLATES + IMPORTERS (companies + UBOs, individuals)
+# One column definition drives the template, its dropdowns and the importer,
+# so the three can't drift apart again.
+#   (key, header label, kind, dropdown source)
+#   kind: text | date | int | num | bool
+#   source: a dropdowns.field_name, or '@staff' / '@groups' / '@yesno' / '@pep3' /
+#           '@docstatus' / '@emirates'
+# ════════════════════════════════════════════════════════════════
+COMPANY_IMPORT_COLS = [
+    ('ac_code', 'AC Code *', 'text', None),
+    ('client_name', 'Company Name *', 'text', None),
+    ('group_name', 'Group', 'text', '@groups'),
+    ('ac_opening_date', 'AC Opening Date', 'date', None),
+    ('ac_status', 'AC Status', 'text', 'AC STATUS'),
+    ('active_till_year', 'Active Till Year', 'text', None),
+    ('mode_of_ac', 'Mode of AC', 'text', 'MODE OF AC'),
+    ('nature', 'Nature', 'text', 'NATURE'),
+    ('type_of_client', 'Type of Client', 'text', 'TYPE OF CLIENT'),
+    ('name_of_freezone', 'Freezone', 'text', 'FREEZONE'),
+    ('country_of_incorporation', 'Country of Incorporation', 'text', 'COUNTRY'),
+    ('region', 'Region', 'text', 'REGION'),
+    ('address', 'Address', 'text', None),
+    ('telephone', 'Telephone', 'text', None),
+    ('mobile', 'Mobile', 'text', None),
+    ('whatsapp_number', 'WhatsApp', 'text', None),
+    ('email_id', 'Email', 'text', None),
+    ('contact_person_name', 'Contact Person', 'text', None),
+    ('contact_person_number', 'Contact Person Number', 'text', None),
+    ('account_manager', 'Account Manager', 'text', '@staff'),
+    ('trade_license_no', 'Trade License No', 'text', None),
+    ('issuing_authority', 'Issuing Authority', 'text', 'ISSUING AUTHORITY'),
+    ('legal_type', 'Legal Type', 'text', 'LEGAL TYPE'),
+    ('incorporation_date', 'Incorporation Date', 'date', None),
+    ('trade_license_expiry', 'Trade License Expiry', 'date', None),
+    ('address_proof_type', 'Address Proof Type', 'text', 'ADDRESS PROOF TYPE'),
+    ('address_proof_expiry', 'Address Proof Expiry', 'date', None),
+    ('tax_no_trn', 'TRN (Tax No)', 'text', None),
+    ('vat_cert', 'VAT Certificate', 'text', 'VAT CERT'),
+    ('vat_declaration', 'VAT Declaration', 'text', 'VAT DECLARATION'),
+    ('deal_after_vat', 'Deal After VAT (date)', 'date', None),
+    ('num_beneficial_owners', 'No. of Beneficial Owners', 'int', None),
+    ('moa', 'MOA', 'text', 'MOA'),
+    ('pep', 'PEP Declaration', 'text', '@pep3'),
+    ('undertaking', 'Undertaking', 'text', 'UNDERTAKING'),
+    ('source_of_fund', 'Source of Fund', 'text', 'SOURCE OF FUND'),
+    ('doc_status', 'Doc Status', 'text', 'DOC STATUS'),
+    ('kyc_status', 'KYC Status', 'text', 'KYC STATUS'),
+    ('kyc_expiry_date', 'KYC Expiry Date', 'date', None),
+    ('screening_date', 'Screening Date', 'date', None),
+    ('registration_screening_tool', 'Registered in Screening Tool', 'text', '@yesno'),
+    ('risk_status', 'Risk Status', 'text', 'RISK STATUS'),
+    ('verified_by', 'Verified By', 'text', '@staff'),
+    ('verified_date', 'Verified Date', 'date', None),
+    ('followup_details', 'Follow-up Details', 'text', None),
+    ('crowe_feedback', 'Crowe Feedback', 'text', None),
+    ('zewer_comments', 'Zewer Comments', 'text', None),
+]
+UBO_IMPORT_COLS = [
+    ('ac_code', 'Company AC Code *', 'text', None),
+    ('person_name', 'Full Name *', 'text', None),
+    ('position', 'Position', 'text', 'POSITION'),
+    ('share_percentage', 'Share %', 'num', None),
+    ('nationality', 'Nationality', 'text', 'COUNTRY'),
+    ('residential_status', 'Residential Status', 'text', 'RESIDENTIAL STATUS'),
+    ('pep_status', 'PEP Status', 'text', '@yesno'),
+    ('passport_no', 'Passport No', 'text', None),
+    ('passport_expiry', 'Passport Expiry', 'date', None),
+    ('emirates_id', 'Emirates ID', 'text', None),
+    ('emirates_id_expiry', 'Emirates ID Expiry', 'date', None),
+    ('doc_status', 'Doc Status', 'text', '@docstatus'),
+    ('verified_by', 'Verified By', 'text', '@staff'),
+    ('verified_date', 'Verified Date', 'date', None),
+    ('followup_details', 'Follow-up Details', 'text', None),
+]
+CLIENT_IMPORT_COLS = [
+    ('account_number', 'Account Number', 'text', None),
+    ('name', 'Full Name *', 'text', None),
+    ('phone', 'Phone *', 'text', None),
+    ('whatsapp_number', 'WhatsApp', 'text', None),
+    ('email', 'Email', 'text', None),
+    ('date_of_birth', 'Date of Birth', 'date', None),
+    ('nationality', 'Nationality', 'text', None),
+    ('profession', 'Profession', 'text', None),
+    ('is_resident', 'UAE Resident', 'bool', '@yesno'),
+    ('emirate', 'Emirate', 'text', '@emirates'),
+    ('location', 'Location', 'text', None),
+    ('address', 'Address', 'text', None),
+    ('pep_status', 'PEP Declaration', 'text', '@pep3'),
+    ('pep', 'PEP Status', 'text', '@yesno'),
+    ('passport_no', 'Passport No', 'text', None),
+    ('passport_expiry', 'Passport Expiry', 'date', None),
+    ('emirates_id', 'Emirates ID', 'text', None),
+    ('emirates_id_expiry', 'Emirates ID Expiry', 'date', None),
+    ('address_proof', 'Address Proof Type', 'text', 'ADDRESS PROOF TYPE'),
+    ('mode_of_ac', 'Mode of AC *', 'text', 'MODE OF AC'),
+    ('ac_status', 'AC Status', 'text', 'AC STATUS'),
+    ('id_type', 'ID Type', 'text', 'ID TYPE'),
+    ('risk_status', 'Risk Status', 'text', 'RISK STATUS'),
+    ('kyc_status', 'KYC Status', 'text', 'KYC STATUS'),
+    ('kyc_expiry_date', 'KYC Expiry Date', 'date', None),
+    ('screening_status', 'Screening Status', 'text', 'SCREENING REGISTRATION STATUS'),
+    ('screening_date', 'Screening Date', 'date', None),
+    ('notes', 'Notes', 'text', None),
+]
+_XL_FALLBACK_LISTS = {
+    'RISK STATUS': ['High', 'Medium', 'Low', 'Unspecified'], 'DOC STATUS': ['Completed', 'Incompleted'],
+    'AC STATUS': ['Active', 'Inactive'], 'VAT CERT': ['Yes', 'No', 'Not Required'],
+    'VAT DECLARATION': ['Yes', 'No', 'Not Required'], 'MOA': ['Yes', 'No'], 'UNDERTAKING': ['Yes', 'No'],
+    'SOURCE OF FUND': ['Yes', 'No'], 'RESIDENTIAL STATUS': ['Resident', 'Non Resident'],
+    'POSITION': ['UBO', 'Authorized Person', 'Director', 'Manager', 'Partner', 'Shareholder', 'Company'],
+    'ADDRESS PROOF TYPE': ['Utility Bill', 'Bank Statement', 'Tenancy Contract', 'Government Letter', 'Other'],
+}
+
+def _xl_lists(conn):
+    """Every dropdown source used by the templates -> list of values."""
+    lists = {}
+    for r in all_(conn, "SELECT field_name, value FROM dropdowns WHERE is_active=1 ORDER BY field_name, value"):
+        lists.setdefault(r['field_name'], []).append(r['value'])
+    for k, v in _XL_FALLBACK_LISTS.items():
+        lists.setdefault(k, v)
+    lists['@staff'] = [u['name'] for u in all_(conn, 'SELECT name FROM users WHERE is_active=1 ORDER BY name')]
+    try:
+        lists['@groups'] = [g_['group_name'] for g_ in all_(conn, 'SELECT group_name FROM company_groups ORDER BY group_name')]
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+        lists['@groups'] = []
+    lists['@yesno'] = ['Yes', 'No']
+    lists['@pep3'] = ['Yes', 'No', 'Not Applicable']
+    lists['@docstatus'] = ['Completed', 'Incompleted']
+    lists['@emirates'] = ['Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman', 'Ras Al Khaimah', 'Umm Al Quwain', 'Fujairah']
+    return lists
+
+def _xl_build_template(sheets, title, notes):
+    """sheets: [(sheet_name, cols)]. Dropdown values live on a hidden 'Lists' sheet and are
+       referenced by range, so long lists (e.g. countries) are never truncated."""
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+    from openpyxl.worksheet.datavalidation import DataValidation
+    conn = get_db()
+    try:
+        lists = _xl_lists(conn)
+    finally:
+        conn.close()
+    wb = openpyxl.Workbook()
+    first = True
+    hdr_fill = PatternFill(start_color='1C1917', end_color='1C1917', fill_type='solid')
+    req_font, hdr_font = Font(color='F59E0B', bold=True, size=11), Font(color='F5F5F4', bold=True, size=11)
+    used = []
+    for sheet_name, cols in sheets:
+        ws = wb.active if first else wb.create_sheet(sheet_name)
+        ws.title = sheet_name; first = False
+        for i, (key, label, kind, src) in enumerate(cols, 1):
+            c = ws.cell(row=1, column=i, value=label)
+            c.fill = hdr_fill; c.font = req_font if label.endswith('*') else hdr_font
+            c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            ws.column_dimensions[get_column_letter(i)].width = max(14, min(34, len(label) + 6))
+            if kind == 'date':
+                for r in range(2, 1001):
+                    ws.cell(row=r, column=i).number_format = 'yyyy-mm-dd'
+            if src and lists.get(src) and src not in used:
+                used.append(src)
+        ws.row_dimensions[1].height = 32
+        ws.freeze_panes = 'A2'
+    # hidden Lists sheet
+    wl = wb.create_sheet('Lists')
+    col_of = {}
+    for j, src in enumerate(used, 1):
+        letter = get_column_letter(j)
+        wl.cell(row=1, column=j, value=src.lstrip('@').upper())
+        for r, v in enumerate(lists[src], 2):
+            wl.cell(row=r, column=j, value=v)
+        col_of[src] = (letter, len(lists[src]) + 1)
+    wl.sheet_state = 'hidden'
+    for sheet_name, cols in sheets:
+        ws = wb[sheet_name]
+        for i, (key, label, kind, src) in enumerate(cols, 1):
+            if src in col_of:
+                letter, last = col_of[src]
+                dv = DataValidation(type='list', formula1=f"Lists!${letter}$2:${letter}${last}", allow_blank=True,
+                                    showErrorMessage=True, errorStyle='warning', errorTitle='Not in list',
+                                    error='This value is not in the CRM dropdown list. Pick one from the list, or add it in Settings first.')
+                dv.sqref = f'{get_column_letter(i)}2:{get_column_letter(i)}1000'
+                ws.add_data_validation(dv)
+    # Instructions
+    wi = wb.create_sheet('Instructions')
+    wi.sheet_view.showGridLines = False
+    wi.column_dimensions['A'].width = 34; wi.column_dimensions['B'].width = 14; wi.column_dimensions['C'].width = 70
+    r = 1
+    wi.cell(row=r, column=1, value=title).font = Font(bold=True, size=14, color='D97706'); r += 2
+    for n in notes:
+        wi.cell(row=r, column=1, value=n).font = Font(size=10, color='57534E'); r += 1
+    for sheet_name, cols in sheets:
+        r += 1
+        wi.cell(row=r, column=1, value=f"'{sheet_name}' sheet columns").font = Font(bold=True, size=11); r += 1
+        for key, label, kind, src in cols:
+            fmt = {'date': 'Date YYYY-MM-DD', 'int': 'Whole number', 'num': 'Number', 'bool': 'Yes / No'}.get(kind, 'Text')
+            allowed = ''
+            if src:
+                vals = lists.get(src, [])
+                allowed = 'Dropdown: ' + (', '.join(vals[:12]) + (f' … ({len(vals)} options)' if len(vals) > 12 else '')) if vals else 'Dropdown (no values set up yet)'
+            wi.cell(row=r, column=1, value=label)
+            wi.cell(row=r, column=2, value=fmt)
+            wi.cell(row=r, column=3, value=allowed)
+            if label.endswith('*'):
+                wi.cell(row=r, column=1).font = Font(bold=True, color='B45309')
+            r += 1
+    out = io.BytesIO()
+    wb.save(out); out.seek(0)
+    return out
+
+def _xl_norm(h):
+    return re.sub(r'[^a-z0-9]+', '_', str(h or '').lower().replace('*', '')).strip('_')
+
+def _xl_header_map(ws, cols):
+    """Column index -> key. Accepts the new labels and the old snake/title-case headers."""
+    alias = {}
+    for key, label, kind, src in cols:
+        alias[_xl_norm(key)] = key
+        alias[_xl_norm(label)] = key
+    alias.update({'name_of_freezone': 'name_of_freezone', 'freezone': 'name_of_freezone'})
+    hmap = {}
+    for i, c in enumerate(next(ws.iter_rows(min_row=1, max_row=1, values_only=True), ()) or ()):
+        k = alias.get(_xl_norm(c))
+        if k and k not in hmap.values():
+            hmap[i] = k
+    return hmap
+
+def _xl_value(v, kind, key):
+    """Excel cell -> DB value; raises ValueError with a readable message."""
+    if v is None or (isinstance(v, str) and not v.strip()):
+        return None
+    if kind == 'date':
+        if isinstance(v, datetime):
+            return v.strftime('%Y-%m-%d')
+        if not isinstance(v, str) and hasattr(v, 'year'):
+            return v.isoformat()[:10]
+        sv = str(v).strip()
+        for f in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%d.%m.%Y', '%Y/%m/%d', '%Y-%m-%d %H:%M:%S'):
+            try:
+                return datetime.strptime(sv, f).strftime('%Y-%m-%d')
+            except ValueError:
+                pass
+        raise ValueError(f'"{sv}" is not a date (use YYYY-MM-DD)')
+    if kind == 'int':
+        try: return int(float(str(v).strip()))
+        except ValueError: raise ValueError(f'"{v}" is not a whole number')
+    if kind == 'num':
+        try: return float(str(v).strip().rstrip('%'))
+        except ValueError: raise ValueError(f'"{v}" is not a number')
+    if kind == 'bool':
+        return str(v).strip().lower() in ('yes', 'y', 'true', '1', 'resident')
+    if isinstance(v, float) and v.is_integer():
+        v = int(v)                      # phone numbers typed as numbers
+    return str(v).strip()
+
+def _xl_read(ws, cols, first_data_row=2):
+    """Yield (excel_row_number, {key: value}, [errors]) for non-empty rows."""
+    hmap = _xl_header_map(ws, cols)
+    kinds = {k: kind for k, _, kind, _ in cols}
+    for rn, row in enumerate(ws.iter_rows(min_row=first_data_row, values_only=True), first_data_row):
+        if not row or not any(v not in (None, '') and str(v).strip() for v in row):
+            continue
+        rec, errs = {}, []
+        for i, key in hmap.items():
+            if i >= len(row):
+                continue
+            try:
+                val = _xl_value(row[i], kinds[key], key)
+            except ValueError as e:
+                errs.append(f'{key}: {e}')
+                continue
+            if val is not None:
+                rec[key] = val
+        yield rn, rec, errs
+
+def _xl_insert(conn, table, rec):
+    """INSERT one row inside a savepoint (Postgres: a failed row must not abort the whole import)."""
+    pg = is_pg(conn)
+    cols = list(rec.keys())
+    sql = f"INSERT INTO {table} ({','.join(cols)}) VALUES ({','.join(['?'] * len(cols))})"
+    if pg: x(conn, 'SAVEPOINT xl_row')
+    try:
+        x(conn, sql, tuple(rec[c] for c in cols))
+        if pg: x(conn, 'RELEASE SAVEPOINT xl_row')
+    except Exception:
+        if pg: x(conn, 'ROLLBACK TO SAVEPOINT xl_row')
+        raise
+
+def _xl_sheet(wb, name):
+    return wb[name] if name in wb.sheetnames else None
+
+def _xl_kyc_err(rec):
+    return _validate_kyc_expiry(rec.get('kyc_expiry_date')) if rec.get('kyc_expiry_date') else None
+
+@app.route('/export/template')
+@require_perm('companies_export')
+def export_template():
+    if not HAS_XL: return "openpyxl not installed", 500
+    out = _xl_build_template(
+        [('Companies', COMPANY_IMPORT_COLS), ('UBOs', UBO_IMPORT_COLS)],
+        'ZEWER AML CRM — Company & UBO Import Template',
+        ['1. Fill companies in the "Companies" sheet from row 2. AC Code and Company Name are required (orange headers).',
+         '2. Fill beneficial owners / authorised persons in the "UBOs" sheet — one row per person. Put the company\'s AC Code in the first column to link them.',
+         '3. Dropdown columns show an arrow when you click the cell; the lists are the same as in the CRM.',
+         '4. Dates: YYYY-MM-DD (e.g. 2026-12-31). DD/MM/YYYY is also accepted.',
+         '5. A company whose AC Code already exists in the CRM is skipped (never overwritten).',
+         '6. After importing, the CRM shows exactly which rows were skipped and why.'])
+    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name='zewer_company_ubo_template.xlsx')
+
+@app.route('/api/import/companies', methods=['POST'])
 @require_perm('companies_import')
 def api_import_companies():
-    if not HAS_XL: return jsonify({'success':False,'error':'openpyxl not installed'}),500
-    if 'file' not in request.files: return jsonify({'success':False,'error':'No file'}),400
+    if not HAS_XL: return jsonify({'success': False, 'error': 'openpyxl not installed'}), 500
+    if 'file' not in request.files: return jsonify({'success': False, 'error': 'No file'}), 400
     try:
-        wb=openpyxl.load_workbook(request.files['file']); ws=wb.active
-        headers=[str(c.value).strip().lower().replace(' ','_') if c.value else '' for c in ws[1]]
-        imported=0; skipped=0; conn=get_db()
-        for row in ws.iter_rows(min_row=2,values_only=True):
-            if not any(row): continue
-            rd={headers[i]:(str(row[i]).strip() if row[i] is not None else '') for i in range(min(len(headers),len(row)))}
-            ac=rd.get('ac_code','').strip(); nm=rd.get('client_name','').strip()
-            if not ac or not nm: continue
-            if one(conn,'SELECT id FROM companies WHERE ac_code=?',(ac,)): skipped+=1; continue
+        wb = openpyxl.load_workbook(request.files['file'], data_only=True)
+    except Exception:
+        return jsonify({'success': False, 'error': 'Could not read the file — please upload the .xlsx template.'}), 400
+    ws = _xl_sheet(wb, 'Companies') or wb.worksheets[0]
+    conn = get_db()
+    imported, dup, errors = 0, [], []
+    ubo_added, ubo_dup = 0, 0
+    try:
+        for rn, rec, errs in _xl_read(ws, COMPANY_IMPORT_COLS):
+            ac, nm = rec.get('ac_code', ''), rec.get('client_name', '')
+            if not ac or not nm:
+                errors.append(f'Companies row {rn}: AC Code and Company Name are required'); continue
+            if errs:
+                errors.append(f'Companies row {rn} ({ac}): ' + '; '.join(errs)); continue
+            if _xl_kyc_err(rec):
+                errors.append(f'Companies row {rn} ({ac}): {_xl_kyc_err(rec)}'); continue
+            if one(conn, 'SELECT id FROM companies WHERE ac_code=?', (ac,)):
+                dup.append(ac); continue
+            rec.setdefault('ac_status', 'Active'); rec.setdefault('risk_status', 'Unspecified')
+            rec.setdefault('doc_status', 'Incompleted')
+            rec['created_by'] = session.get('user_id')
             try:
-                x(conn,'''INSERT INTO companies (ac_code,client_name,ac_status,risk_status,doc_status,
-                    nature,type_of_client,region,telephone,mobile,email_id,trade_license_no,
-                    trade_license_expiry,address_proof_expiry,kyc_status,account_manager,created_by)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-                    (ac,nm,rd.get('ac_status','Active'),rd.get('risk_status','Unspecified'),
-                     rd.get('doc_status','Incompleted'),rd.get('nature'),rd.get('type_of_client'),
-                     rd.get('region'),rd.get('telephone'),rd.get('mobile'),rd.get('email_id'),
-                     rd.get('trade_license_no'),rd.get('trade_license_expiry') or None,
-                     rd.get('address_proof_expiry') or None,rd.get('kyc_status'),
-                     rd.get('account_manager'),session.get('user_id')))
-                imported+=1
-            except: skipped+=1
+                _xl_insert(conn, 'companies', rec); imported += 1
+            except Exception as e:
+                errors.append(f'Companies row {rn} ({ac}): could not save — {str(e)[:120]}')
+        wu = _xl_sheet(wb, 'UBOs')
+        if wu is not None:
+            for rn, rec, errs in _xl_read(wu, UBO_IMPORT_COLS):
+                ac, pn = rec.pop('ac_code', ''), rec.get('person_name', '')
+                if not ac or not pn:
+                    errors.append(f'UBOs row {rn}: Company AC Code and Full Name are required'); continue
+                if errs:
+                    errors.append(f'UBOs row {rn} ({pn}): ' + '; '.join(errs)); continue
+                co = one(conn, 'SELECT id FROM companies WHERE ac_code=?', (ac,))
+                if not co:
+                    errors.append(f'UBOs row {rn} ({pn}): no company with AC Code "{ac}"'); continue
+                if one(conn, """SELECT id FROM ubos WHERE company_id=? AND LOWER(person_name)=LOWER(?)
+                        AND COALESCE(passport_no,'')=?""", (co['id'], pn, rec.get('passport_no', ''))):
+                    ubo_dup += 1; continue
+                rec['company_id'] = co['id']
+                rec.setdefault('doc_status', 'Incompleted')
+                try:
+                    _xl_insert(conn, 'ubos', rec); ubo_added += 1
+                except Exception as e:
+                    errors.append(f'UBOs row {rn} ({pn}): could not save — {str(e)[:120]}')
         commit(conn); conn.close()
-        return jsonify({'success':True,'imported':imported,'skipped':skipped})
+        return jsonify({'success': True, 'imported': imported, 'skipped': len(dup) + len(errors),
+                        'duplicates': dup[:100], 'errors': errors[:100],
+                        'ubos_imported': ubo_added, 'ubos_duplicate': ubo_dup})
     except Exception as e:
+        try: conn.close()
+        except Exception: pass
         logger.error(f'Error in %s: {e}', request.path)
         return _fail(e)
+
+@app.route('/export/clients-template')
+@require_perm('clients')
+def export_clients_template():
+    if not HAS_XL: return "openpyxl not installed", 500
+    out = _xl_build_template(
+        [('Individuals', CLIENT_IMPORT_COLS)],
+        'ZEWER AML CRM — Individual Clients Import Template',
+        ['1. Fill one individual per row in the "Individuals" sheet from row 2.',
+         '2. Full Name, Phone and Mode of AC are required (orange headers) — same as the Add Individual form.',
+         '3. Dropdown columns show an arrow when you click the cell; the lists are the same as in the CRM.',
+         '4. Dates: YYYY-MM-DD (e.g. 2026-12-31). DD/MM/YYYY is also accepted. KYC expiry cannot be more than 2 years ahead.',
+         '5. Duplicates are skipped: same Account Number, or (when no account number) same name + phone.',
+         '6. After importing, the CRM shows exactly which rows were skipped and why.'])
+    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name='zewer_individuals_template.xlsx')
+
+@app.route('/api/import/clients', methods=['POST'])
+@require_perm('clients')
+def api_import_clients():
+    if not HAS_XL: return jsonify({'success': False, 'error': 'openpyxl not installed'}), 500
+    if 'file' not in request.files: return jsonify({'success': False, 'error': 'No file'}), 400
+    try:
+        wb = openpyxl.load_workbook(request.files['file'], data_only=True)
+    except Exception:
+        return jsonify({'success': False, 'error': 'Could not read the file — please upload the .xlsx template.'}), 400
+    ws = _xl_sheet(wb, 'Individuals') or wb.worksheets[0]
+    conn = get_db()
+    imported, dup, errors = 0, [], []
+    try:
+        for rn, rec, errs in _xl_read(ws, CLIENT_IMPORT_COLS):
+            nm, ph = rec.get('name', ''), rec.get('phone', '')
+            label = nm or f'row {rn}'
+            if not nm or not ph or not rec.get('mode_of_ac'):
+                errors.append(f'Row {rn} ({label}): Full Name, Phone and Mode of AC are required'); continue
+            if errs:
+                errors.append(f'Row {rn} ({label}): ' + '; '.join(errs)); continue
+            if _xl_kyc_err(rec):
+                errors.append(f'Row {rn} ({label}): {_xl_kyc_err(rec)}'); continue
+            if rec.get('account_number'):
+                exists = one(conn, 'SELECT id FROM clients WHERE account_number=?', (rec['account_number'],))
+            else:
+                exists = one(conn, 'SELECT id FROM clients WHERE LOWER(name)=LOWER(?) AND phone=?', (nm, ph))
+            if exists:
+                dup.append(rec.get('account_number') or nm); continue
+            rec.setdefault('is_resident', False)
+            rec['created_by'] = session.get('user_id')
+            try:
+                _xl_insert(conn, 'clients', rec); imported += 1
+            except Exception as e:
+                errors.append(f'Row {rn} ({label}): could not save — {str(e)[:120]}')
+        commit(conn); conn.close()
+        return jsonify({'success': True, 'imported': imported, 'skipped': len(dup) + len(errors),
+                        'duplicates': dup[:100], 'errors': errors[:100]})
+    except Exception as e:
+        try: conn.close()
+        except Exception: pass
+        logger.error(f'Error in %s: {e}', request.path)
+        return _fail(e)
+
 
 if __name__=='__main__':
     app.run(debug=False,host='0.0.0.0',port=int(os.getenv('PORT',8000)))

@@ -16,7 +16,7 @@
     {% if has_perm('clients') %}
     <button class="btn btn-ghost" onclick="editClient({{ client.id }})">✏️ Edit</button>
     {% endif %}
-    {% if user_role == 'admin' %}
+    {% if has_perm('clients') %}
     {% if client.disabled %}
     <button class="btn btn-primary" onclick="toggleDisable()">✅ Enable</button>
     {% else %}

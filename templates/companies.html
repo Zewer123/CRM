@@ -286,10 +286,10 @@
   <div class="modal-box">
     <div class="modal-title">⬆️ Import from Excel</div>
     <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px;color:var(--text-muted);line-height:1.8;">
-      1. Download the template first<br>
-      2. Fill in company details<br>
+      1. Download the latest <strong>Template</strong> (dropdowns come from the CRM's current lists)<br>
+      2. Fill the <strong>Companies</strong> sheet, and the <strong>UBOs</strong> sheet for owners / authorised persons (linked by AC Code)<br>
       3. Upload the file below<br>
-      <span style="color:#fcd34d;font-size:12px;">⚠️ Duplicate AC Codes will be skipped</span>
+      <span style="color:#fcd34d;font-size:12px;">⚠️ Companies whose AC Code already exists are skipped, never overwritten. Rows with problems are listed after import.</span>
     </div>
     <div class="form-group" style="margin-bottom:16px;">
       <label>Excel File (.xlsx)</label>
@@ -297,7 +297,7 @@
     </div>
     <div id="importStatus" style="display:none;font-size:13px;padding:10px;border-radius:6px;margin-bottom:10px;"></div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('importModal')">Cancel</button>
+      <button class="btn btn-ghost" onclick="closeModal('importModal'); if (document.getElementById('importModal').dataset.reload) location.reload();">Close</button>
       <button class="btn btn-ghost" onclick="downloadTemplate()">📋 Template</button>
       <button class="btn btn-primary" onclick="importCompanies()">Import</button>
     </div>
@@ -483,10 +483,23 @@ function importCompanies() {
   const st = document.getElementById('importStatus');
   st.style.display='block'; st.style.background='var(--surface2)'; st.style.color='var(--text-muted)'; st.textContent='⏳ Importing...';
   fetch('/api/import/companies',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
-    if(d.success){st.style.color='#86efac';st.textContent=`✅ Imported ${d.imported} companies. ${d.skipped} skipped.`;setTimeout(()=>{closeModal('importModal');location.reload();},2000);}
+    if(d.success){
+      showImportResult(st, d, 'companies');
+      if (!(d.errors && d.errors.length) && !(d.duplicates && d.duplicates.length)) setTimeout(()=>{closeModal('importModal');location.reload();},2000);
+      else document.getElementById('importModal').dataset.reload = '1';
+    }
     else{st.style.color='#fca5a5';st.textContent='❌ Error: '+d.error;}
-  });
+  }).catch(()=>{st.style.color='#fca5a5';st.textContent='❌ Network error';});
 }
+function showImportResult(st, d, noun) {
+  const esc2 = t => { const e = document.createElement('div'); e.textContent = t; return e.innerHTML; };
+  let html = `<div style="color:var(--success);font-weight:700;">✅ Imported ${d.imported} ${noun}${d.ubos_imported !== undefined ? ` and ${d.ubos_imported} UBO / authorised person record(s)` : ''}.</div>`;
+  if (d.duplicates && d.duplicates.length) html += `<div style="margin-top:6px;color:var(--warning);">Already in the CRM, skipped (${d.duplicates.length}): ${d.duplicates.map(esc2).join(', ')}</div>`;
+  if (d.ubos_duplicate) html += `<div style="margin-top:4px;color:var(--warning);">${d.ubos_duplicate} UBO row(s) already existed, skipped.</div>`;
+  if (d.errors && d.errors.length) html += `<div style="margin-top:6px;color:var(--danger);font-weight:600;">Not imported — please fix and re-import these rows (${d.errors.length}):</div><div style="max-height:160px;overflow:auto;font-size:12px;color:var(--danger);">${d.errors.map(e => '• ' + esc2(e)).join('<br>')}</div>`;
+  st.style.color = 'var(--text)'; st.innerHTML = html;
+}
+
 </script>
 {% endblock %}
 

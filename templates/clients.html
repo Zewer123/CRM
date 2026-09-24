@@ -28,7 +28,35 @@
 <!-- PAGE HEADER -->
 <div class="page-header">
   <div class="page-title">👤 Individuals</div>
-  <button class="btn btn-primary" onclick="openModal('addClientModal')">+ Add Individual</button>
+  <div style="display:flex;gap:8px;">
+    {% if has_perm('clients') %}
+    <button class="btn btn-ghost btn-sm" onclick="openModal('clientImportModal')">⬆️ Import</button>
+    {% endif %}
+    <button class="btn btn-primary" onclick="openModal('addClientModal')">+ Add Individual</button>
+  </div>
+</div>
+
+<!-- IMPORT INDIVIDUALS MODAL -->
+<div class="modal-overlay" id="clientImportModal">
+  <div class="modal-box">
+    <div class="modal-title">⬆️ Import Individuals from Excel</div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px;color:var(--text-muted);line-height:1.8;">
+      1. Download the <strong>Template</strong> (dropdowns come from the CRM's current lists)<br>
+      2. Fill one individual per row — Full Name, Phone and Mode of AC are required<br>
+      3. Upload the file below<br>
+      <span style="color:#fcd34d;font-size:12px;">⚠️ Existing individuals (same Account Number, or same name + phone) are skipped. Rows with problems are listed after import.</span>
+    </div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label>Excel File (.xlsx)</label>
+      <input type="file" id="clientImportFile" accept=".xlsx" style="padding:7px;">
+    </div>
+    <div id="clientImportStatus" style="display:none;font-size:13px;padding:10px;border-radius:6px;margin-bottom:10px;background:var(--surface2);"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('clientImportModal'); if (document.getElementById('clientImportModal').dataset.reload) location.reload();">Close</button>
+      <button class="btn btn-ghost" onclick="window.location.href='{{ url_for('export_clients_template') }}'">📋 Template</button>
+      <button class="btn btn-primary" onclick="importClients()">Import</button>
+    </div>
+  </div>
 </div>
 
 <!-- FILTERS - server-side -->
@@ -161,7 +189,7 @@
     {% if has_perm('clients') %}
     <button class="btn btn-ghost btn-sm btn-icon" title="Edit" onclick="editClient({{ c.id }})">✏️</button>
     {% endif %}
-    {% if user_role == 'admin' %}
+    {% if has_perm('clients') %}
     <button class="btn btn-danger btn-sm btn-icon" title="Delete" onclick="deleteClient({{ c.id }},'{{ c.name|replace("'","\\'") }}')">🗑️</button>
     {% endif %}
   </div>
@@ -865,8 +893,32 @@ function submitEditClient() {
   });
 }
 
+function importClients() {
+  const file = document.getElementById('clientImportFile').files[0];
+  if (!file) { alert('Please select a file'); return; }
+  const fd = new FormData(); fd.append('file', file);
+  const st = document.getElementById('clientImportStatus');
+  st.style.display = 'block'; st.style.color = 'var(--text-muted)'; st.textContent = '⏳ Importing...';
+  fetch('/api/import/clients', {method:'POST', body:fd}).then(r => r.json()).then(d => {
+    if (d.success) {
+      showImportResult(st, d, 'individuals');
+      if (!(d.errors && d.errors.length) && !(d.duplicates && d.duplicates.length)) setTimeout(() => location.reload(), 2000);
+      else document.getElementById('clientImportModal').dataset.reload = '1';
+    } else { st.style.color = '#fca5a5'; st.textContent = '❌ Error: ' + d.error; }
+  }).catch(() => { st.style.color = '#fca5a5'; st.textContent = '❌ Network error'; });
+}
+
+function showImportResult(st, d, noun) {
+  const esc2 = t => { const e = document.createElement('div'); e.textContent = t; return e.innerHTML; };
+  let html = `<div style="color:var(--success);font-weight:700;">✅ Imported ${d.imported} ${noun}${d.ubos_imported !== undefined ? ` and ${d.ubos_imported} UBO / authorised person record(s)` : ''}.</div>`;
+  if (d.duplicates && d.duplicates.length) html += `<div style="margin-top:6px;color:var(--warning);">Already in the CRM, skipped (${d.duplicates.length}): ${d.duplicates.map(esc2).join(', ')}</div>`;
+  if (d.ubos_duplicate) html += `<div style="margin-top:4px;color:var(--warning);">${d.ubos_duplicate} UBO row(s) already existed, skipped.</div>`;
+  if (d.errors && d.errors.length) html += `<div style="margin-top:6px;color:var(--danger);font-weight:600;">Not imported — please fix and re-import these rows (${d.errors.length}):</div><div style="max-height:160px;overflow:auto;font-size:12px;color:var(--danger);">${d.errors.map(e => '• ' + esc2(e)).join('<br>')}</div>`;
+  st.style.color = 'var(--text)'; st.innerHTML = html;
+}
+
 function deleteClient(id, name) {
-  if (!confirm('Delete client "'+name+'"?')) return;
+  if (!confirm('Permanently delete "' + name + '" and their KYC record?\n\nAML rules expect client records to be kept for at least 5 years after the relationship ends. If this is a real client who has left, use Disable instead. Delete is for mistakes such as duplicates.')) return;
   const _pw = getActionPw(); if (_pw === null) return;
   fetch('/api/client/'+id+'/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action_password: _pw})}).then(r=>r.json()).then(d=>{
     if(d.success) location.reload(); else alert('Error: '+d.error);
