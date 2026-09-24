@@ -8,7 +8,7 @@
   <div style="display:flex;gap:8px;" id="headerActions">
     <button class="btn btn-primary" id="btnNewTask" onclick="openAddTask()">+ New Task</button>
     {% if user_role in ['admin','compliance'] %}
-    <button class="btn btn-primary btn-sm" id="btnNewRegular" onclick="openModal('addTemplateModal')" style="display:none;">+ Add Regular Task</button>
+    <button class="btn btn-primary" id="btnNewRegular" onclick="openTemplateModal()" style="display:none;">+ New Recurring Task</button>
     {% endif %}
   </div>
 </div>
@@ -396,6 +396,7 @@
       <option value="overdue">Overdue</option>
       <option value="due">Due Today</option>
       <option value="ok">Up to Date</option>
+      <option value="paused">Paused / Ended</option>
       <option value="done">Done (logged)</option>
     </select>
   </div>
@@ -453,18 +454,22 @@
         {% set is_due = s.get('is_due_today', false) %}
         <tr class="rt-row"
             data-freq="{{ t.frequency }}"
-            data-rtstatus="{% if overdue > 0 %}overdue{% elif is_due %}due{% else %}ok{% endif %}"
+            {% set state = s.get('state', 'active') %}
+            data-state="{{ state }}"
+            data-rtstatus="{% if overdue > 0 %}overdue{% elif state != 'active' %}paused{% elif is_due %}due{% else %}ok{% endif %}"
             data-user="{{ t.assigned_user_id or '' }}"
             data-title="{{ t.title|lower }}"
             data-overdue="{{ overdue }}"
             data-nextdue="{{ s.get('next_due', '') }}"
             data-lastlogged="{{ s.get('last_logged') or '' }}">
           <td>
+            {% if state == 'paused' %}<span class="badge" style="background:var(--surface3);color:var(--text-muted);margin-bottom:3px;">⏸ Paused</span><br>
+            {% elif state == 'ended' %}<span class="badge" style="background:var(--surface3);color:var(--text-muted);margin-bottom:3px;">⏹ Ended {{ s.end_date }}</span><br>{% endif %}
             {% if overdue > 0 %}
             <span class="badge" style="background:rgba(239,68,68,0.15);color:#fca5a5;">⚠️ {{ overdue }} overdue</span>
             {% elif is_due %}
             <span class="badge" style="background:rgba(245,158,11,0.12);color:#fcd34d;">🔔 Due today</span>
-            {% else %}
+            {% elif state == 'active' %}
             <span class="badge" style="background:rgba(34,197,94,0.1);color:#86efac;">✅ Up to date</span>
             {% endif %}
           </td>
@@ -477,6 +482,8 @@
             {% if t.frequency == 'daily' %}<span style="font-size:11px;color:#93c5fd;">📅 DAILY</span>
             {% elif t.frequency == 'weekly' %}<span style="font-size:11px;color:#c4b5fd;">📆 WEEKLY</span>
             {% else %}<span style="font-size:11px;color:#fcd34d;">🗓️ MONTHLY</span>{% endif %}
+            <div style="font-size:11px;color:var(--text-dim);margin-top:2px;white-space:nowrap;">{{ s.get('schedule', '') }}</div>
+            {% if s.get('end_date') and state == 'active' %}<div style="font-size:10px;color:var(--text-dim);">until {{ s.end_date }}</div>{% endif %}
           </td>
           <td style="font-size:12px;">
             {% if t.assigned_user_name %}<span style="color:var(--primary);">👤 {{ t.assigned_user_name }}</span>
@@ -489,18 +496,24 @@
             {% if s.get('last_logged') %}<span style="color:#86efac;">{{ s.last_logged }}</span>
             {% else %}<span style="color:#fca5a5;">Never</span>{% endif %}
           </td>
-          <td style="font-size:12px;color:var(--text-muted);">{{ s.get('next_due', '—') }}</td>
+          <td style="font-size:12px;color:var(--text-muted);">{{ s.get('next_due') or '—' }}</td>
           <td>
             <div style="display:flex;gap:6px;align-items:center;">
               <button class="btn btn-primary btn-sm" onclick="openLogModal({{ t.id }},'{{ t.title|replace("'","\\'") }}',{{ overdue }})">✅ Log</button>
-              {% if user_role in ['admin','compliance'] %}
-              <button class="btn btn-danger btn-sm btn-icon" onclick="deleteTemplate({{ t.id }})">🗑️</button>
+              {% if has_perm('regular_tasks_manage') and not t.get('_cover_only') %}
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="openTemplateModal({{ t.id }})" title="Edit">✏️</button>
+              {% if state == 'paused' %}
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="rtPause({{ t.id }}, false)" title="Resume">▶️</button>
+              {% elif state == 'active' %}
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="rtPause({{ t.id }}, true)" title="Pause">⏸️</button>
+              {% endif %}
+              <button class="btn btn-danger btn-sm btn-icon" onclick="deleteTemplate({{ t.id }})" title="Delete">🗑️</button>
               {% endif %}
             </div>
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="7" style="text-align:center;padding:50px;color:var(--text-dim);">No regular tasks yet.{% if user_role in ['admin','compliance'] %} <a href="#" onclick="openModal('addTemplateModal');return false;" style="color:var(--primary);">Add one?</a>{% endif %}</td></tr>
+        <tr><td colspan="7" style="text-align:center;padding:50px;color:var(--text-dim);">No regular tasks yet.{% if user_role in ['admin','compliance'] %} <a href="#" onclick="openTemplateModal();return false;" style="color:var(--primary);">Add one?</a>{% endif %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -650,8 +663,9 @@
 
 <!-- ADD TEMPLATE MODAL -->
 <div class="modal-overlay" id="addTemplateModal">
-  <div class="modal-box" style="max-width:520px;">
-    <div class="modal-title">🔁 Add Regular Task</div>
+  <div class="modal-box" style="max-width:540px;">
+    <div class="modal-title" id="tmplModalTitle">🔁 New Recurring Task</div>
+    <input type="hidden" id="tmplId" value="">
 
     <div class="form-group">
       <label>Task Title *</label>
@@ -663,48 +677,60 @@
       <textarea id="tmplDesc" rows="2" placeholder="What needs to be done, any specific steps..."></textarea>
     </div>
 
-    <!-- FREQUENCY SELECTOR - visual cards -->
     <div class="form-group">
-      <label>Frequency *</label>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px;">
-        <div class="freq-card active" onclick="selectFreq('daily',this)" style="background:rgba(59,130,246,0.1);border:2px solid #3b82f6;border-radius:8px;padding:12px 8px;text-align:center;cursor:pointer;transition:all 0.15s;">
-          <div style="font-size:20px;margin-bottom:4px;">📅</div>
-          <div style="font-size:12px;font-weight:600;color:#93c5fd;">Daily</div>
-          <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Every day</div>
-        </div>
-        <div class="freq-card" onclick="selectFreq('weekly',this)" style="background:var(--surface2);border:2px solid var(--border);border-radius:8px;padding:12px 8px;text-align:center;cursor:pointer;transition:all 0.15s;">
-          <div style="font-size:20px;margin-bottom:4px;">📆</div>
-          <div style="font-size:12px;font-weight:600;color:var(--text-muted);">Weekly</div>
-          <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Every Friday</div>
-        </div>
-        <div class="freq-card" onclick="selectFreq('monthly',this)" style="background:var(--surface2);border:2px solid var(--border);border-radius:8px;padding:12px 8px;text-align:center;cursor:pointer;transition:all 0.15s;">
-          <div style="font-size:20px;margin-bottom:4px;">🗓️</div>
-          <div style="font-size:12px;font-weight:600;color:var(--text-muted);">Monthly</div>
-          <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">25th of month</div>
-        </div>
+      <label>Repeats *</label>
+      <div class="seg" id="tmplFreqSeg" style="display:flex;">
+        <button type="button" data-f="daily" onclick="selectFreq('daily')" style="flex:1;justify-content:center;">📅 Daily</button>
+        <button type="button" data-f="weekly" onclick="selectFreq('weekly')" style="flex:1;justify-content:center;">📆 Weekly</button>
+        <button type="button" data-f="monthly" onclick="selectFreq('monthly')" style="flex:1;justify-content:center;">🗓️ Monthly</button>
       </div>
       <input type="hidden" id="tmplFreq" value="daily">
     </div>
 
-    <div class="form-group">
-      <label>Assign To</label>
-      <select id="tmplRole" style="width:100%;">
-        <option value="all">👥 All Staff</option>
-        <option value="compliance">🛡️ Compliance Only</option>
-        <option value="staff">📋 Staff Only</option>
-        {% for u in all_users %}
-        <option value="user_{{ u.id }}">👤 {{ u.name }}</option>
-        {% endfor %}
+    <div class="form-group" id="tmplWeekdayRow" style="display:none;">
+      <label>Every</label>
+      <select id="tmplWeekday" onchange="updateFreqHint()">
+        <option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option>
+        <option value="3">Thursday</option><option value="4" selected>Friday</option><option value="5">Saturday</option>
+        <option value="6">Sunday</option>
       </select>
     </div>
 
-    <div id="freqHint" style="font-size:12px;color:var(--text-dim);padding:10px 12px;background:var(--surface2);border-radius:6px;border-left:3px solid #3b82f6;">
-      📅 Due every day. Missed days accumulate until logged — staff see overdue count on the task card.
+    <div class="form-group" id="tmplMonthdayRow" style="display:none;">
+      <label>On</label>
+      <select id="tmplMonthday" onchange="updateFreqHint()">
+        <option value="1">1st of the month</option>
+        {% for d in range(2, 29) %}<option value="{{ d }}"{% if d == 25 %} selected{% endif %}>{{ d }}{{ 'nd' if d in [2,22] else 'rd' if d in [3,23] else 'st' if d == 21 else 'th' }} of the month</option>{% endfor %}
+        <option value="-1">Last day of the month</option>
+      </select>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Assign To</label>
+        <select id="tmplRole" style="width:100%;">
+          <option value="all">👥 All Staff</option>
+          <option value="compliance">🛡️ Compliance Only</option>
+          <option value="staff">📋 Staff Only</option>
+          {% for u in all_users %}
+          <option value="user_{{ u.id }}">👤 {{ u.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>End Date <span style="color:var(--text-dim);font-weight:400;">(optional)</span></label>
+        <input type="date" id="tmplEnd">
+      </div>
+    </div>
+
+    <div id="freqHint" style="font-size:12px;color:var(--text-dim);padding:10px 12px;background:var(--surface2);border-radius:6px;border-left:3px solid var(--primary);"></div>
+    <div id="tmplEditNote" style="display:none;font-size:11px;color:var(--text-dim);margin-top:8px;">
+      Changes to the schedule or the assigned person apply <strong>from today</strong>. Past days keep the old schedule, and a new assignee does not inherit the previous person's missed days.
     </div>
 
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('addTemplateModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="addTemplate()">🔁 Add Regular Task</button>
+      <button class="btn btn-primary" id="tmplSaveBtn" onclick="saveTemplate()">🔁 Create Recurring Task</button>
     </div>
   </div>
 </div>
@@ -1109,6 +1135,7 @@ function filterRegular() {
     let show = true;
     if (_rtFreq !== 'all' && row.dataset.freq !== _rtFreq) show = false;
     if (status === 'done') { if (!row.dataset.lastlogged) show = false; }
+    else if (status === 'paused') { if (row.dataset.state === 'active') show = false; }
     else if (status && row.dataset.rtstatus !== status) show = false;
     if (user && row.dataset.user !== user) show = false;
     // date range filters on last-logged date
@@ -1239,52 +1266,83 @@ function submitLog() {
   });
 }
 
-function selectFreq(freq, el) {
-  document.getElementById('tmplFreq').value = freq;
-  document.querySelectorAll('.freq-card').forEach(c => {
-    c.style.background = 'var(--surface2)';
-    c.style.borderColor = 'var(--border)';
-    c.querySelector('div:nth-child(2)').style.color = 'var(--text-muted)';
-  });
-  const colors = {daily:'#3b82f6', weekly:'#a855f7', monthly:'#f59e0b'};
-  const bgColors = {daily:'rgba(59,130,246,0.1)', weekly:'rgba(168,85,247,0.1)', monthly:'rgba(245,158,11,0.1)'};
-  const textColors = {daily:'#93c5fd', weekly:'#c4b5fd', monthly:'#fcd34d'};
-  el.style.background = bgColors[freq];
-  el.style.borderColor = colors[freq];
-  el.querySelector('div:nth-child(2)').style.color = textColors[freq];
-  const hints = {
-    daily: '📅 Due every day. Missed days accumulate until logged.',
-    weekly: '📆 Due every Friday. Missed Fridays accumulate until logged.',
-    monthly: '🗓️ Due on the 25th of each month. Missed months accumulate.'
-  };
-  const hint = document.getElementById('freqHint');
-  hint.textContent = hints[freq];
-  hint.style.borderLeftColor = colors[freq];
-}
-function updateFreqHint() {}
+// Recurring-task data for the edit modal
+const RT_DATA = {
+  {% for t in rt_templates %}{% if not t.get('_cover_only') %}
+  {{ t.id }}: {
+    title: {{ t.title | tojson }}, description: {{ (t.description or '') | tojson }},
+    frequency: {{ (t.frequency or 'daily') | tojson }}, weekday: {{ t.weekday | tojson }}, month_day: {{ t.month_day | tojson }},
+    assigned_role: {{ (t.assigned_role or 'all') | tojson }}, assigned_user_id: {{ t.assigned_user_id | tojson }},
+    end_date: {{ (t.end_date|string)[:10] | tojson if t.end_date else 'null' }},
+  },
+  {% endif %}{% endfor %}
+};
+const WEEKDAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
-function addTemplate() {
+function selectFreq(freq) {
+  document.getElementById('tmplFreq').value = freq;
+  document.querySelectorAll('#tmplFreqSeg button').forEach(b => b.classList.toggle('active', b.dataset.f === freq));
+  document.getElementById('tmplWeekdayRow').style.display = freq === 'weekly' ? '' : 'none';
+  document.getElementById('tmplMonthdayRow').style.display = freq === 'monthly' ? '' : 'none';
+  updateFreqHint();
+}
+function updateFreqHint() {
+  const f = document.getElementById('tmplFreq').value;
+  let txt = '📅 Due every day.';
+  if (f === 'weekly') txt = '📆 Due every ' + WEEKDAYS[+document.getElementById('tmplWeekday').value] + '.';
+  if (f === 'monthly') {
+    const md = +document.getElementById('tmplMonthday').value;
+    txt = md === -1 ? '🗓️ Due on the last day of every month.' : '🗓️ Due on day ' + md + ' of every month.';
+  }
+  document.getElementById('freqHint').textContent = txt + ' Days that are not logged show as missed until someone logs them.';
+}
+
+function openTemplateModal(id) {
+  const t = id ? RT_DATA[id] : null;
+  document.getElementById('tmplId').value = id || '';
+  document.getElementById('tmplModalTitle').textContent = t ? '✏️ Edit Recurring Task' : '🔁 New Recurring Task';
+  document.getElementById('tmplSaveBtn').textContent = t ? '💾 Save Changes' : '🔁 Create Recurring Task';
+  document.getElementById('tmplEditNote').style.display = t ? '' : 'none';
+  document.getElementById('tmplTitle').value = t ? t.title : '';
+  document.getElementById('tmplDesc').value = t ? t.description : '';
+  document.getElementById('tmplWeekday').value = (t && t.weekday !== null && t.weekday !== undefined) ? t.weekday : 4;
+  document.getElementById('tmplMonthday').value = (t && t.month_day) ? (t.month_day > 28 ? -1 : t.month_day) : 25;
+  document.getElementById('tmplRole').value = t ? (t.assigned_user_id ? 'user_' + t.assigned_user_id : (t.assigned_role === 'user' ? 'all' : t.assigned_role)) : 'all';
+  document.getElementById('tmplEnd').value = (t && t.end_date) ? t.end_date : '';
+  selectFreq(t ? t.frequency : 'daily');
+  openModal('addTemplateModal');
+}
+
+function saveTemplate() {
+  const id = document.getElementById('tmplId').value;
   const title = document.getElementById('tmplTitle').value.trim();
   if (!title) { alert('Title is required'); return; }
   const roleVal = document.getElementById('tmplRole').value;
   let assigned_role = roleVal, assigned_user_id = null;
-  if (roleVal.startsWith('user_')) {
-    assigned_user_id = parseInt(roleVal.split('_')[1]);
-    assigned_role = 'user';
-  }
-  fetch('/api/regular-task/add', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      title,
-      description: document.getElementById('tmplDesc').value,
-      frequency: document.getElementById('tmplFreq').value,
-      assigned_role, assigned_user_id
-    })
+  if (roleVal.startsWith('user_')) { assigned_user_id = parseInt(roleVal.split('_')[1]); assigned_role = 'user'; }
+  const freq = document.getElementById('tmplFreq').value;
+  const body = {
+    title, description: document.getElementById('tmplDesc').value, frequency: freq,
+    weekday: freq === 'weekly' ? +document.getElementById('tmplWeekday').value : null,
+    month_day: freq === 'monthly' ? +document.getElementById('tmplMonthday').value : null,
+    end_date: document.getElementById('tmplEnd').value || null,
+    assigned_role, assigned_user_id
+  };
+  const btn = document.getElementById('tmplSaveBtn'); btn.disabled = true;
+  fetch(id ? `/api/regular-task/${id}/edit` : '/api/regular-task/add', {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
   }).then(r => r.json()).then(d => {
+    btn.disabled = false;
     if (d.success) { closeModal('addTemplateModal'); location.reload(); }
     else alert('Error: ' + d.error);
-  });
+  }).catch(() => { btn.disabled = false; alert('Network error'); });
+}
+
+function rtPause(id, pause) {
+  if (pause && !confirm('Pause this recurring task from today?\n\nWhile paused, no days are due and none are counted as missed. Days already missed before today stay on the list.')) return;
+  fetch(`/api/regular-task/${id}/${pause ? 'pause' : 'resume'}`, { method: 'POST' })
+    .then(r => r.json()).then(d => { if (d.success) location.reload(); else alert('Error: ' + d.error); })
+    .catch(() => alert('Network error'));
 }
 
 function deleteTemplate(id) {

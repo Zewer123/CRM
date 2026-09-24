@@ -272,6 +272,14 @@ def _pg_ensure_columns():
         # One-time task audit trail (status changes, edits, comments)
         "CREATE TABLE IF NOT EXISTS task_activity (id SERIAL PRIMARY KEY, task_id INTEGER NOT NULL, user_id INTEGER, action TEXT NOT NULL, old_value TEXT, new_value TEXT, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "CREATE INDEX IF NOT EXISTS idx_task_activity_task ON task_activity (task_id)",
+        # Recurring-task schedule options, pauses and schedule-change history
+        "ALTER TABLE regular_task_templates ADD COLUMN IF NOT EXISTS weekday INTEGER",
+        "ALTER TABLE regular_task_templates ADD COLUMN IF NOT EXISTS month_day INTEGER",
+        "ALTER TABLE regular_task_templates ADD COLUMN IF NOT EXISTS end_date DATE",
+        "ALTER TABLE regular_task_templates ADD COLUMN IF NOT EXISTS rule_from DATE",
+        "ALTER TABLE regular_task_templates ADD COLUMN IF NOT EXISTS assigned_from DATE",
+        "CREATE TABLE IF NOT EXISTS regular_task_pauses (id SERIAL PRIMARY KEY, template_id INTEGER NOT NULL, start_date DATE NOT NULL, end_date DATE, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS regular_task_rule_history (id SERIAL PRIMARY KEY, template_id INTEGER NOT NULL, from_date DATE NOT NULL, to_date DATE NOT NULL, frequency TEXT, weekday INTEGER, month_day INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
     ]
     # (risk_questions seeding for PG happens in _run_migrations via _seed_risk_questions)
     try:
@@ -332,6 +340,8 @@ def _run_migrations(conn):
         "login_history (id {pk}, user_id INTEGER, username TEXT, success BOOLEAN DEFAULT FALSE, ip_address TEXT, user_agent TEXT, logout_at TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "staff_leave (id {pk}, user_id INTEGER NOT NULL, start_date DATE NOT NULL, end_date DATE NOT NULL, cover_user_id INTEGER, notes TEXT, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
         "task_activity (id {pk}, task_id INTEGER NOT NULL, user_id INTEGER, action TEXT NOT NULL, old_value TEXT, new_value TEXT, comment TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "regular_task_pauses (id {pk}, template_id INTEGER NOT NULL, start_date DATE NOT NULL, end_date DATE, created_by INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "regular_task_rule_history (id {pk}, template_id INTEGER NOT NULL, from_date DATE NOT NULL, to_date DATE NOT NULL, frequency TEXT, weekday INTEGER, month_day INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
     ]
     pk = "SERIAL PRIMARY KEY" if pg else "INTEGER PRIMARY KEY AUTOINCREMENT"
     for t in new_tables:
@@ -393,6 +403,12 @@ def _run_migrations(conn):
     safe_alter('additional_tasks', 'status', "TEXT DEFAULT 'open'")
     safe_alter('additional_tasks', 'completed_at', 'TIMESTAMP')
     safe_alter('additional_tasks', 'completed_by', 'INTEGER')
+    # Recurring-task schedule options (weekday for weekly, day-of-month for monthly; -1 = last day)
+    safe_alter('regular_task_templates', 'weekday', 'INTEGER')
+    safe_alter('regular_task_templates', 'month_day', 'INTEGER')
+    safe_alter('regular_task_templates', 'end_date', 'DATE')
+    safe_alter('regular_task_templates', 'rule_from', 'DATE')
+    safe_alter('regular_task_templates', 'assigned_from', 'DATE')
     # One-time backfill: close out all additional tasks that existed before the
     # Complete button shipped. They were records of activity that already
     # happened, so we mark them complete with completed_at = their own end time.
@@ -969,7 +985,7 @@ def healthz():
         conn = get_db()
         for tbl, col in [('companies', 'disabled'), ('clients', 'disabled'), ('clients', 'pep'),
                          ('ubos', 'pep_status'), ('aml_tracker', 'exchange_rate'),
-                         ('internal_documents', 'file_url')]:
+                         ('internal_documents', 'file_url'), ('regular_task_templates', 'month_day')]:
             try:
                 x(conn, f'SELECT {col} FROM {tbl} LIMIT 1').fetchone()
                 checks[f'{tbl}.{col}'] = 'ok'
@@ -984,7 +1000,7 @@ def healthz():
             try: conn.rollback()
             except: pass
             checks['login_history.logout_at'] = 'MISSING'
-        for t in ['risk_country_scores', 'login_history', 'risk_questions', 'risk_answer_options', 'risk_responses', 'walkin_risk_assessments', 'staff_leave', 'task_activity']:
+        for t in ['risk_country_scores', 'login_history', 'risk_questions', 'risk_answer_options', 'risk_responses', 'walkin_risk_assessments', 'staff_leave', 'task_activity', 'regular_task_pauses', 'regular_task_rule_history']:
             try:
                 x(conn, f'SELECT 1 FROM {t} LIMIT 1').fetchone()
                 checks[t] = 'ok'
@@ -2220,15 +2236,15 @@ def _staff_task_report(conn, today, df, dt, staff_id=None):
         reg_pending = 0
         try:
             if urole in ('admin', 'compliance'):
-                tmpls = all_(conn, "SELECT id,frequency,created_at,assigned_user_id FROM regular_task_templates WHERE assigned_user_id=?", (uid,))
+                tmpls = all_(conn, "SELECT * FROM regular_task_templates WHERE assigned_user_id=?", (uid,))
             else:
-                tmpls = all_(conn, "SELECT id,frequency,created_at,assigned_user_id FROM regular_task_templates WHERE assigned_role='all' OR assigned_user_id=? OR assigned_role=?", (uid, urole))
+                tmpls = all_(conn, "SELECT * FROM regular_task_templates WHERE assigned_role='all' OR assigned_user_id=? OR assigned_role=?", (uid, urole))
             own_ids = set(tm['id'] for tm in tmpls)
             for tm in tmpls:
-                reg_pending += len(_regular_missed_dates(conn, tm['id'], uid, tm['frequency'], tm.get('created_at'), today, tm.get('assigned_user_id'), True))
+                reg_pending += len(_regular_missed_dates(conn, tm, uid, today, True))
             for tm in _covered_templates(conn, uid, today):
                 if tm['id'] not in own_ids:
-                    reg_pending += len(_regular_missed_dates(conn, tm['id'], uid, tm['frequency'], tm.get('created_at'), today, tm.get('assigned_user_id'), False))
+                    reg_pending += len(_regular_missed_dates(conn, tm, uid, today, False))
         except Exception:
             reg_pending = 0
 
@@ -3205,28 +3221,22 @@ def tasks():
         try:
             user_logs=all_(conn,"""SELECT DATE(logged_at) as log_date FROM regular_task_logs
                 WHERE template_id=? AND user_id=? ORDER BY logged_at ASC""", (t['id'],uid))
-            missed=_regular_missed_dates(conn, t['id'], uid, t['frequency'], t.get('created_at'), today,
-                                         t.get('assigned_user_id'), own)
+            missed=_regular_missed_dates(conn, t, uid, today, own)
             # A cover-only task drops off the list once the leave is over and nothing is owed
             if t.get('_cover_only') and not missed and str(t.get('cover_until')) < str(today):
                 continue
-            freq=t['frequency']
-            if freq=='daily': next_due=today+timedelta(days=1)
-            elif freq=='weekly':
-                days_ahead=(4-today.weekday())%7
-                next_due=today+timedelta(days=(days_ahead if days_ahead>0 else 7))
-            elif freq=='monthly':
-                if today.day<25: next_due=today.replace(day=25)
-                elif today.month==12: next_due=today.replace(year=today.year+1,month=1,day=25)
-                else: next_due=today.replace(month=today.month+1,day=25)
-            else: next_due=today
+            state=_template_state(conn, t, today)
+            next_due=_template_next_due(conn, t, today)
             is_due_today=str(today) in [str(d) for d in missed]
             task_status[t['id']]={
                 'overdue_count':len(missed),'is_due_today':is_due_today,
-                'next_due':str(next_due),'last_logged':str(user_logs[-1]['log_date'])[:10] if user_logs else None,
+                'next_due':str(next_due) if next_due else '','last_logged':str(user_logs[-1]['log_date'])[:10] if user_logs else None,
                 'missed_dates':[str(d) for d in missed[-3:]],
                 'missed_all':[str(d) for d in missed[-180:]],
                 'owner_on_leave_until':on_leave_now.get(t.get('assigned_user_id')),
+                'state':state,
+                'schedule':_rule_text(t.get('frequency'), t.get('weekday'), t.get('month_day')),
+                'end_date':str(t.get('end_date') or '')[:10],
             }
         except: task_status[t['id']]={'overdue_count':0,'is_due_today':False,'next_due':str(today),'last_logged':None,'missed_dates':[]}
         kept.append(t)
@@ -4202,15 +4212,15 @@ def analytics():
             reg_pending = 0
             try:
                 if urole in ('admin', 'compliance'):
-                    tmpls = all_(conn, "SELECT id,frequency,created_at,assigned_user_id FROM regular_task_templates WHERE assigned_user_id=?", (uid,))
+                    tmpls = all_(conn, "SELECT * FROM regular_task_templates WHERE assigned_user_id=?", (uid,))
                 else:
-                    tmpls = all_(conn, "SELECT id,frequency,created_at,assigned_user_id FROM regular_task_templates WHERE assigned_role='all' OR assigned_user_id=? OR assigned_role=?", (uid, urole))
+                    tmpls = all_(conn, "SELECT * FROM regular_task_templates WHERE assigned_role='all' OR assigned_user_id=? OR assigned_role=?", (uid, urole))
                 own_ids = set(tm['id'] for tm in tmpls)
                 for tm in tmpls:
-                    reg_pending += len(_regular_missed_dates(conn, tm['id'], uid, tm['frequency'], tm.get('created_at'), today, tm.get('assigned_user_id'), True))
+                    reg_pending += len(_regular_missed_dates(conn, tm, uid, today, True))
                 for tm in _covered_templates(conn, uid, today):
                     if tm['id'] not in own_ids:
-                        reg_pending += len(_regular_missed_dates(conn, tm['id'], uid, tm['frequency'], tm.get('created_at'), today, tm.get('assigned_user_id'), False))
+                        reg_pending += len(_regular_missed_dates(conn, tm, uid, today, False))
             except Exception:
                 reg_pending = 0
             done_period = (temp_done_p or 0) + (logs_c or 0) + (add_done_p or 0)
@@ -4258,23 +4268,124 @@ def analytics():
     )
 
 
+def _rt_payload(d):
+    """Validate the add/edit form -> dict of columns, or raise ValueError with a readable message."""
+    title = (d.get('title') or '').strip()
+    if not title:
+        raise ValueError('Title is required')
+    freq, wd, md = _rule_norm(d.get('frequency'), d.get('weekday'), d.get('month_day'))
+    role = d.get('assigned_role') or 'all'
+    uid_ = d.get('assigned_user_id') or None
+    if uid_:
+        role = 'user'
+    end = _to_date(d.get('end_date'))
+    if d.get('end_date') and not end:
+        raise ValueError('End date is not a valid date')
+    return {'title': title, 'description': d.get('description') or '', 'frequency': freq,
+            'weekday': wd, 'month_day': md, 'assigned_role': role,
+            'assigned_user_id': int(uid_) if uid_ else None, 'end_date': str(end) if end else None}
+
 @app.route('/api/regular-task/add', methods=['POST'])
 @require_perm('regular_tasks_manage')
 def api_add_regular_task():
-    d = request.get_json()
+    try:
+        v = _rt_payload(request.get_json() or {})
+    except (ValueError, TypeError) as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
     try:
         conn = get_db()
         x(conn, '''INSERT INTO regular_task_templates
-            (title, description, frequency, assigned_role, assigned_user_id, created_by)
-            VALUES (?,?,?,?,?,?)''',
-          (d.get('title'), d.get('description'), d.get('frequency', 'daily'),
-           d.get('assigned_role', 'all'), d.get('assigned_user_id') or None,
-           session.get('user_id')))
+            (title, description, frequency, weekday, month_day, end_date, assigned_role, assigned_user_id, created_by)
+            VALUES (?,?,?,?,?,?,?,?,?)''',
+          (v['title'], v['description'], v['frequency'], v['weekday'], v['month_day'], v['end_date'],
+           v['assigned_role'], v['assigned_user_id'], session.get('user_id')))
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
         try: conn.close()
         except: pass
+        return _fail(e)
+
+@app.route('/api/regular-task/<int:id>/edit', methods=['POST'])
+@require_perm('regular_tasks_manage')
+def api_edit_regular_task(id):
+    """Edit a recurring task. A schedule change applies from today: the old rule is kept
+       for past days (rule history), so past misses/logs are not rewritten. A change of
+       assignee applies from today too — the new person does not inherit the old backlog."""
+    try:
+        v = _rt_payload(request.get_json() or {})
+    except (ValueError, TypeError) as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    conn = None
+    try:
+        conn = get_db()
+        t = one(conn, 'SELECT * FROM regular_task_templates WHERE id=?', (id,))
+        if not t:
+            conn.close(); return jsonify({'success': False, 'error': 'Task not found'}), 404
+        today = dubai_today()
+        old_rule = _rule_norm(t.get('frequency'), t.get('weekday'), t.get('month_day'))
+        new_rule = (v['frequency'], v['weekday'], v['month_day'])
+        rule_from = _to_date(t.get('rule_from')) or _to_date(t.get('created_at'), today)
+        if old_rule != new_rule:
+            if rule_from < today:
+                x(conn, """INSERT INTO regular_task_rule_history (template_id,from_date,to_date,frequency,weekday,month_day)
+                    VALUES (?,?,?,?,?,?)""", (id, str(rule_from), str(today - timedelta(days=1))) + old_rule)
+            rule_from = today
+        assigned_from = t.get('assigned_from')
+        if ((t.get('assigned_role') or 'all'), t.get('assigned_user_id')) != (v['assigned_role'], v['assigned_user_id']):
+            assigned_from = str(today)
+        x(conn, """UPDATE regular_task_templates SET title=?,description=?,frequency=?,weekday=?,month_day=?,
+            end_date=?,assigned_role=?,assigned_user_id=?,rule_from=?,assigned_from=? WHERE id=?""",
+          (v['title'], v['description'], v['frequency'], v['weekday'], v['month_day'], v['end_date'],
+           v['assigned_role'], v['assigned_user_id'], str(rule_from),
+           str(assigned_from)[:10] if assigned_from else None, id))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        try: conn.close()
+        except Exception: pass
+        return _fail(e)
+
+@app.route('/api/regular-task/<int:id>/pause', methods=['POST'])
+@require_perm('regular_tasks_manage')
+def api_pause_regular_task(id):
+    """Pause from today: no due dates until resumed (paused days are never counted as missed)."""
+    conn = None
+    try:
+        conn = get_db()
+        if not one(conn, 'SELECT id FROM regular_task_templates WHERE id=?', (id,)):
+            conn.close(); return jsonify({'success': False, 'error': 'Task not found'}), 404
+        if one(conn, 'SELECT id FROM regular_task_pauses WHERE template_id=? AND end_date IS NULL', (id,)):
+            conn.close(); return jsonify({'success': False, 'error': 'Already paused'}), 400
+        x(conn, 'INSERT INTO regular_task_pauses (template_id,start_date,created_by) VALUES (?,?,?)',
+          (id, str(dubai_today()), session.get('user_id')))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        try: conn.close()
+        except Exception: pass
+        return _fail(e)
+
+@app.route('/api/regular-task/<int:id>/resume', methods=['POST'])
+@require_perm('regular_tasks_manage')
+def api_resume_regular_task(id):
+    """Resume: today is due again. A pause started and ended the same day leaves no trace."""
+    conn = None
+    try:
+        conn = get_db()
+        p = one(conn, 'SELECT id,start_date FROM regular_task_pauses WHERE template_id=? AND end_date IS NULL', (id,))
+        if not p:
+            conn.close(); return jsonify({'success': False, 'error': 'Task is not paused'}), 400
+        today = dubai_today()
+        if _to_date(p['start_date'], today) >= today:
+            x(conn, 'DELETE FROM regular_task_pauses WHERE id=?', (p['id'],))
+        else:
+            x(conn, 'UPDATE regular_task_pauses SET end_date=? WHERE id=?', (str(today - timedelta(days=1)), p['id']))
+        commit(conn); conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        try: conn.close()
+        except Exception: pass
         return _fail(e)
 
 @app.route('/api/regular-task/<int:id>/delete', methods=['POST'])
@@ -4284,7 +4395,14 @@ def api_delete_regular_task(id):
         conn = get_db()
         x(conn, 'DELETE FROM regular_task_logs WHERE template_id=?', (id,))
         x(conn, 'DELETE FROM regular_task_templates WHERE id=?', (id,))
-        commit(conn); conn.close()
+        commit(conn)
+        for tbl in ('regular_task_pauses', 'regular_task_rule_history'):
+            try:
+                x(conn, f'DELETE FROM {tbl} WHERE template_id=?', (id,)); commit(conn)
+            except Exception:
+                try: conn.rollback()
+                except Exception: pass
+        conn.close()
         return jsonify({'success': True})
     except Exception as e:
         try: conn.close()
@@ -4292,30 +4410,130 @@ def api_delete_regular_task(id):
         return _fail(e)
 
 # ── Shared regular-task date helpers (module-level, reused by catch-up + reports) ──
-def _regular_due_dates(freq, since_date, today):
-    """Every due date for a recurring task between since_date and today (inclusive)."""
+WEEKDAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+def _to_date(v, default=None):
+    """DATE/TIMESTAMP/str -> date (None/blank -> default)."""
+    if v is None or v == '':
+        return default
+    if isinstance(v, datetime):
+        return v.date()
+    if not isinstance(v, str) and hasattr(v, 'year'):
+        return v
+    try:
+        return datetime.strptime(str(v)[:10], '%Y-%m-%d').date()
+    except Exception:
+        return default
+
+def _month_due(y, m, month_day):
+    """Due date in month y/m. month_day<=0 means last day; a day past month-end falls back to the last day."""
+    import calendar
+    last = calendar.monthrange(y, m)[1]
+    md = 25 if month_day is None else int(month_day)
+    return datetime(y, m, last if (md <= 0 or md > last) else md).date()
+
+def _rule_norm(freq, weekday=None, month_day=None):
+    """Canonical (frequency, weekday, month_day). Legacy defaults: weekly=Friday, monthly=25th."""
+    freq = freq if freq in ('daily', 'weekly', 'monthly') else 'daily'
+    if freq == 'weekly':
+        return (freq, 4 if weekday in (None, '') else int(weekday) % 7, None)
+    if freq == 'monthly':
+        md = 25 if month_day in (None, '') else int(month_day)
+        return (freq, None, -1 if md <= 0 else min(md, 31))
+    return (freq, None, None)
+
+def _rule_text(freq, weekday=None, month_day=None):
+    freq, wd, md = _rule_norm(freq, weekday, month_day)
+    if freq == 'weekly':
+        return 'Every ' + WEEKDAY_NAMES[wd]
+    if freq == 'monthly':
+        if md == -1:
+            return 'Last day of month'
+        suf = 'th' if 11 <= md % 100 <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(md % 10, 'th')
+        return f'{md}{suf} of every month'
+    return 'Every day'
+
+def _regular_due_dates(freq, since_date, today, weekday=None, month_day=None):
+    """Every due date for a recurring rule between since_date and today (inclusive)."""
+    freq, wd, md = _rule_norm(freq, weekday, month_day)
     dates = []
+    if since_date > today:
+        return dates
     if freq == 'daily':
         d = since_date
         while d <= today:
             dates.append(d); d += timedelta(days=1)
     elif freq == 'weekly':
-        d = since_date
-        days_ahead = (4 - d.weekday()) % 7   # Fridays
-        d = d + timedelta(days=days_ahead)
+        d = since_date + timedelta(days=(wd - since_date.weekday()) % 7)
         while d <= today:
             dates.append(d); d += timedelta(weeks=1)
-    elif freq == 'monthly':
-        d = since_date.replace(day=1)
+    else:
+        y, m = since_date.year, since_date.month
         while True:
-            try: due = d.replace(day=25)
-            except ValueError: due = None
-            if due and due >= since_date and due <= today:
+            due = _month_due(y, m, md)
+            if due > today:
+                break
+            if due >= since_date:
                 dates.append(due)
-            if d.month == 12: d = d.replace(year=d.year + 1, month=1)
-            else: d = d.replace(month=d.month + 1)
-            if d > today: break
+            m += 1
+            if m > 12:
+                y, m = y + 1, 1
     return dates
+
+def _template_pauses(conn, template_id):
+    """Pause periods as {'start_date','end_date'} ISO strings (open pause -> far future)."""
+    try:
+        rows = all_(conn, 'SELECT start_date,end_date FROM regular_task_pauses WHERE template_id=?', (template_id,))
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+        return []
+    return [{'start_date': str(r['start_date'])[:10],
+             'end_date': str(r['end_date'])[:10] if r.get('end_date') else '9999-12-31'} for r in rows]
+
+def _template_state(conn, t, today):
+    """'paused', 'ended' or 'active'."""
+    if any(p['start_date'] <= str(today) <= p['end_date'] for p in _template_pauses(conn, t['id'])):
+        return 'paused'
+    end = _to_date(t.get('end_date'))
+    if end and end < today:
+        return 'ended'
+    return 'active'
+
+def _template_due_dates(conn, t, today):
+    """All due dates of a template up to today: honours schedule changes (history
+       segments keep their old rule), the end date, and pause periods."""
+    created = _to_date(t.get('created_at'), today)
+    end = _to_date(t.get('end_date'))
+    upto = min(today, end) if end else today
+    segs = []
+    try:
+        hist = all_(conn, """SELECT from_date,to_date,frequency,weekday,month_day FROM regular_task_rule_history
+            WHERE template_id=? ORDER BY from_date""", (t['id'],))
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+        hist = []
+    for h in hist:
+        segs.append((_to_date(h['from_date'], created), _to_date(h['to_date'], upto),
+                     h.get('frequency'), h.get('weekday'), h.get('month_day')))
+    segs.append((_to_date(t.get('rule_from'), created), upto, t.get('frequency'), t.get('weekday'), t.get('month_day')))
+    dates = set()
+    for f, to_, fr, wd, md in segs:
+        dates.update(_regular_due_dates(fr, f, min(to_, upto), wd, md))
+    pauses = _template_pauses(conn, t['id'])
+    return sorted(d for d in dates if not _in_periods(d, pauses))
+
+def _template_next_due(conn, t, today):
+    """Next due date after today under the current rule (None if paused/ended)."""
+    if _template_state(conn, t, today) != 'active':
+        return None
+    nxt = _regular_due_dates(t.get('frequency'), today + timedelta(days=1), today + timedelta(days=62),
+                             t.get('weekday'), t.get('month_day'))
+    end = _to_date(t.get('end_date'))
+    if not nxt or (end and nxt[0] > end):
+        return None
+    return nxt[0]
 
 def _leave_periods(conn, user_id=None, cover_user_id=None):
     """Staff leave rows with ISO-string start/end, filtered by person on leave and/or cover."""
@@ -4341,24 +4559,24 @@ def _regular_is_own(t, uid, role):
     ar = t.get('assigned_role') or 'all'
     return ar == 'all' or t.get('assigned_user_id') == uid or ar == role
 
-def _regular_missed_dates(conn, template_id, user_id, frequency, created_at, today,
-                          assigned_user_id=None, own=True):
-    """Due dates this user still owes for a template (the backlog):
-       - own schedule, minus days this user is on leave;
+def _regular_missed_dates(conn, t, user_id, today, own=True):
+    """Due dates this user still owes for template row `t` (the backlog):
+       - own schedule (from the day it was assigned to them), minus their leave days;
        - plus days they are covering for the assigned person's leave."""
     try:
         user_logs = all_(conn, """SELECT DATE(logged_at) as log_date FROM regular_task_logs
-            WHERE template_id=? AND user_id=? ORDER BY logged_at ASC""", (template_id, user_id))
+            WHERE template_id=? AND user_id=? ORDER BY logged_at ASC""", (t['id'], user_id))
         logged = set(str(r['log_date'])[:10] for r in user_logs)
-        try: start = datetime.strptime(str(created_at)[:10], '%Y-%m-%d').date()
-        except Exception: start = today
-        due = _regular_due_dates(frequency, start, today)
+        due = _template_due_dates(conn, t, today)
+        own_from = _to_date(t.get('assigned_from'))
         own_leave = _leave_periods(conn, user_id=user_id) if own else []
         cover = []
-        if assigned_user_id and assigned_user_id != user_id:
-            cover = _leave_periods(conn, user_id=assigned_user_id, cover_user_id=user_id)
+        aid = t.get('assigned_user_id')
+        if aid and aid != user_id:
+            cover = _leave_periods(conn, user_id=aid, cover_user_id=user_id)
         owed = [d for d in due
-                if (own and not _in_periods(d, own_leave)) or _in_periods(d, cover)]
+                if (own and (not own_from or d >= own_from) and not _in_periods(d, own_leave))
+                or _in_periods(d, cover)]
         return [d for d in owed if str(d) not in logged]
     except Exception:
         return []
@@ -4461,8 +4679,7 @@ def api_catchup_regular_task(id):
         t = one(conn, 'SELECT * FROM regular_task_templates WHERE id=?', (id,))
         if not t:
             return jsonify({'success': False, 'error': 'Task not found'}), 404
-        missed = _regular_missed_dates(conn, id, uid, t['frequency'], t.get('created_at'), today,
-                                       t.get('assigned_user_id'), _regular_is_own(t, uid, session.get('user_role')))
+        missed = _regular_missed_dates(conn, t, uid, today, _regular_is_own(t, uid, session.get('user_role')))
         n = 0
         for d in missed:
             x(conn, '''INSERT INTO regular_task_logs (template_id, user_id, notes, status, logged_at)
@@ -4490,8 +4707,8 @@ def api_log_regular_task(id):
             t = one(conn, 'SELECT * FROM regular_task_templates WHERE id=?', (id,))
             if not t:
                 conn.close(); return jsonify({'success': False, 'error': 'Task not found'}), 404
-            pending = set(str(x_) for x_ in _regular_missed_dates(conn, id, uid, t['frequency'], t.get('created_at'), dubai_today(),
-                                                                  t.get('assigned_user_id'), _regular_is_own(t, uid, session.get('user_role'))))
+            pending = set(str(x_) for x_ in _regular_missed_dates(conn, t, uid, dubai_today(),
+                                                                  _regular_is_own(t, uid, session.get('user_role'))))
             bad = [s for s in dates if str(s) not in pending]
             if bad:
                 conn.close()
