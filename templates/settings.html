@@ -21,7 +21,7 @@
 <div id="tab-users" class="tab-panel">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
     <div style="color:var(--text-muted);font-size:13px;">{{ users|length }} users registered</div>
-    <button class="btn btn-primary" onclick="openModal('addUserModal')">+ Add User</button>
+    <button class="btn btn-primary" onclick="openAddUser()">+ Add User</button>
   </div>
 
   <div class="table-wrap">
@@ -136,7 +136,7 @@
       </div>
       <div class="form-group">
         <label>Username * <small style="color:var(--text-dim);">(used to log in)</small></label>
-        <input type="text" id="uUsername" placeholder="e.g. jaseel.ahmed" autocomplete="off">
+        <input type="text" id="uUsername" name="new-user-login" placeholder="e.g. jaseel.ahmed" autocomplete="off" data-lpignore="true">
       </div>
       <div class="form-group">
         <label>Email</label>
@@ -148,19 +148,19 @@
       </div>
       <div class="form-group">
         <label>Password *</label>
-        <input type="password" id="uPassword" placeholder="Min 8 characters">
+        <input type="password" id="uPassword" name="new-user-password" placeholder="Min 8 characters" autocomplete="new-password">
       </div>
       <div class="form-group">
         <label>Role *</label>
-        <select id="uRole" onchange="setDefaultPerms(this.value,'add')">
+        <select id="uRole">
           <option value="compliance">Compliance</option>
           <option value="staff">Staff</option>
           <option value="admin">Admin</option>
         </select>
       </div>
       <div class="form-group form-full">
-        <label>Permissions</label>
-        <div id="uPermsBox" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="font-size:12px;color:var(--text-dim);background:var(--surface2);border:1px dashed var(--border);border-radius:8px;padding:10px 12px;">
+          What this person can see and do comes from their <strong>Role</strong>. To change what a role can access, use <strong>Role Permissions</strong> on this page.
         </div>
       </div>
     </div>
@@ -183,7 +183,7 @@
       </div>
       <div class="form-group">
         <label>Username * <small style="color:var(--text-dim);">(used to log in)</small></label>
-        <input type="text" id="editUUsername" autocomplete="off">
+        <input type="text" id="editUUsername" name="edit-user-login" autocomplete="off" data-lpignore="true">
       </div>
       <div class="form-group">
         <label>Email</label>
@@ -195,19 +195,19 @@
       </div>
       <div class="form-group">
         <label>New Password <small style="color:var(--text-dim);">(leave blank to keep)</small></label>
-        <input type="password" id="editUPassword" placeholder="Leave blank to keep current">
+        <input type="password" id="editUPassword" name="edit-user-password" placeholder="Leave blank to keep current" autocomplete="new-password">
       </div>
       <div class="form-group">
         <label>Role</label>
-        <select id="editURole" onchange="setDefaultPerms(this.value,'edit')">
+        <select id="editURole">
           <option value="compliance">Compliance</option>
           <option value="staff">Staff</option>
           <option value="admin">Admin</option>
         </select>
       </div>
       <div class="form-group form-full">
-        <label>Permissions</label>
-        <div id="editUPermsBox" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="font-size:12px;color:var(--text-dim);background:var(--surface2);border:1px dashed var(--border);border-radius:8px;padding:10px 12px;">
+          What this person can see and do comes from their <strong>Role</strong>. To change what a role can access, use <strong>Role Permissions</strong> on this page.
         </div>
       </div>
     </div>
@@ -614,30 +614,6 @@ function saveLocalDocsPath() {
   });
 }
 
-// PERMISSIONS SYSTEM
-const ALL_PERMS = [["dashboard", "\ud83d\udcca Dashboard"], ["companies", "\ud83c\udfe2 Companies"], ["clients", "\ud83d\udc64 Clients"], ["alerts", "\u26a0\ufe0f Alerts"], ["tasks", "\u2705 Tasks"], ["regular_tasks", "\ud83d\udd01 Regular Tasks"], ["reports", "\ud83d\udccb Reports"], ["zewer_docs", "\ud83d\uddc2\ufe0f Zewer Docs"], ["admin_panel", "\u2699\ufe0f Admin Panel"]];
-const ROLE_DEFAULTS = {"admin": ["dashboard", "companies", "clients", "alerts", "tasks", "regular_tasks", "reports", "zewer_docs", "admin_panel"], "compliance": ["dashboard", "companies", "clients", "alerts", "tasks", "regular_tasks", "reports", "zewer_docs"], "staff": ["tasks", "regular_tasks"]};
-
-function renderPerms(boxId, checkedList) {
-  const box = document.getElementById(boxId);
-  box.innerHTML = ALL_PERMS.map(([key, label]) => `
-    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-muted);cursor:pointer;padding:4px 0;">
-      <input type="checkbox" name="perm_${key}" value="${key}" ${checkedList.includes(key)?'checked':''}
-        style="width:15px;height:15px;accent-color:var(--primary);cursor:pointer;">
-      ${label}
-    </label>`).join('');
-}
-
-function getCheckedPerms(boxId) {
-  return Array.from(document.getElementById(boxId).querySelectorAll('input[type=checkbox]:checked'))
-    .map(cb => cb.value).join(',');
-}
-
-function setDefaultPerms(role, mode) {
-  const boxId = mode === 'add' ? 'uPermsBox' : 'editUPermsBox';
-  renderPerms(boxId, ROLE_DEFAULTS[role] || []);
-}
-
 // ADD USER
 function saveUser() {
   const username = document.getElementById('uUsername').value.trim().toLowerCase();
@@ -649,7 +625,7 @@ function saveUser() {
     contact_number: document.getElementById('uContact').value.trim(),
     password: document.getElementById('uPassword').value,
     role: document.getElementById('uRole').value,
-    permissions: getCheckedPerms('uPermsBox'),
+    permissions: '',
   };
   if (!data.name || !data.password) { alert('Name, username and password are required'); return; }
   fetch('/api/user/add', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
@@ -665,8 +641,6 @@ function editUser(id, name, email, role, contact, username, permissions) {
   document.getElementById('editURole').value = role;
   document.getElementById('editUContact').value = contact;
   document.getElementById('editUPassword').value = '';
-  const perms = permissions ? permissions.split(',').filter(Boolean) : (ROLE_DEFAULTS[role] || []);
-  renderPerms('editUPermsBox', perms);
   openModal('editUserModal');
 }
 function saveEditUser() {
@@ -678,7 +652,7 @@ function saveEditUser() {
     contact_number: document.getElementById('editUContact').value.trim(),
     password: document.getElementById('editUPassword').value,
     role: document.getElementById('editURole').value,
-    permissions: getCheckedPerms('editUPermsBox'),
+    permissions: '',
   };
   fetch(`/api/user/${id}/edit`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
     .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
@@ -742,12 +716,14 @@ function deleteUser(id, name) {
     .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
 }
 
-// DROPDOWN FIELD CHANGE
-// Init add user perms box with staff defaults
+// Open "Add User" with empty fields — browsers like to autofill the admin's own saved login here.
+function openAddUser() {
+  ['uName','uUsername','uEmail','uContact','uPassword'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  openModal('addUserModal');
+  setTimeout(() => { ['uUsername','uPassword'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); }, 150);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-  if (document.getElementById('uPermsBox')) {
-    renderPerms('uPermsBox', ROLE_DEFAULTS['staff'] || []);
-  }
   loadRolePerms();
 });
 
