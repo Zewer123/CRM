@@ -369,7 +369,7 @@
   <div class="an-card" style="padding:0;overflow:hidden;">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:18px 18px 0;flex-wrap:wrap;">
       <div class="an-card-title" style="margin:0;">Staff Task Summary — {{ period_label }}</div>
-      <a href="{{ url_for('task_history', status='@pending') }}" class="btn btn-ghost btn-sm">⏳ Pending by Staff →</a>
+      <a href="{{ url_for('task_history', status='@open') }}" class="btn btn-ghost btn-sm">⏳ Pending by Staff →</a>
     </div>
     <div class="table-wrap">
       <table>
@@ -463,11 +463,9 @@
         </div>
       </div>
       <div class="tr-chips">
-        {% set open_n = s.temp_pending|length + s.temp_overdue|length + s.add_open %}
         <span class="tr-chip b-done" title="Completed in this period">✅ {{ s.done_total }} done</span>
-        <span class="tr-chip b-pend" title="One-off + additional jobs still open (includes overdue)">⏳ {{ open_n }} open</span>
-        {% if s.temp_overdue %}<span class="tr-chip b-over" title="Open one-off tasks past their due date">⚠️ {{ s.temp_overdue|length }} overdue</span>{% endif %}
-        {% if s.reg_pending %}<span class="tr-chip b-back" title="Recurring days not logged yet">🔁 {{ s.reg_pending }} backlog</span>{% endif %}
+        <span class="tr-chip b-pend" title="Not done yet and not past due — one-time, recurring (due today) and additional jobs">⏳ {{ s.pending_only }} pending</span>
+        {% if s.overdue_total %}<span class="tr-chip b-over" title="Past due — one-time tasks, missed recurring days, additional jobs past their end time">⚠️ {{ s.overdue_total }} overdue</span>{% endif %}
       </div>
     </div>
     <div class="tr-body">
@@ -488,7 +486,7 @@
       <div class="tr-sub">➕ Additional jobs in period ({{ s.add_list|length }})</div>
       {% if s.add_list %}
       <table class="tr-table"><thead><tr><th>Task</th><th>From</th><th>To</th><th>Status</th></tr></thead><tbody>
-        {% for a in s.add_list %}<tr><td style="color:var(--text);">{{ a.title }}</td><td>{{ a.from }}</td><td>{{ a.to }}</td><td>{% if a.status=='completed' %}✅ Completed{% else %}○ Open{% endif %}</td></tr>{% endfor %}
+        {% for a in s.add_list %}<tr><td style="color:var(--text);">{{ a.title }}</td><td>{{ a.from }}</td><td>{{ a.to }}</td><td>{% if a.status=='completed' %}✅ Done{% elif a.overdue %}<span style="color:#fca5a5;">⚠️ Overdue</span>{% else %}<span style="color:#93c5fd;">⏳ Pending</span>{% endif %}</td></tr>{% endfor %}
       </tbody></table>
       {% else %}<div class="tr-none">No additional jobs in this period.</div>{% endif %}
 
@@ -499,7 +497,7 @@
         {% for t in s.temp_pending %}<tr><td style="color:var(--text);">{{ t.title }}</td><td>{{ t.company or '—' }}</td><td>{{ t.due or '—' }}</td><td><span style="color:#93c5fd;">Pending</span></td></tr>{% endfor %}
       </tbody></table>
       {% else %}<div class="tr-none">Nothing pending.</div>{% endif %}
-      {% if s.reg_pending %}<div class="tr-none" style="color:#fcd34d;margin-top:8px;">🔁 Plus {{ s.reg_pending }} unlogged recurring occurrence(s) — clear from Tasks → Recurring → Log → "Catch up all".</div>{% endif %}
+      {% if s.reg_pending or s.reg_overdue %}<div class="tr-none" style="color:#fcd34d;margin-top:8px;">🔁 Recurring: {{ s.reg_overdue }} overdue day(s), {{ s.reg_pending }} pending today — clear from Tasks → Recurring → Log → "Catch up all".</div>{% endif %}
     </div>
   </div>
   {% else %}

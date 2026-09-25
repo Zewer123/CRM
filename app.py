@@ -1188,8 +1188,12 @@ def login():
             conn.close()
             logger.warning(f'Login throttled for IP {_client_ip()}')
             return jsonify({'success':False,'error':'Too many failed attempts. Please wait 15 minutes and try again.'}),429
-        login_id = d.get('username') or d.get('email','')
-        u=one(conn,'SELECT * FROM users WHERE username=? OR email=?',(login_id,login_id))
+        # Usernames are stored lower-case; phones capitalise the first letter and keyboards
+        # add trailing spaces, so match trimmed + case-insensitive (username wins over email).
+        login_id = (d.get('username') or d.get('email') or '').strip()
+        u=one(conn,'''SELECT * FROM users WHERE LOWER(username)=LOWER(?) OR LOWER(email)=LOWER(?)
+            ORDER BY CASE WHEN LOWER(username)=LOWER(?) THEN 0 ELSE 1 END, id LIMIT 1''',
+            (login_id,login_id,login_id)) if login_id else None
         if u and check_password_hash(u['password_hash'],d.get('password','')) and u['is_active']:
             session.permanent = True  # enables PERMANENT_SESSION_LIFETIME timeout
             session.update(user_id=u['id'],user_email=u['email'],user_name=u['name'],user_role=u['role'],user_permissions=(u.get('permissions') or ''))
@@ -2488,20 +2492,24 @@ def _staff_task_report(conn, today, df, dt, staff_id=None):
                      'date': str(r['d']), 'notes': r['notes'] or ''} for r in reg]
 
         # ── regular-task backlog (unlogged occurrences) ──
-        reg_pending = 0
+        # Same rule as the Tasks page: today's occurrence is Pending, earlier ones are Overdue.
+        reg_pending = 0; reg_overdue = 0
         try:
             if urole in ('admin', 'compliance'):
                 tmpls = all_(conn, "SELECT * FROM regular_task_templates WHERE assigned_user_id=?", (uid,))
             else:
                 tmpls = all_(conn, "SELECT * FROM regular_task_templates WHERE assigned_user_id=? OR (assigned_user_id IS NULL AND (assigned_role='all' OR assigned_role=?))", (uid, urole))
             own_ids = set(tm['id'] for tm in tmpls)
+            missed = []
             for tm in tmpls:
-                reg_pending += len(_regular_missed_dates(conn, tm, uid, today, True))
+                missed += _regular_missed_dates(conn, tm, uid, today, True)
             for tm in _covered_templates(conn, uid, today):
                 if tm['id'] not in own_ids:
-                    reg_pending += len(_regular_missed_dates(conn, tm, uid, today, False))
+                    missed += _regular_missed_dates(conn, tm, uid, today, False)
+            reg_overdue = len([d for d in missed if str(d) < str(today)])
+            reg_pending = len(missed) - reg_overdue
         except Exception:
-            reg_pending = 0
+            reg_pending = reg_overdue = 0
 
         # ── additional tasks touching the range ──
         try:
@@ -2511,19 +2519,25 @@ def _staff_task_report(conn, today, df, dt, staff_id=None):
                 ORDER BY from_datetime DESC""", (uid, ps, pe, ps, pe))
         except Exception:
             adds = []
+        now_s = datetime.now(DUBAI_TZ).strftime('%Y-%m-%d %H:%M')
         add_list = [{'title': a['title'], 'status': a['status'] or 'open',
                      'from': str(a['from_datetime'])[:16], 'to': str(a['to_datetime'])[:16],
                      'details': a.get('task_details') or ''} for a in adds]
+        for a in add_list:      # open and past its end time = Overdue
+            a['overdue'] = a['status'] != 'completed' and bool(a['to']) and a['to'].replace('T', ' ') < now_s
         add_done = len([a for a in add_list if a['status'] == 'completed'])
-        add_open = len(add_list) - add_done
+        add_overdue = len([a for a in add_list if a['overdue']])
+        add_open = len(add_list) - add_done - add_overdue
 
         report.append({
             'name': u['name'], 'role': (u['role'] or '').title(), 'login': u.get('username') or u.get('email') or '',
             'temp_done': temp_done, 'temp_pending': temp_pending, 'temp_overdue': temp_overdue,
-            'reg_list': reg_list, 'reg_pending': reg_pending,
-            'add_list': add_list, 'add_done': add_done, 'add_open': add_open,
+            'reg_list': reg_list, 'reg_pending': reg_pending, 'reg_overdue': reg_overdue,
+            'add_list': add_list, 'add_done': add_done, 'add_open': add_open, 'add_overdue': add_overdue,
             'done_total': len(temp_done) + len(reg_list) + add_done,
-            'pending_total': len(temp_pending) + len(temp_overdue) + reg_pending + add_open,
+            'pending_only': len(temp_pending) + reg_pending + add_open,
+            'overdue_total': len(temp_overdue) + reg_overdue + add_overdue,
+            'pending_total': len(temp_pending) + len(temp_overdue) + reg_pending + reg_overdue + add_open + add_overdue,
         })
     report.sort(key=lambda r: (-r['done_total'], r['name']))
     return report, all_users
@@ -3412,7 +3426,7 @@ def api_edit_user(id):
         conn=get_db()
         username = d.get('username','').strip().lower() or None
         if username:
-            existing = one(conn,'SELECT id FROM users WHERE username=? AND id!=?',(username,id))
+            existing = one(conn,'SELECT id FROM users WHERE LOWER(username)=? AND id!=?',(username,id))
             if existing: return jsonify({'success':False,'error':'Username already taken'}),400
         email, err = _user_email(conn, d.get('email'), username, exclude_id=id)
         if err: return jsonify({'success':False,'error':err}),400
@@ -4610,7 +4624,8 @@ def export_tasks_all():
         od = (today - datetime.strptime(due, '%Y-%m-%d').date()).days if (due and due < tstr and st not in ('done', 'pending_close')) else ''
         one_rows.append([t['id'], t.get('title'), t.get('description'), t.get('assignee'), t.get('creator'),
                          t.get('ac_code'), t.get('client_name'), (t.get('priority') or 'normal').title(), due,
-                         TASK_STATUS_LABELS.get(st, st), od, str(t.get('created_at') or '')[:16], str(t.get('updated_at') or '')[:16]])
+                         'Done' if st == 'done' else ('Overdue' if od != '' else TASK_STATUS_LABELS.get(st, st)),
+                         od, str(t.get('created_at') or '')[:16], str(t.get('updated_at') or '')[:16]])
     sheet(wb.active, 'One-time Tasks', ['ID', 'Task', 'Description', 'Assigned To', 'Created By', 'AC Code', 'Company',
                                         'Priority', 'Due Date', 'Status', 'Days Overdue', 'Created', 'Last Updated'], one_rows)
 
@@ -4628,8 +4643,9 @@ def export_tasks_all():
             past = [d for d in missed if d < today]
             last = one(conn, """SELECT MAX(logged_at) AS m FROM regular_task_logs WHERE template_id=? AND user_id=?
                                 AND COALESCE(status,'done') <> 'reopened'""", (t['id'], pid))
-            status = {'paused': 'Paused', 'ended': 'Ended'}.get(state) or (
-                f'{len(past)} missed' if past else ('Due today' if today in missed else 'Up to date'))
+            # Same names as one-time tasks: On Hold / Overdue / Pending / Done
+            status = {'paused': 'On Hold (paused)', 'ended': 'On Hold (ended)'}.get(state) or (
+                f'Overdue ({len(past)} missed)' if past else ('Pending (due today)' if today in missed else 'Done (up to date)'))
             rec_rows.append([t['title'], (t.get('frequency') or '').title(),
                              _rule_text(t.get('frequency'), t.get('weekday'), t.get('month_day')), pname,
                              status, len(past), str(past[0]) if past else '',
@@ -4663,9 +4679,14 @@ def export_tasks_all():
         try: conn.rollback()
         except Exception: pass
         adds = []
+    now_s = datetime.now(DUBAI_TZ).strftime('%Y-%m-%d %H:%M')
+    def _add_status(a):
+        if a.get('status') == 'completed': return 'Done'
+        end = str(a.get('to_datetime') or '')[:16].replace('T', ' ')
+        return 'Overdue' if end and end < now_s else 'Pending'
     sheet(wb.create_sheet(), 'Additional Jobs', ['Job', 'Person', 'From', 'To', 'Status', 'Completed At', 'Details', 'Remarks'],
           [[a.get('title'), a.get('person'), str(a.get('from_datetime') or '')[:16], str(a.get('to_datetime') or '')[:16],
-            'Completed' if a.get('status') == 'completed' else 'Open', str(a.get('completed_at') or '')[:16],
+            _add_status(a), str(a.get('completed_at') or '')[:16],
             a.get('task_details'), a.get('remarks')] for a in adds])
     conn.close()
     out = io.BytesIO(); wb.save(out); out.seek(0)
@@ -4766,7 +4787,7 @@ def task_history():
     for t in opens:
         st = t.get('status') or 'todo'
         due = str(t.get('due_date') or '')[:10]
-        overdue = bool(due) and due < tstr and st not in ('pending_close',)
+        overdue = bool(due) and due < tstr and st not in ('pending_close', 'hold')   # same rule as the Tasks page
         rows.append({
             'kind': 'One-off', 'title': t.get('title') or '—', 'freq': '',
             'user_id': t.get('assigned_to'), 'staff_name': t.get('staff_name') or 'Unassigned',
@@ -4804,12 +4825,15 @@ def task_history():
         aopen = all_(conn, q) if is_mgr else all_(conn, q + " AND a.created_by=?", (uid,))
     except Exception:
         aopen = []
+    now_s = datetime.now(DUBAI_TZ).strftime('%Y-%m-%d %H:%M')
     for a in aopen:
+        end = str(a.get('to_datetime') or '')[:16].replace('T', ' ')
         rows.append({
             'kind': 'Additional', 'title': a.get('title') or '—', 'freq': '',
             'user_id': a.get('created_by'), 'staff_name': a.get('staff_name') or '—',
             'status': 'open', 'notes': a.get('task_details') or a.get('remarks') or '',
             'when': str(a.get('to_datetime') or a.get('from_datetime') or '')[:16], 'group': 'pending',
+            'overdue': bool(end) and end < now_s,          # past its end time, like the Tasks page
         })
 
     rows.sort(key=lambda r: r['when'], reverse=True)

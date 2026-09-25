@@ -51,10 +51,11 @@
     <label>STATUS</label>
     <select id="hFilterStatus" onchange="filterHistory()">
       <option value="">Everything</option>
-      <option value="@completed">✅ Completed</option>
+      <option value="@completed">✅ Done</option>
+      <option value="@open">⏳ Pending + ⚠️ Overdue</option>
       <option value="@pending">⏳ Pending</option>
-      <option value="@awaiting">🔒 Awaiting closure</option>
-      <option value="@overdue">⚠️ Overdue / missed</option>
+      <option value="@awaiting">🔒 Awaiting Closure</option>
+      <option value="@overdue">⚠️ Overdue</option>
       <option value="@late">🕒 Done late (recurring)</option>
     </select>
   </div>
@@ -121,20 +122,18 @@
           </td>
           <td style="color:var(--text-muted);">{{ l.staff_name }}</td>
           <td>
+            {# One status vocabulary for every task type: Done / Pending / Overdue / On Hold / Awaiting Closure.
+               The small line underneath keeps the type-specific detail. #}
             {% set st = l.status %}
-            {% if st == 'done' %}<span class="st-b" style="background:var(--success-bg);color:var(--success);">✅ {{ 'Closed' if l.kind == 'One-off' else 'Done' }}</span>
-            {% elif st == 'completed' %}<span class="st-b" style="background:var(--success-bg);color:var(--success);">✅ Completed</span>
-            {% elif st == 'partial' %}<span class="st-b" style="background:var(--warning-bg);color:var(--warning);">◐ Partial</span>
-            {% elif st == 'skipped' %}<span class="st-b" style="background:var(--surface3);color:var(--text-muted);">⏭️ Skipped</span>
-            {% elif st == 'reopened' %}<span class="st-b" style="background:var(--danger-bg);color:var(--danger);" title="Reopened by a manager — the day counts as missed again">↩ Reopened</span>
-            {% elif st == 'missed' %}<span class="st-b" style="background:var(--danger-bg);color:var(--danger);">✕ Missed</span>
-            {% elif st == 'due' %}<span class="st-b" style="background:var(--warning-bg);color:var(--warning);">• Due today</span>
-            {% elif st == 'inprogress' %}<span class="st-b" style="background:var(--blue-bg);color:var(--blue);">🔄 In Progress</span>
+            {% set sub = {'partial': 'partial', 'skipped': 'skipped', 'missed': 'missed day', 'due': 'due today',
+                          'inprogress': 'in progress'}.get(st, '') %}
+            {% if st == 'reopened' %}<span class="st-b" style="background:var(--danger-bg);color:var(--danger);" title="Reopened by a manager — the day counts as missed again">↩ Reopened</span>
+            {% elif l.group == 'completed' %}<span class="st-b" style="background:var(--success-bg);color:var(--success);">✅ Done</span>
+            {% elif st == 'pending_close' %}<span class="st-b" style="background:var(--warning-bg);color:var(--warning);" title="Done by the assignee — waiting to be closed">🔒 Awaiting Closure</span>{% if l.closer %}{% set sub = 'to be closed by ' ~ l.closer %}{% endif %}
             {% elif st == 'hold' %}<span class="st-b" style="background:rgba(168,85,247,0.14);color:#a855f7;">⏸ On Hold</span>
-            {% elif st == 'pending_close' %}<span class="st-b" style="background:var(--warning-bg);color:var(--warning);" title="Done by the assignee — waiting to be closed">⏳ Awaiting Closure</span>{% if l.closer %}<div style="font-size:10px;color:var(--text-dim);margin-top:2px;">to be closed by {{ l.closer }}</div>{% endif %}
-            {% elif st == 'open' %}<span class="st-b" style="background:var(--surface3);color:var(--text-muted);">○ Open</span>
-            {% else %}<span class="st-b" style="background:var(--surface3);color:var(--text-muted);">📋 Pending</span>{% endif %}
-            {% if l.overdue and st not in ['missed'] %}<div style="font-size:10px;color:var(--danger);font-weight:700;margin-top:2px;">⚠️ overdue</div>{% endif %}
+            {% elif l.overdue %}<span class="st-b" style="background:var(--danger-bg);color:var(--danger);">⚠️ Overdue</span>
+            {% else %}<span class="st-b" style="background:var(--surface3);color:var(--text-muted);">⏳ Pending</span>{% endif %}
+            {% if sub %}<div style="font-size:10px;color:var(--text-dim);margin-top:2px;">{{ sub }}</div>{% endif %}
           </td>
           <td style="font-size:12px;color:var(--text-dim);">{{ l.notes or '—' }}</td>
           <td style="font-size:12px;color:{% if l.overdue %}var(--danger){% else %}var(--text-muted){% endif %};white-space:nowrap;">{{ l.when or '—' }}
@@ -166,7 +165,8 @@ function _rowMatch(row, ignoreUser) {
   if (k && row.dataset.kind !== k) return false;
   if (f && row.dataset.freq !== f) return false;
   if (s === '@completed' && row.dataset.group !== 'completed') return false;
-  if (s === '@pending' && row.dataset.group !== 'pending') return false;
+  if (s === '@pending' && (row.dataset.group !== 'pending' || row.dataset.overdue)) return false;
+  if (s === '@open' && row.dataset.group !== 'pending') return false;
   if (s === '@awaiting' && row.dataset.group !== 'awaiting') return false;
   if (s === '@overdue' && !row.dataset.overdue) return false;
   if (s === '@late' && !row.dataset.late) return false;
@@ -178,23 +178,23 @@ function _rowMatch(row, ignoreUser) {
 }
 
 function filterHistory() {
-  let shown = 0, done = 0, pend = 0, wait = 0;
+  let shown = 0, done = 0, pend = 0, over = 0, wait = 0;
   const staff = {};
   document.querySelectorAll('#historyBody tr[data-status]').forEach(row => {
     const show = _rowMatch(row, false);
     row.style.display = show ? '' : 'none';
-    if (show) { shown++; if (row.dataset.group === 'completed') done++; else if (row.dataset.group === 'pending') pend++; else if (row.dataset.group === 'awaiting') wait++; }
+    if (show) { shown++; if (row.dataset.group === 'completed') done++; else if (row.dataset.group === 'pending') { if (row.dataset.overdue) over++; else pend++; } else if (row.dataset.group === 'awaiting') wait++; }
     // staff cards: everything except the staff filter itself
     if (_rowMatch(row, true)) {
       const id = row.dataset.user || '0';
       const sc = staff[id] || (staff[id] = {name: row.dataset.staff || '—', done: 0, pending: 0, overdue: 0, awaiting: 0});
       if (row.dataset.group === 'completed') sc.done++;
-      else if (row.dataset.group === 'pending') { sc.pending++; if (row.dataset.overdue) sc.overdue++; }
+      else if (row.dataset.group === 'pending') { if (row.dataset.overdue) sc.overdue++; else sc.pending++; }
       else if (row.dataset.group === 'awaiting') sc.awaiting++;
     }
   });
   document.getElementById('histCount').textContent = shown;
-  document.getElementById('histSplit').textContent = `${done} completed · ${pend} pending` + (wait ? ` · ${wait} awaiting closure` : '');
+  document.getElementById('histSplit').textContent = `${done} done · ${pend} pending · ${over} overdue` + (wait ? ` · ${wait} awaiting closure` : '');
   renderStaffCards(staff);
 }
 
@@ -203,16 +203,16 @@ function renderStaffCards(staff) {
   const sel = document.getElementById('hFilterUser');
   const cur = sel ? sel.value : '';
   const esc2 = t => { const e = document.createElement('div'); e.textContent = t; return e.innerHTML; };
-  const list = Object.entries(staff).sort((a, b) => (b[1].pending + b[1].done + b[1].awaiting) - (a[1].pending + a[1].done + a[1].awaiting));
+  const list = Object.entries(staff).sort((a, b) => (b[1].pending + b[1].overdue + b[1].done + b[1].awaiting) - (a[1].pending + a[1].overdue + a[1].done + a[1].awaiting));
   box.innerHTML = list.map(([id, s]) => {
     // Awaiting closure = the person finished their part, so it counts toward their progress bar.
-    const tot = s.done + s.pending + s.awaiting, pct = tot ? Math.round(100 * (s.done + s.awaiting) / tot) : 0;
+    const tot = s.done + s.pending + s.overdue + s.awaiting, pct = tot ? Math.round(100 * (s.done + s.awaiting) / tot) : 0;
     return `<div class="tr-sc${cur === id ? ' sel' : ''}" onclick="pickStaff('${id}')" title="Show only ${esc2(s.name)}">
       <div class="nm">👤 ${esc2(s.name)}</div>
       <div class="nums">
         <span class="nb" style="color:var(--success);" onclick="pickStaffStatus(event,'${id}','@completed')" title="Show what ${esc2(s.name)} completed"><b>${s.done}</b> done</span>
-        <span class="nb" style="color:var(--text-muted);" onclick="pickStaffStatus(event,'${id}','@pending')" title="Show what ${esc2(s.name)} still has pending"><b>${s.pending}</b> pending</span>
-        ${s.overdue ? `<span class="nb" style="color:var(--danger);" onclick="pickStaffStatus(event,'${id}','@overdue')" title="Show overdue / missed"><b>${s.overdue}</b> late</span>` : ''}
+        <span class="nb" style="color:var(--text-muted);" onclick="pickStaffStatus(event,'${id}','@pending')" title="Show what ${esc2(s.name)} has pending (not yet overdue)"><b>${s.pending}</b> pending</span>
+        ${s.overdue ? `<span class="nb" style="color:var(--danger);" onclick="pickStaffStatus(event,'${id}','@overdue')" title="Show overdue"><b>${s.overdue}</b> overdue</span>` : ''}
         ${s.awaiting ? `<span class="nb" style="color:var(--warning);" onclick="pickStaffStatus(event,'${id}','@awaiting')" title="Finished by this person — waiting for the task creator / admin to close"><b>${s.awaiting}</b> to close</span>` : ''}
       </div>
       <div class="bar"><div style="width:${pct}%;"></div></div>
@@ -244,7 +244,7 @@ function clearHistoryFilters() {
   filterHistory();
 }
 document.addEventListener('DOMContentLoaded', function () {
-  // Deep links: ?status=@pending|@completed|@overdue &user=<id> &kind=Regular|One-off|Additional
+  // Deep links: ?status=@open|@pending|@completed|@overdue &user=<id> &kind=Regular|One-off|Additional
   const P = new URLSearchParams(window.location.search);
   const set = (id, v) => { const el = document.getElementById(id); if (el && v && [...el.options].some(o => o.value === v)) el.value = v; };
   set('hFilterStatus', P.get('status')); set('hFilterUser', P.get('user')); set('hFilterKind', P.get('kind'));
