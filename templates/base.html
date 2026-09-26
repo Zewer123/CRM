@@ -86,6 +86,17 @@
   </nav>
 
   <script>
+    // ── FILTER BUTTON ──────────────────────────────────────
+    // Filters apply as soon as a value changes; the 🔍 Filter button runs them again on
+    // demand and confirms, so it's clear the filter has been applied.
+    function runFilter(btn, fn) {
+      fn();
+      if (btn._t) clearTimeout(btn._t);
+      if (!btn.dataset.label) btn.dataset.label = btn.textContent;
+      btn.textContent = '✓ Applied';
+      btn._t = setTimeout(() => { btn.textContent = btn.dataset.label; }, 1200);
+    }
+
     // ── HTML ESCAPING (XSS protection) ─────────────────────
     // Defined BEFORE the content block on purpose: some pages call esc() from a
     // top-level script that runs immediately during parsing (not from a later

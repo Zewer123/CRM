@@ -90,7 +90,8 @@
     <label>TO DATE</label>
     <input type="date" id="hFilterTo" onchange="filterHistory()">
   </div>
-  <div class="form-group" style="min-width:70px;display:flex;align-items:flex-end;">
+  <div class="form-group" style="min-width:150px;display:flex;flex-direction:row;align-items:flex-end;gap:6px;">
+    <button class="btn btn-primary btn-sm" onclick="runFilter(this, filterHistory)">🔍 Filter</button>
     <button class="btn btn-ghost btn-sm" onclick="clearHistoryFilters()">Clear</button>
   </div>
 </div>
