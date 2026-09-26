@@ -7,7 +7,7 @@
   <div class="page-title">✅ Tasks</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;" id="headerActions">
     {% if has_perm('regular_tasks_view') %}
-    <a href="{{ url_for('task_history', status='@open') }}" class="btn btn-ghost btn-sm" title="Everything still pending, with a card per staff member">⏳ Pending by Staff</a>
+    <a href="{{ url_for('task_history', status='@open') }}" class="btn btn-ghost btn-sm" title="Everything not done yet, with a card per staff member">📋 Open by Staff</a>
     <a href="{{ url_for('task_history') }}" class="btn btn-ghost btn-sm" title="Everything done and pending, per staff">📋 Task Report</a>
     {% endif %}
     <a href="{{ url_for('export_tasks_all') }}" class="btn btn-ghost btn-sm" title="Download every task and its status (one-time, recurring, logs, additional) as Excel">⬇️ Export</a>
@@ -181,7 +181,7 @@
     <div class="md-main">
       <div class="md-title">{{ i.title }}</div>
       <div class="md-meta">
-        {% if i.kind == 'task' %}{{ {'todo':'Pending','inprogress':'In progress'}.get(i.status, i.status) }}{% if i.company %} · {{ i.company }}{% endif %}{% if i.by and i.by != '—' %} · from {{ i.by }}{% endif %}
+        {% if i.kind == 'task' %}{{ {'todo':'Not started','inprogress':'In progress'}.get(i.status, i.status) }}{% if i.company %} · {{ i.company }}{% endif %}{% if i.by and i.by != '—' %} · from {{ i.by }}{% endif %}
         {% else %}{{ i.schedule }}{% if i.covering %} · covering for {{ i.covering }}{% endif %}{% endif %}
       </div>
     </div>
@@ -192,7 +192,7 @@
 
 {% if myday.hold %}
 <div class="md-sec">
-  <h3>⏸ On hold <span class="n">{{ myday.hold|length }}</span></h3>
+  <h3>⏸ Hold <span class="n">{{ myday.hold|length }}</span></h3>
   {% for i in myday.hold %}
   <div class="md-row">
     {{ md_type(i) }}
@@ -224,7 +224,7 @@
     {% if i.kind == 'task' %}<span class="md-type task">One-time</span>{% else %}<span class="md-type daily">Recurring</span>{% endif %}
     <div class="md-main">
       <div class="md-title" style="font-weight:500;">{{ i.title }}</div>
-      <div class="md-meta">{{ i.time }} · {{ {'done':'Done','partial':'Partially done','skipped':'Skipped','marked_done':'Marked done — waiting for closure','closed':'Closed'}.get(i.status, i.status) }}</div>
+      <div class="md-meta">{{ i.time }} · {{ {'done':'Done','partial':'Partially done','skipped':'Skipped','marked_done':'Done — waiting to be closed','closed':'Closed'}.get(i.status, i.status) }}</div>
     </div>
   </div>
   {% else %}<div class="md-empty">Nothing logged yet today.</div>{% endfor %}
@@ -238,10 +238,10 @@
 <!-- STATS (click a card to filter) -->
 <div class="stat-grid tk" style="margin-bottom:16px;">
   <div class="stat-card danger click" data-card="overdue" onclick="cardFilter('overdue')"><div class="stat-label">Overdue</div><div class="stat-value" id="sc-overdue">0</div></div>
-  <div class="stat-card click" data-card="todo" onclick="cardFilter('todo')"><div class="stat-label">Pending</div><div class="stat-value" id="sc-todo">0</div></div>
+  <div class="stat-card click" data-card="todo" onclick="cardFilter('todo')"><div class="stat-label">Not started</div><div class="stat-value" id="sc-todo">0</div></div>
   <div class="stat-card click" style="border-left-color:var(--blue);" data-card="inprogress" onclick="cardFilter('inprogress')"><div class="stat-label">In Progress</div><div class="stat-value" id="sc-inprogress" style="color:var(--blue);">0</div></div>
-  <div class="stat-card click" style="border-left-color:#a855f7;" data-card="hold" onclick="cardFilter('hold')"><div class="stat-label">On Hold</div><div class="stat-value" id="sc-hold" style="color:#a855f7;">0</div></div>
-  <div class="stat-card warning click" data-card="pending_close" onclick="cardFilter('pending_close')"><div class="stat-label">Awaiting Closure</div><div class="stat-value" id="sc-pending">0</div><div class="stat-sub" id="sc-mine-close"></div></div>
+  <div class="stat-card click" style="border-left-color:#a855f7;" data-card="hold" onclick="cardFilter('hold')"><div class="stat-label">Hold</div><div class="stat-value" id="sc-hold" style="color:#a855f7;">0</div></div>
+  <div class="stat-card warning click" data-card="pending_close" onclick="cardFilter('pending_close')"><div class="stat-label">Done</div><div class="stat-value" id="sc-pending">0</div><div class="stat-sub" id="sc-mine-close"></div></div>
   <div class="stat-card success click" data-card="done" onclick="cardFilter('done')"><div class="stat-label">Closed</div><div class="stat-value" id="sc-done">0</div></div>
 </div>
 
@@ -266,11 +266,12 @@
     <label>STATUS</label>
     <select id="filterStatus" onchange="filterTasks()">
       <option value="">Any</option>
-      <option value="todo">Pending</option>
+      <option value="todo">Not started</option>
       <option value="inprogress">In Progress</option>
-      <option value="hold">On Hold</option>
-      <option value="pending_close">Awaiting Closure</option>
+      <option value="hold">Hold</option>
+      <option value="pending_close">Done (waiting to be closed)</option>
       <option value="done">Closed</option>
+      <option value="overdue">⚠️ Overdue</option>
     </select>
   </div>
   <div class="form-group" style="min-width:150px;">
@@ -363,7 +364,7 @@
           </td>
           <td>
             <span class="st-pill st-{{ st }}">
-              {% if st == 'done' %}✅ Closed{% elif st == 'pending_close' %}⏳ Awaiting Closure{% elif st == 'inprogress' %}🔄 In Progress{% elif st == 'hold' %}⏸ On Hold{% else %}📋 Pending{% endif %}
+              {% if st == 'done' %}🔒 Closed{% elif st == 'pending_close' %}✅ Done{% elif st == 'inprogress' %}🔄 In Progress{% elif st == 'hold' %}⏸ Hold{% else %}📋 Not started{% endif %}
             </span>
           </td>
           <td>
@@ -420,12 +421,13 @@
 {% endfor %}
 {% set fc = namespace(daily=0, weekly=0, monthly=0) %}
 {% for t in rt_templates %}{% if t.frequency == 'daily' %}{% set fc.daily = fc.daily + 1 %}{% elif t.frequency == 'weekly' %}{% set fc.weekly = fc.weekly + 1 %}{% else %}{% set fc.monthly = fc.monthly + 1 %}{% endif %}{% endfor %}
-{% set hold = namespace(n=0) %}{% for t in rt_templates %}{% if task_status.get(t.id, {}).get('state', 'active') != 'active' and task_status.get(t.id, {}).get('late_count', 0) == 0 %}{% set hold.n = hold.n + 1 %}{% endif %}{% endfor %}
-<div class="stat-grid tk5" style="margin-bottom:16px;">
+{% set hold = namespace(n=0, paused=0, ended=0) %}{% for t in rt_templates %}{% set st_ = task_status.get(t.id, {}).get('state', 'active') %}{% if st_ != 'active' and task_status.get(t.id, {}).get('late_count', 0) == 0 %}{% set hold.n = hold.n + 1 %}{% if st_ == 'ended' %}{% set hold.ended = hold.ended + 1 %}{% else %}{% set hold.paused = hold.paused + 1 %}{% endif %}{% endif %}{% endfor %}
+<div class="stat-grid tk" style="margin-bottom:16px;">
   <div class="stat-card danger click" data-rcard="overdue" onclick="rtCard('overdue')"><div class="stat-label">Overdue</div><div class="stat-value">{{ ns.overdue }}</div><div class="stat-sub">missed days</div></div>
-  <div class="stat-card click" data-rcard="due" onclick="rtCard('due')"><div class="stat-label">Pending</div><div class="stat-value">{{ ns.due_today }}</div><div class="stat-sub">due today</div></div>
-  <div class="stat-card click" style="border-left-color:#a855f7;" data-rcard="paused" onclick="rtCard('paused')"><div class="stat-label">On Hold</div><div class="stat-value" style="color:#a855f7;">{{ hold.n }}</div><div class="stat-sub">paused / ended</div></div>
+  <div class="stat-card click" data-rcard="due" onclick="rtCard('due')"><div class="stat-label">Not started</div><div class="stat-value">{{ ns.due_today }}</div><div class="stat-sub">due today</div></div>
+  <div class="stat-card click" style="border-left-color:#a855f7;" data-rcard="paused" onclick="rtCard('paused')"><div class="stat-label">Hold</div><div class="stat-value" style="color:#a855f7;">{{ hold.paused }}</div><div class="stat-sub">paused</div></div>
   <div class="stat-card success click" data-rcard="ok" onclick="rtCard('ok')"><div class="stat-label">Done</div><div class="stat-value">{{ ns.ok - hold.n }}</div><div class="stat-sub">up to date</div></div>
+  <div class="stat-card click" style="border-left-color:var(--text-dim);" data-rcard="closed" onclick="rtCard('closed')"><div class="stat-label">Closed</div><div class="stat-value" style="color:var(--text-muted);">{{ hold.ended }}</div><div class="stat-sub">ended</div></div>
   <div class="stat-card click" data-rcard="" onclick="rtCard('')"><div class="stat-label">All</div><div class="stat-value" style="color:var(--text);">{{ ns.total }}</div></div>
 </div>
 
@@ -443,10 +445,11 @@
     <label>STATUS</label>
     <select id="rtStatus" onchange="filterRegular()">
       <option value="">Any</option>
-      <option value="due">Pending (due today)</option>
-      <option value="overdue">Overdue (missed days)</option>
-      <option value="paused">On Hold (paused / ended)</option>
+      <option value="due">Not started (due today)</option>
+      <option value="paused">Hold (paused)</option>
       <option value="ok">Done (up to date)</option>
+      <option value="closed">Closed (ended)</option>
+      <option value="overdue">⚠️ Overdue (missed days)</option>
     </select>
   </div>
   <div class="form-group" style="min-width:160px;">
@@ -505,21 +508,21 @@
             data-freq="{{ t.frequency }}"
             {% set state = s.get('state', 'active') %}
             data-state="{{ state }}"
-            data-rtstatus="{% if overdue > 0 %}overdue{% elif state != 'active' %}paused{% elif is_due %}due{% else %}ok{% endif %}"
+            data-rtstatus="{% if overdue > 0 %}overdue{% elif state == 'ended' %}closed{% elif state != 'active' %}paused{% elif is_due %}due{% else %}ok{% endif %}"
             data-user="{{ t.assigned_user_id or '' }}"
             data-title="{{ t.title|lower }}"
             data-overdue="{{ overdue }}"
             data-nextdue="{{ s.get('next_due', '') }}"
             data-lastlogged="{{ s.get('last_logged') or '' }}">
           <td>
-            {% if state == 'paused' %}<span class="badge" style="background:var(--surface3);color:var(--text-muted);margin-bottom:3px;">⏸ Paused</span><br>
-            {% elif state == 'ended' %}<span class="badge" style="background:var(--surface3);color:var(--text-muted);margin-bottom:3px;">⏹ Ended {{ s.end_date }}</span><br>{% endif %}
+            {% if state == 'paused' %}<span class="badge" style="background:rgba(168,85,247,0.14);color:#a855f7;margin-bottom:3px;">⏸ Hold</span><br>
+            {% elif state == 'ended' %}<span class="badge" style="background:var(--surface3);color:var(--text-muted);margin-bottom:3px;">🔒 Closed {{ s.end_date }}</span><br>{% endif %}
             {% if overdue > 0 %}
             <span class="badge" style="background:rgba(239,68,68,0.15);color:#fca5a5;">⚠️ {{ overdue }} overdue</span>
             {% elif is_due %}
-            <span class="badge" style="background:rgba(245,158,11,0.12);color:#fcd34d;">🔔 Due today</span>
+            <span class="badge" style="background:rgba(245,158,11,0.12);color:#fcd34d;">📋 Not started</span>
             {% elif state == 'active' %}
-            <span class="badge" style="background:rgba(34,197,94,0.1);color:#86efac;">✅ Up to date</span>
+            <span class="badge" style="background:rgba(34,197,94,0.1);color:#86efac;">✅ Done</span>
             {% endif %}
           </td>
           <td>
@@ -596,9 +599,9 @@
     <label>STATUS</label>
     <select id="atFilterStatus" onchange="filterAdditional()">
       <option value="">Any</option>
-      <option value="open">Pending (open)</option>
-      <option value="overdue">Overdue (past end time)</option>
-      <option value="completed">Done (completed)</option>
+      <option value="open">Not started</option>
+      <option value="completed">Done</option>
+      <option value="overdue">⚠️ Overdue (past end time)</option>
     </select>
   </div>
   <div class="form-group" style="min-width:130px;">
@@ -651,7 +654,7 @@
           {% if user_role == 'admin' %}<td style="font-size:12px;color:var(--text-muted);">{{ t.staff_name or '—' }}</td>{% endif %}
           <td>
             {% if is_done %}<span class="badge badge-active">✅ Done</span>
-            {% else %}<span class="badge" style="background:var(--surface3);color:var(--text-muted);">○ Pending</span>
+            {% else %}<span class="badge" style="background:var(--surface3);color:var(--text-muted);">📋 Not started</span>
             <div class="at-late" style="display:none;font-size:10px;color:var(--danger);font-weight:700;margin-top:2px;">⚠️ overdue</div>{% endif %}
           </td>
           <td style="font-size:11px;color:var(--text-dim);white-space:nowrap;">{{ t.created_at }}</td>
@@ -1044,7 +1047,7 @@ const TASKS_DATA = {
   {% endfor %}
 };
 
-const STATUS_LABEL = { todo:'📋 Pending', inprogress:'🔄 In Progress', hold:'⏸ On Hold', pending_close:'⏳ Awaiting Closure', done:'✅ Closed' };
+const STATUS_LABEL = { todo:'📋 Not started', inprogress:'🔄 In Progress', hold:'⏸ Hold', pending_close:'✅ Done', done:'🔒 Closed' };
 const PRIORITY_LABEL = { urgent:'🔴 Urgent', high:'🟠 High', normal:'🔵 Normal', low:'⚪ Low' };
 function canClose(t) { return IS_ADMIN || (t.created_by && t.created_by === ME); }
 function isMine(t) { return t.assigned_to && t.assigned_to === ME; }
@@ -1171,7 +1174,7 @@ function viewTask(id) {
   } else if (worker) {
     if (s === 'todo') acts.push(btn('▶ Start', 'btn-go', `taskAction('inprogress')`));
     if (s === 'hold') acts.push(btn('▶ Resume', 'btn-go', `taskAction('inprogress')`));
-    if (s !== 'hold') acts.push(btn('⏸ Put On Hold', 'btn-ghost', `taskAction('hold')`));
+    if (s !== 'hold') acts.push(btn('⏸ Put on Hold', 'btn-ghost', `taskAction('hold')`));
     const doneTarget = (isMine(t) && closer) ? 'done' : 'pending_close';
     acts.push(btn(doneTarget === 'done' ? '✓ Mark Done & Close' : '✓ Mark Done', 'btn-primary', `taskAction('${doneTarget}')`));
     if (closer && !isMine(t)) acts.push(btn('✅ Close Task', 'btn-close-task', `taskAction('done')`));
@@ -1187,7 +1190,7 @@ function viewTask(id) {
 const ACT_TEXT = {
   created: () => 'created the task',
   status: (a) => `changed status ${esc(a.old_value)} → <strong>${esc(a.new_value)}</strong>`,
-  marked_done: () => 'marked the task as <strong>Done</strong> — waiting for closure',
+  marked_done: () => 'marked the task as <strong>Done</strong> — waiting to be closed',
   closed: () => '<strong>closed</strong> the task',
   reopened: (a) => `<strong>reopened</strong> the task (${esc(a.old_value)} → ${esc(a.new_value)})`,
   reassigned: (a) => `reassigned ${esc(a.old_value)} → <strong>${esc(a.new_value)}</strong>`,
@@ -1319,7 +1322,7 @@ function filterTasks() {
       if (s === 'pending_close' && row.dataset.closer === '1') c.mineClose++;
       ['open','mine','close','overdue'].forEach(k => { if (_quickMatch(row, k)) qc[k]++; });
     }
-    const show = base && _quickMatch(row, _quick) && (!status || s === status);
+    const show = base && _quickMatch(row, _quick) && (!status || (status === 'overdue' ? _quickMatch(row, 'overdue') : s === status));
     row.style.display = show ? '' : 'none';
     if (show) shown++;
   });

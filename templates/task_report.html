@@ -84,7 +84,7 @@
   </div>
   <div class="tr-body">
 
-    <div class="tr-sub">✅ Done in range — one-off ({{ s.temp_done|length }})</div>
+    <div class="tr-sub">🔒 Closed in range — one-off ({{ s.temp_done|length }})</div>
     {% if s.temp_done %}
     <table class="tr-table"><thead><tr><th>Task</th><th>Company</th><th>Due</th></tr></thead><tbody>
       {% for t in s.temp_done %}<tr><td style="color:var(--text);">{{ t.title }}</td><td>{{ t.company or '—' }}</td><td>{{ t.due or '—' }}</td></tr>{% endfor %}
@@ -101,7 +101,7 @@
     <div class="tr-sub">➕ Additional jobs in range ({{ s.add_list|length }})</div>
     {% if s.add_list %}
     <table class="tr-table"><thead><tr><th>Task</th><th>From</th><th>To</th><th>Status</th></tr></thead><tbody>
-      {% for a in s.add_list %}<tr><td style="color:var(--text);">{{ a.title }}</td><td>{{ a.from }}</td><td>{{ a.to }}</td><td>{% if a.status=='completed' %}✅ Done{% elif a.overdue %}<span style="color:#fca5a5;">⚠️ Overdue</span>{% else %}<span style="color:#93c5fd;">⏳ Pending</span>{% endif %}</td></tr>{% endfor %}
+      {% for a in s.add_list %}<tr><td style="color:var(--text);">{{ a.title }}</td><td>{{ a.from }}</td><td>{{ a.to }}</td><td>{% if a.status=='completed' %}✅ Done{% elif a.overdue %}<span style="color:#fca5a5;">⚠️ Overdue</span>{% else %}<span style="color:#93c5fd;">📋 Not started</span>{% endif %}</td></tr>{% endfor %}
     </tbody></table>
     {% else %}<div class="tr-none">No additional jobs in this range.</div>{% endif %}
 
@@ -109,7 +109,7 @@
     {% if s.temp_pending or s.temp_overdue %}
     <table class="tr-table"><thead><tr><th>Task</th><th>Company</th><th>Due</th><th>State</th></tr></thead><tbody>
       {% for t in s.temp_overdue %}<tr><td style="color:var(--text);">{{ t.title }}</td><td>{{ t.company or '—' }}</td><td>{{ t.due or '—' }}</td><td><span style="color:#fca5a5;">Overdue</span></td></tr>{% endfor %}
-      {% for t in s.temp_pending %}<tr><td style="color:var(--text);">{{ t.title }}</td><td>{{ t.company or '—' }}</td><td>{{ t.due or '—' }}</td><td><span style="color:#93c5fd;">Pending</span></td></tr>{% endfor %}
+      {% for t in s.temp_pending %}<tr><td style="color:var(--text);">{{ t.title }}</td><td>{{ t.company or '—' }}</td><td>{{ t.due or '—' }}</td><td><span style="color:#93c5fd;">{{ {'inprogress':'In Progress','hold':'Hold','pending_close':'Done'}.get(t.status, 'Not started') }}</span></td></tr>{% endfor %}
     </tbody></table>
     {% else %}<div class="tr-none">Nothing pending.</div>{% endif %}
     {% if s.reg_pending or s.reg_overdue %}<div class="tr-none" style="color:#fcd34d;margin-top:8px;">🔁 Recurring: {{ s.reg_overdue }} overdue day(s), {{ s.reg_pending }} pending today — clear from Tasks → Recurring → Log → "Catch up all".</div>{% endif %}

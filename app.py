@@ -3700,11 +3700,11 @@ def _build_my_day(conn, uid, role, today, tl, rt_templates, task_status):
     return md
 
 # ── ONE-TIME TASKS: workflow + audit trail ──
-# Status flow: todo (Pending) -> inprogress -> pending_close (assignee marked Done)
-#   -> done (Closed, by initiator/admin only). hold = On Hold. Overdue is derived from due_date.
+# Status flow: todo (Not started) -> inprogress -> pending_close (assignee marked Done)
+#   -> done (Closed, by initiator/admin only). hold = Hold. Overdue is derived from due_date.
 TASK_STATUSES = ('todo', 'inprogress', 'hold', 'pending_close', 'done')
-TASK_STATUS_LABELS = {'todo': 'Pending', 'inprogress': 'In Progress', 'hold': 'On Hold',
-                      'pending_close': 'Awaiting Closure', 'done': 'Closed'}
+TASK_STATUS_LABELS = {'todo': 'Not started', 'inprogress': 'In Progress', 'hold': 'Hold',
+                      'pending_close': 'Done', 'done': 'Closed'}
 
 def _task_log(conn, task_id, action, old=None, new=None, comment=None):
     """Append one audit row. Never lets a logging failure break the actual change:
@@ -4642,7 +4642,7 @@ def export_tasks_all():
         od = (today - datetime.strptime(due, '%Y-%m-%d').date()).days if (due and due < tstr and st not in ('done', 'pending_close')) else ''
         one_rows.append([t['id'], t.get('title'), t.get('description'), t.get('assignee'), t.get('creator'),
                          t.get('ac_code'), t.get('client_name'), (t.get('priority') or 'normal').title(), due,
-                         'Done' if st == 'done' else ('Overdue' if od != '' else TASK_STATUS_LABELS.get(st, st)),
+                         TASK_STATUS_LABELS.get(st, st) + (' (Overdue)' if od != '' else ''),
                          od, str(t.get('created_at') or '')[:16], str(t.get('updated_at') or '')[:16]])
     sheet(wb.active, 'One-time Tasks', ['ID', 'Task', 'Description', 'Assigned To', 'Created By', 'AC Code', 'Company',
                                         'Priority', 'Due Date', 'Status', 'Days Overdue', 'Created', 'Last Updated'], one_rows)
@@ -4661,9 +4661,9 @@ def export_tasks_all():
             past = [d for d in missed if d < today]
             last = one(conn, """SELECT MAX(logged_at) AS m FROM regular_task_logs WHERE template_id=? AND user_id=?
                                 AND COALESCE(status,'done') <> 'reopened'""", (t['id'], pid))
-            # Same names as one-time tasks: On Hold / Overdue / Pending / Done
-            status = {'paused': 'On Hold (paused)', 'ended': 'On Hold (ended)'}.get(state) or (
-                f'Overdue ({len(past)} missed)' if past else ('Pending (due today)' if today in missed else 'Done (up to date)'))
+            # Same names as one-time tasks: Not started / Hold / Done / Closed, plus an Overdue flag
+            status = {'paused': 'Hold', 'ended': 'Closed'}.get(state) or ('Not started' if missed else 'Done')
+            if past: status += f' (Overdue, {len(past)} missed)'
             rec_rows.append([t['title'], (t.get('frequency') or '').title(),
                              _rule_text(t.get('frequency'), t.get('weekday'), t.get('month_day')), pname,
                              status, len(past), str(past[0]) if past else '',
@@ -4701,7 +4701,7 @@ def export_tasks_all():
     def _add_status(a):
         if a.get('status') == 'completed': return 'Done'
         end = str(a.get('to_datetime') or '')[:16].replace('T', ' ')
-        return 'Overdue' if end and end < now_s else 'Pending'
+        return 'Not started (Overdue)' if end and end < now_s else 'Not started'
     sheet(wb.create_sheet(), 'Additional Jobs', ['Job', 'Person', 'From', 'To', 'Status', 'Completed At', 'Details', 'Remarks'],
           [[a.get('title'), a.get('person'), str(a.get('from_datetime') or '')[:16], str(a.get('to_datetime') or '')[:16],
             _add_status(a), str(a.get('completed_at') or '')[:16],

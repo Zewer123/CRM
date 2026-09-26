@@ -51,12 +51,17 @@
     <label>STATUS</label>
     <select id="hFilterStatus" onchange="filterHistory()">
       <option value="">Everything</option>
-      <option value="@completed">✅ Done</option>
-      <option value="@open">⏳ Pending + ⚠️ Overdue</option>
-      <option value="@pending">⏳ Pending</option>
-      <option value="@awaiting">🔒 Awaiting Closure</option>
+      <option value="@notstarted">📋 Not started</option>
+      <option value="@inprogress">🔄 In Progress (one-off)</option>
+      <option value="@hold">⏸ Hold</option>
+      <option value="@done">✅ Done</option>
+      <option value="@closed">🔒 Closed</option>
       <option value="@overdue">⚠️ Overdue</option>
       <option value="@late">🕒 Done late (recurring)</option>
+      <option value="@open" hidden>Open (not done yet)</option>
+      <option value="@pending" hidden>Open, not overdue</option>
+      <option value="@completed" hidden>Done / Closed</option>
+      <option value="@awaiting" hidden>Done, waiting to be closed</option>
     </select>
   </div>
   <div class="form-group" style="min-width:140px;">
@@ -107,7 +112,15 @@
       </thead>
       <tbody id="historyBody">
         {% for l in logs %}
-        <tr data-user="{{ l.user_id }}" data-staff="{{ l.staff_name }}" data-kind="{{ l.kind }}" data-freq="{{ l.freq }}" data-status="{{ l.status }}"
+        {# One status vocabulary for every task type: Not started / Hold / Done / Closed (+ In Progress for
+           one-off). Overdue is a flag on top. One-off: Done = finished by the assignee, Closed = closed by the
+           creator/admin. Recurring and additional jobs have no closing step, so finished = Done. #}
+        {% set bucket = 'reopened' if l.status == 'reopened'
+             else ('closed' if (l.group == 'completed' and l.kind == 'One-off') or l.status == 'ended'
+             else ('done' if l.group in ('completed', 'awaiting')
+             else ('hold' if l.status in ('hold', 'paused')
+             else ('inprogress' if l.status == 'inprogress' else 'notstarted')))) %}
+        <tr data-bucket="{{ bucket }}" data-user="{{ l.user_id }}" data-staff="{{ l.staff_name }}" data-kind="{{ l.kind }}" data-freq="{{ l.freq }}" data-status="{{ l.status }}"
             data-group="{{ l.group }}" data-overdue="{{ '1' if l.overdue else '' }}" data-date="{{ (l.when or '')[:10] }}" data-late="{{ '1' if (l.late and l.group == 'completed') else '' }}">
           <td style="font-weight:500;color:var(--text);">{{ l.title }}</td>
           <td>
@@ -122,17 +135,16 @@
           </td>
           <td style="color:var(--text-muted);">{{ l.staff_name }}</td>
           <td>
-            {# One status vocabulary for every task type: Done / Pending / Overdue / On Hold / Awaiting Closure.
-               The small line underneath keeps the type-specific detail. #}
+            {# The small line underneath keeps the type-specific detail. #}
             {% set st = l.status %}
-            {% set sub = {'partial': 'partial', 'skipped': 'skipped', 'missed': 'missed day', 'due': 'due today',
-                          'inprogress': 'in progress'}.get(st, '') %}
-            {% if st == 'reopened' %}<span class="st-b" style="background:var(--danger-bg);color:var(--danger);" title="Reopened by a manager — the day counts as missed again">↩ Reopened</span>
-            {% elif l.group == 'completed' %}<span class="st-b" style="background:var(--success-bg);color:var(--success);">✅ Done</span>
-            {% elif st == 'pending_close' %}<span class="st-b" style="background:var(--warning-bg);color:var(--warning);" title="Done by the assignee — waiting to be closed">🔒 Awaiting Closure</span>{% if l.closer %}{% set sub = 'to be closed by ' ~ l.closer %}{% endif %}
-            {% elif st == 'hold' %}<span class="st-b" style="background:rgba(168,85,247,0.14);color:#a855f7;">⏸ On Hold</span>
-            {% elif l.overdue %}<span class="st-b" style="background:var(--danger-bg);color:var(--danger);">⚠️ Overdue</span>
-            {% else %}<span class="st-b" style="background:var(--surface3);color:var(--text-muted);">⏳ Pending</span>{% endif %}
+            {% set sub = {'partial': 'partial', 'skipped': 'skipped', 'missed': 'missed day', 'due': 'due today'}.get(st, '') %}
+            {% if bucket == 'reopened' %}<span class="st-b" style="background:var(--danger-bg);color:var(--danger);" title="Reopened by a manager — the day counts as missed again">↩ Reopened</span>
+            {% elif bucket == 'closed' %}<span class="st-b" style="background:var(--surface3);color:var(--text-muted);">🔒 Closed</span>
+            {% elif bucket == 'done' %}<span class="st-b" style="background:var(--success-bg);color:var(--success);">✅ Done</span>{% if st == 'pending_close' %}{% set sub = 'to be closed by ' ~ l.closer if l.closer else 'waiting to be closed' %}{% endif %}
+            {% elif bucket == 'hold' %}<span class="st-b" style="background:rgba(168,85,247,0.14);color:#a855f7;">⏸ Hold</span>
+            {% elif bucket == 'inprogress' %}<span class="st-b" style="background:rgba(59,130,246,0.14);color:#93c5fd;">🔄 In Progress</span>
+            {% else %}<span class="st-b" style="background:var(--surface3);color:var(--text-muted);">📋 Not started</span>{% endif %}
+            {% if l.overdue and bucket not in ('done', 'closed') %}<div style="font-size:10px;color:var(--danger);font-weight:700;margin-top:2px;">⚠️ Overdue</div>{% endif %}
             {% if sub %}<div style="font-size:10px;color:var(--text-dim);margin-top:2px;">{{ sub }}</div>{% endif %}
           </td>
           <td style="font-size:12px;color:var(--text-dim);">{{ l.notes or '—' }}</td>
@@ -164,11 +176,13 @@ function _rowMatch(row, ignoreUser) {
   if (!ignoreUser && u && row.dataset.user !== u) return false;
   if (k && row.dataset.kind !== k) return false;
   if (f && row.dataset.freq !== f) return false;
+  if (['@notstarted', '@inprogress', '@hold', '@done', '@closed'].includes(s) && row.dataset.bucket !== s.slice(1)) return false;
+  if (s === '@overdue' && !(row.dataset.overdue && row.dataset.group === 'pending')) return false;
+  // older links / staff-card clicks
   if (s === '@completed' && row.dataset.group !== 'completed') return false;
   if (s === '@pending' && (row.dataset.group !== 'pending' || row.dataset.overdue)) return false;
-  if (s === '@open' && row.dataset.group !== 'pending') return false;
   if (s === '@awaiting' && row.dataset.group !== 'awaiting') return false;
-  if (s === '@overdue' && !row.dataset.overdue) return false;
+  if (s === '@open' && row.dataset.group !== 'pending') return false;
   if (s === '@late' && !row.dataset.late) return false;
   if (s && s[0] !== '@' && row.dataset.status !== s) return false;
   const d = row.dataset.date;
@@ -194,7 +208,7 @@ function filterHistory() {
     }
   });
   document.getElementById('histCount').textContent = shown;
-  document.getElementById('histSplit').textContent = `${done} done · ${pend} pending · ${over} overdue` + (wait ? ` · ${wait} awaiting closure` : '');
+  document.getElementById('histSplit').textContent = `${done} done / closed · ${pend} open · ${over} overdue` + (wait ? ` · ${wait} done, waiting to be closed` : '');
   renderStaffCards(staff);
 }
 
@@ -211,9 +225,9 @@ function renderStaffCards(staff) {
       <div class="nm">👤 ${esc2(s.name)}</div>
       <div class="nums">
         <span class="nb" style="color:var(--success);" onclick="pickStaffStatus(event,'${id}','@completed')" title="Show what ${esc2(s.name)} completed"><b>${s.done}</b> done</span>
-        <span class="nb" style="color:var(--text-muted);" onclick="pickStaffStatus(event,'${id}','@pending')" title="Show what ${esc2(s.name)} has pending (not yet overdue)"><b>${s.pending}</b> pending</span>
+        <span class="nb" style="color:var(--text-muted);" onclick="pickStaffStatus(event,'${id}','@pending')" title="Show what ${esc2(s.name)} still has open (not yet overdue)"><b>${s.pending}</b> open</span>
         ${s.overdue ? `<span class="nb" style="color:var(--danger);" onclick="pickStaffStatus(event,'${id}','@overdue')" title="Show overdue"><b>${s.overdue}</b> overdue</span>` : ''}
-        ${s.awaiting ? `<span class="nb" style="color:var(--warning);" onclick="pickStaffStatus(event,'${id}','@awaiting')" title="Finished by this person — waiting for the task creator / admin to close"><b>${s.awaiting}</b> to close</span>` : ''}
+        ${s.awaiting ? `<span class="nb" style="color:var(--warning);" onclick="pickStaffStatus(event,'${id}','@awaiting')" title="Done by this person — waiting for the task creator / admin to close"><b>${s.awaiting}</b> to close</span>` : ''}
       </div>
       <div class="bar"><div style="width:${pct}%;"></div></div>
     </div>`;
