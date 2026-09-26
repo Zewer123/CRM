@@ -179,11 +179,13 @@
 {% endblock %}
 {% block scripts %}
 <script>
+// ignoreUser = counting for the staff cards: the cards ignore the Staff and Status filters, so
+// clicking a number on a card (which sets Status) doesn't make the card's other numbers vanish.
 function _rowMatch(row, ignoreUser) {
   const u = document.getElementById('hFilterUser') ? document.getElementById('hFilterUser').value : '';
   const k = document.getElementById('hFilterKind').value;
   const f = document.getElementById('hFilterFreq').value;
-  const s = document.getElementById('hFilterStatus').value;
+  const s = ignoreUser ? '' : document.getElementById('hFilterStatus').value;
   const from = document.getElementById('hFilterFrom').value;
   const to = document.getElementById('hFilterTo').value;
   if (!ignoreUser && u && row.dataset.user !== u) return false;
