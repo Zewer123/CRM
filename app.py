@@ -4761,12 +4761,15 @@ def task_history():
                 WHERE t.status='done' AND t.assigned_to=? ORDER BY t.updated_at DESC LIMIT 500""", (uid,))
     except Exception:
         ones = []
+    done_at = _task_done_times(conn)
     for t in ones:
+        fin = done_at.get(t['id']) or str(t.get('updated_at') or '')[:16]
+        due = str(t.get('due_date') or '')[:10]
         rows.append({
             'kind': 'One-off', 'title': t.get('title') or '—', 'freq': '',
             'user_id': t.get('assigned_to'), 'staff_name': t.get('staff_name') or 'Unassigned',
             'status': 'done', 'notes': t.get('description') or '',
-            'when': str(t.get('updated_at'))[:16] if t.get('updated_at') else '',
+            'when': fin, 'due': due, 'late': _days_late(due, fin),
             'group': 'completed',
         })
 
@@ -4785,11 +4788,15 @@ def task_history():
     for a in adds:
         when = str(a.get('completed_at') or a.get('to_datetime') or '')
         details = a.get('task_details') or a.get('remarks') or ''
+        due = str(a.get('to_datetime') or '')[:16].replace('T', ' ')
         rows.append({
             'kind': 'Additional', 'title': a.get('title') or '—', 'freq': '',
             'user_id': a.get('created_by'), 'staff_name': a.get('staff_name') or '—',
             'status': 'completed', 'notes': details,
-            'when': when[:16], 'group': 'completed',
+            'when': when[:16], 'due': due,
+            # past its end time: whole days late, or 'h' when finished later the same day
+            'late': _days_late(due[:10], when[:16]) or ('h' if a.get('completed_at') and due and when[:16].replace('T', ' ') > due else 0),
+            'group': 'completed',
         })
 
     # ── PENDING ──
@@ -4806,11 +4813,13 @@ def task_history():
         st = t.get('status') or 'todo'
         due = str(t.get('due_date') or '')[:10]
         overdue = bool(due) and due < tstr and st not in ('pending_close', 'hold')   # same rule as the Tasks page
+        fin = done_at.get(t['id'], '') if st == 'pending_close' else ''
         rows.append({
             'kind': 'One-off', 'title': t.get('title') or '—', 'freq': '',
             'user_id': t.get('assigned_to'), 'staff_name': t.get('staff_name') or 'Unassigned',
             'status': st, 'notes': (('[' + t['ac_code'] + '] ') if t.get('ac_code') else '') + (t.get('description') or ''),
             'when': due, 'overdue': overdue,
+            'done_at': fin, 'late': _days_late(due, fin) if fin else 0,
             # Marked done by the assignee — now waiting for the creator / admin to close it,
             # so it is not the assignee's pending work.
             'group': 'awaiting' if st == 'pending_close' else 'pending',
@@ -5633,6 +5642,30 @@ def api_delete_staff_leave(id):
 def _dubai_now_str():
     return datetime.now(DUBAI_TZ).strftime('%Y-%m-%d %H:%M:%S')
 
+def _days_late(due, done):
+    """Whole days `done` ('YYYY-MM-DD[ HH:MM]') came after the `due` day; 0 if on time or unknown."""
+    try:
+        n = (datetime.strptime(str(done)[:10], '%Y-%m-%d').date() - datetime.strptime(str(due)[:10], '%Y-%m-%d').date()).days
+    except ValueError:
+        return 0
+    return max(n, 0)
+
+def _task_done_times(conn):
+    """{task_id: 'YYYY-MM-DD HH:MM'} — when the assignee last marked each one-off task Done
+       (or, for a task closed straight away with no hand-over, when it was closed). This is the
+       finish time used for lateness, so a slow closure by the creator doesn't count against staff."""
+    try:
+        rows = all_(conn, """SELECT task_id, action, MAX(created_at) AS at FROM task_activity
+            WHERE action IN ('marked_done','closed') GROUP BY task_id, action""")
+    except Exception:
+        try: conn.rollback()
+        except Exception: pass
+        return {}
+    marked, closed = {}, {}
+    for r in rows:
+        (marked if r['action'] == 'marked_done' else closed)[r['task_id']] = str(r['at'] or '')[:16]
+    return {**closed, **marked}
+
 def _log_lateness(l):
     """How late a recurring log was ticked compared with the day it counts for.
        Returns (days_late, ticked_at): 0 = on time, >0 = ticked that many days later,
@@ -5676,6 +5709,32 @@ def api_catchup_regular_task(id):
         except Exception: pass
         return _fail(e)
 
+
+@app.route('/api/regular-task/due-in-range')
+@login_required
+def api_regular_due_in_range():
+    """Ids of recurring tasks with at least one due day between ?from and ?to (either may be
+       blank). Uses the same rules as the backlog: schedule changes, pauses and end date."""
+    try:
+        d_from = datetime.strptime(request.args['from'], '%Y-%m-%d').date() if request.args.get('from') else None
+        d_to = datetime.strptime(request.args['to'], '%Y-%m-%d').date() if request.args.get('to') else None
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Invalid date'}), 400
+    today = dubai_today()
+    horizon = d_to or (max(d_from, today) + timedelta(days=366) if d_from else today + timedelta(days=366))
+    conn = get_db()
+    try:
+        ids = []
+        for t in all_(conn, 'SELECT * FROM regular_task_templates'):
+            due = _template_due_dates(conn, t, horizon)
+            if any((not d_from or d >= d_from) and d <= horizon for d in due):
+                ids.append(t['id'])
+        conn.close()
+        return jsonify({'success': True, 'ids': ids})
+    except Exception as e:
+        try: conn.close()
+        except Exception: pass
+        return _fail(e)
 
 @app.route('/api/regular-task/<int:id>/log', methods=['POST'])
 @require_perm('regular_tasks_log')

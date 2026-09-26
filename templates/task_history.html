@@ -57,7 +57,7 @@
       <option value="@done">✅ Done</option>
       <option value="@closed">🔒 Closed</option>
       <option value="@overdue">⚠️ Overdue</option>
-      <option value="@late">🕒 Done late (recurring)</option>
+      <option value="@late">🕒 Done late (after due)</option>
       <option value="@open" hidden>Open (not done yet)</option>
       <option value="@pending" hidden>Open, not overdue</option>
       <option value="@completed" hidden>Done / Closed</option>
@@ -107,7 +107,7 @@
           <th>Staff</th>
           <th>Status</th>
           <th>Notes</th>
-          <th title="Recurring: the day it counts for, and when it was actually ticked. Other completed items: when done. Pending items: the due date.">When / Due</th>
+          <th title="Finished items: the due date and when it was done — red if done after the due date. Recurring: the day it counts for and when it was ticked. Open items: the due date.">When / Due</th>
         </tr>
       </thead>
       <tbody id="historyBody">
@@ -121,7 +121,7 @@
              else ('hold' if l.status in ('hold', 'paused')
              else ('inprogress' if l.status == 'inprogress' else 'notstarted')))) %}
         <tr data-bucket="{{ bucket }}" data-user="{{ l.user_id }}" data-staff="{{ l.staff_name }}" data-kind="{{ l.kind }}" data-freq="{{ l.freq }}" data-status="{{ l.status }}"
-            data-group="{{ l.group }}" data-overdue="{{ '1' if l.overdue else '' }}" data-date="{{ (l.when or '')[:10] }}" data-late="{{ '1' if (l.late and l.group == 'completed') else '' }}">
+            data-group="{{ l.group }}" data-overdue="{{ '1' if l.overdue else '' }}" data-date="{{ (l.when or '')[:10] }}" data-late="{{ '1' if (l.late and l.group in ('completed', 'awaiting')) else '' }}">
           <td style="font-weight:500;color:var(--text);">{{ l.title }}</td>
           <td>
             {% if l.kind == 'Regular' %}
@@ -148,12 +148,23 @@
             {% if sub %}<div style="font-size:10px;color:var(--text-dim);margin-top:2px;">{{ sub }}</div>{% endif %}
           </td>
           <td style="font-size:12px;color:var(--text-dim);">{{ l.notes or '—' }}</td>
+          {% set late_txt = ('done late' if l.late == 'h' else (l.late ~ 'd late')) if l.late else 'on time' %}
+          {% if l.kind != 'Regular' and l.group == 'completed' %}
+          <td style="font-size:12px;white-space:nowrap;">
+            {% if l.due %}<div style="color:var(--text-muted);">Due {{ l.due }}</div>{% endif %}
+            <div style="font-size:11px;font-weight:700;color:{% if l.late %}var(--danger){% else %}var(--success){% endif %};">✅ Done {{ l.when or '—' }}{% if l.due %} · {{ late_txt }}{% endif %}</div></td>
+          {% elif l.group == 'awaiting' %}
+          <td style="font-size:12px;white-space:nowrap;">
+            <div style="color:var(--text-muted);">{% if l.when %}Due {{ l.when }}{% else %}No due date{% endif %}</div>
+            {% if l.done_at %}<div style="font-size:11px;font-weight:700;color:{% if l.late %}var(--danger){% else %}var(--success){% endif %};">✅ Done {{ l.done_at }}{% if l.when %} · {{ late_txt }}{% endif %}</div>{% endif %}</td>
+          {% else %}
           <td style="font-size:12px;color:{% if l.overdue %}var(--danger){% else %}var(--text-muted){% endif %};white-space:nowrap;">{{ l.when or '—' }}
             {% if l.kind == 'Regular' and l.group != 'pending' %}
-              {% if l.late == '?' %}<div style="font-size:10.5px;color:#a855f7;font-weight:700;" title="Older entry: it was ticked after the day, but the exact date was not recorded">🕒 ticked later</div>
-              {% elif l.late %}<div style="font-size:10.5px;color:#a855f7;font-weight:700;">🕒 ticked {{ l.ticked }} · {{ l.late }}d late</div>
-              {% elif l.ticked %}<div style="font-size:10.5px;color:var(--text-dim);">ticked {{ l.ticked[11:16] }} · on time</div>{% endif %}
+              {% if l.late == '?' %}<div style="font-size:10.5px;color:var(--danger);font-weight:700;" title="Older entry: it was ticked after the day, but the exact date was not recorded">🕒 ticked later</div>
+              {% elif l.late %}<div style="font-size:10.5px;color:var(--danger);font-weight:700;">🕒 ticked {{ l.ticked }} · {{ l.late }}d late</div>
+              {% elif l.ticked %}<div style="font-size:10.5px;color:var(--success);">ticked {{ l.ticked[11:16] }} · on time</div>{% endif %}
             {% endif %}</td>
+          {% endif %}
         </tr>
         {% else %}
         <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-dim);">No tasks yet.</td></tr>

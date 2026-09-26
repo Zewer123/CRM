@@ -469,12 +469,12 @@
     </select>
   </div>
   <div class="form-group" style="min-width:140px;">
-    <label>LOGGED FROM</label>
-    <input type="date" id="rtDateFrom" onchange="filterRegular()">
+    <label title="Show tasks that have a due day in this range">DUE FROM</label>
+    <input type="date" id="rtDateFrom" onchange="rtDueRange()">
   </div>
   <div class="form-group" style="min-width:140px;">
-    <label>LOGGED TO</label>
-    <input type="date" id="rtDateTo" onchange="filterRegular()">
+    <label title="Show tasks that have a due day in this range">DUE TO</label>
+    <input type="date" id="rtDateTo" onchange="rtDueRange()">
   </div>
   <div class="form-group" style="min-width:80px;display:flex;align-items:flex-end;">
     <button class="btn btn-ghost btn-sm" onclick="clearRegularFilters()">Clear</button>
@@ -504,7 +504,7 @@
         {% set s = task_status.get(t.id, {}) %}
         {% set overdue = s.get('late_count', 0) %}
         {% set is_due = s.get('is_due_today', false) %}
-        <tr class="rt-row"
+        <tr class="rt-row" data-id="{{ t.id }}"
             data-freq="{{ t.frequency }}"
             {% set state = s.get('state', 'active') %}
             data-state="{{ state }}"
@@ -1373,6 +1373,19 @@ function setFreq(freq, btn) {
   filterRegular();
 }
 
+let _rtDueIds = null;
+function rtDueRange() {
+  const f = document.getElementById('rtDateFrom').value, t = document.getElementById('rtDateTo').value;
+  if (!f && !t) { _rtDueIds = null; filterRegular(); return; }
+  if (f && t && t < f) { alert('"Due to" is before "Due from"'); return; }
+  fetch(`/api/regular-task/due-in-range?from=${encodeURIComponent(f)}&to=${encodeURIComponent(t)}`)
+    .then(r => r.json()).then(d => {
+      if (!d.success) { alert('Error: ' + d.error); return; }
+      _rtDueIds = new Set(d.ids.map(String));
+      filterRegular();
+    }).catch(() => alert('Network error'));
+}
+
 function filterRegular() {
   const status = document.getElementById('rtStatus').value;
   const user = document.getElementById('rtUser').value;
@@ -1389,15 +1402,8 @@ function filterRegular() {
     if (_rtFreq !== 'all' && row.dataset.freq !== _rtFreq) show = false;
     if (status && row.dataset.rtstatus !== status) show = false;
     if (user && row.dataset.user !== user) show = false;
-    // date range filters on last-logged date
-    if (dFrom || dTo) {
-      const ll = row.dataset.lastlogged || '';
-      if (!ll) show = false;
-      else {
-        if (dFrom && ll < dFrom) show = false;
-        if (dTo && ll > dTo) show = false;
-      }
-    }
+    // due-date range: tasks with at least one due day between the dates (worked out by the server)
+    if ((dFrom || dTo) && _rtDueIds && !_rtDueIds.has(row.dataset.id)) show = false;
     row.style.display = show ? '' : 'none';
     if (show) visible++;
   });
@@ -1440,6 +1446,7 @@ function clearRegularFilters() {
   const allBtn = document.querySelector('.freq-btn[data-freq="all"]');
   if (allBtn) allBtn.classList.add('active');
   ['rtStatus','rtUser','rtDateFrom','rtDateTo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  _rtDueIds = null;
   const sortEl = document.getElementById('rtSort'); if (sortEl) sortEl.value = 'status';
   filterRegular();
 }
