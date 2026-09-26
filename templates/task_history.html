@@ -148,11 +148,12 @@
             {% if sub %}<div style="font-size:10px;color:var(--text-dim);margin-top:2px;">{{ sub }}</div>{% endif %}
           </td>
           <td style="font-size:12px;color:var(--text-dim);">{{ l.notes or '—' }}</td>
-          {% set late_txt = ('done late' if l.late == 'h' else (l.late ~ 'd late')) if l.late else 'on time' %}
+          {% set late_txt = (l.late ~ 'd late') if l.late else 'on time' %}
           {% if l.kind != 'Regular' and l.group == 'completed' %}
           <td style="font-size:12px;white-space:nowrap;">
             {% if l.due %}<div style="color:var(--text-muted);">Due {{ l.due }}</div>{% endif %}
-            <div style="font-size:11px;font-weight:700;color:{% if l.late %}var(--danger){% else %}var(--success){% endif %};">✅ Done {{ l.when or '—' }}{% if l.due %} · {{ late_txt }}{% endif %}</div></td>
+            {% if l.done_unknown %}<div style="font-size:11px;color:var(--text-dim);" title="Finished before the activity log existed, so the exact Done date wasn't recorded">✅ Done — date not recorded</div>
+            {% else %}<div style="font-size:11px;font-weight:700;color:{% if l.late %}var(--danger){% else %}var(--success){% endif %};">✅ Done {{ l.when or '—' }}{% if l.due %} · {{ late_txt }}{% endif %}</div>{% endif %}</td>
           {% elif l.group == 'awaiting' %}
           <td style="font-size:12px;white-space:nowrap;">
             <div style="color:var(--text-muted);">{% if l.when %}Due {{ l.when }}{% else %}No due date{% endif %}</div>

@@ -4763,13 +4763,16 @@ def task_history():
         ones = []
     done_at = _task_done_times(conn)
     for t in ones:
-        fin = done_at.get(t['id']) or str(t.get('updated_at') or '')[:16]
+        # Tasks finished before the activity log existed have no Done time on record; their
+        # updated_at may be a later close or edit, so it is shown for sorting only, never judged late.
+        fin = done_at.get(t['id'])
         due = str(t.get('due_date') or '')[:10]
         rows.append({
             'kind': 'One-off', 'title': t.get('title') or '—', 'freq': '',
             'user_id': t.get('assigned_to'), 'staff_name': t.get('staff_name') or 'Unassigned',
             'status': 'done', 'notes': t.get('description') or '',
-            'when': fin, 'due': due, 'late': _days_late(due, fin),
+            'when': fin or str(t.get('updated_at') or '')[:16], 'due': due,
+            'late': _days_late(due, fin) if fin else 0, 'done_unknown': not fin,
             'group': 'completed',
         })
 
@@ -4794,8 +4797,8 @@ def task_history():
             'user_id': a.get('created_by'), 'staff_name': a.get('staff_name') or '—',
             'status': 'completed', 'notes': details,
             'when': when[:16], 'due': due,
-            # past its end time: whole days late, or 'h' when finished later the same day
-            'late': _days_late(due[:10], when[:16]) or ('h' if a.get('completed_at') and due and when[:16].replace('T', ' ') > due else 0),
+            # whole days only: staff often log a job after doing it, so finishing later the same day isn't late
+            'late': _days_late(due[:10], when[:16]),
             'group': 'completed',
         })
 
