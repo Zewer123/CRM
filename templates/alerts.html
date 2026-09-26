@@ -386,6 +386,7 @@ function saveAlertTask() {
     .then(r=>r.json()).then(d=>{
       if(d.success) {
         closeModal('createTaskModal');
+        if (d.note) alert(d.note);
         // Show success feedback
         const btn = event.target;
         btn.textContent = '✅ Task Created!';

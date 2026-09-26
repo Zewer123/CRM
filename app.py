@@ -2784,15 +2784,19 @@ def aml_tracker_add():
             # Create task for checked_by user if specified
             checked_by_id = data.get('checked_by')
             if checked_by_id:
-                x(conn, '''INSERT INTO tasks 
+                checker, cover = _leave_redirect(conn, int(checked_by_id))
+                x(conn, '''INSERT INTO tasks
                    (title, description, assigned_to, created_by, status, due_date)
                    VALUES (?, ?, ?, ?, ?, ?)''',
                   (f'AML Verification - {client_name}',
                    f'Review and verify AML Tracker record #{aml_id}. VC No: {data.get("vc_no")}',
-                   int(checked_by_id),
+                   checker,
                    session.get('user_id'),
                    'todo',
                    str(due_date)))
+                if cover:
+                    tid = lastid(conn)
+                    if tid: _leave_redirect_log(conn, tid, cover)
 
             commit(conn)
             conn.close()
@@ -3734,12 +3738,16 @@ def api_add_task():
     d=request.get_json()
     try:
         conn=get_db()
+        assignee, cover = _leave_redirect(conn, d.get('assigned_to') or None)
         x(conn,'INSERT INTO tasks (title,description,assigned_to,created_by,company_id,priority,due_date,status) VALUES (?,?,?,?,?,?,?,?)',
-          (d.get('title'),d.get('description'),d.get('assigned_to') or None,session.get('user_id'),
+          (d.get('title'),d.get('description'),assignee,session.get('user_id'),
            d.get('company_id') or None,d.get('priority','normal'),d.get('due_date') or None,'todo'))
         tid = lastid(conn)
-        if tid: _task_log(conn, tid, 'created')
-        commit(conn); conn.close(); return jsonify({'success':True})
+        if tid:
+            _task_log(conn, tid, 'created')
+            if cover: _leave_redirect_log(conn, tid, cover)
+        commit(conn); conn.close()
+        return jsonify({'success':True, 'note': _leave_redirect_note(cover) if cover else None})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
         return _fail(e)
@@ -3756,26 +3764,36 @@ def api_edit_task(id):
         if not _task_can_close(old):
             conn.close()
             return jsonify({'success': False, 'error': 'Only the person who created this task, or an admin, can edit it. Add a comment to ask for a change.'}), 403
-        x(conn,'UPDATE tasks SET title=?,description=?,assigned_to=?,company_id=?,priority=?,due_date=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',
-          (d.get('title'),d.get('description'),d.get('assigned_to') or None,d.get('company_id') or None,
-           d.get('priority','normal'),d.get('due_date') or None,id))
-        # audit the fields that matter for accountability
         def _v(v): return '' if v is None else str(v)
         new_assign = d.get('assigned_to') or None
+        cover = None
+        # Only a change of assignee is redirected; a task already with the person on leave stays put
+        if _v(old.get('assigned_to')) != _v(new_assign):
+            redirected, cover = _leave_redirect(conn, new_assign)
+            if cover and _v(redirected) == _v(old.get('assigned_to')):
+                new_assign, cover = redirected, None     # already with the cover: nothing to change
+            elif cover:
+                new_assign = redirected
+        x(conn,'UPDATE tasks SET title=?,description=?,assigned_to=?,company_id=?,priority=?,due_date=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',
+          (d.get('title'),d.get('description'),new_assign,d.get('company_id') or None,
+           d.get('priority','normal'),d.get('due_date') or None,id))
+        # audit the fields that matter for accountability
         if _v(old.get('assigned_to')) != _v(new_assign):
             names = {}
             for uid_ in (old.get('assigned_to'), new_assign):
                 if uid_:
                     r = one(conn, 'SELECT name FROM users WHERE id=?', (uid_,))
                     names[str(uid_)] = r['name'] if r else f'#{uid_}'
-            _task_log(conn, id, 'reassigned', names.get(_v(old.get('assigned_to')), '—'), names.get(_v(new_assign), '—'))
+            _task_log(conn, id, 'reassigned', names.get(_v(old.get('assigned_to')), '—'), names.get(_v(new_assign), '—'),
+                      f"{cover['from']} is on leave until {cover['until']} — given to cover" if cover else None)
         if _v(old.get('due_date'))[:10] != _v(d.get('due_date') or None)[:10]:
             _task_log(conn, id, 'due_changed', _v(old.get('due_date'))[:10] or '—', _v(d.get('due_date'))[:10] or '—')
         if _v(old.get('priority') or 'normal') != _v(d.get('priority', 'normal')):
             _task_log(conn, id, 'priority_changed', old.get('priority') or 'normal', d.get('priority', 'normal'))
         if _v(old.get('title')) != _v(d.get('title')) or _v(old.get('description')) != _v(d.get('description')):
             _task_log(conn, id, 'edited')
-        commit(conn); conn.close(); return jsonify({'success':True})
+        commit(conn); conn.close()
+        return jsonify({'success':True, 'note': _leave_redirect_note(cover) if cover else None})
     except Exception as e:
         logger.error(f'Error in %s: {e}', request.path)
         return _fail(e)
@@ -5451,6 +5469,38 @@ def _leave_periods(conn, user_id=None, cover_user_id=None):
         except Exception: pass
         return []
     return [{**r, 'start_date': str(r['start_date'])[:10], 'end_date': str(r['end_date'])[:10]} for r in rows]
+
+def _leave_redirect(conn, assignee_id):
+    """If `assignee_id` is on leave today and has a cover, return the cover to give a new
+       one-off task to (following the chain if the cover is on leave too).
+       Returns (user_id, info); info is None when nothing changes, else
+       {'from': name, 'to': name, 'until': 'YYYY-MM-DD'} for the person first chosen."""
+    try:
+        cur = int(assignee_id)
+    except (TypeError, ValueError):
+        return assignee_id, None
+    today, seen, until = str(dubai_today()), {cur}, None
+    while True:
+        p = next((p for p in _leave_periods(conn, user_id=cur)
+                  if p['start_date'] <= today <= p['end_date'] and p['cover_user_id']), None)
+        if not p:
+            break
+        nxt = p['cover_user_id']
+        if nxt in seen or not one(conn, 'SELECT id FROM users WHERE id=? AND is_active=1', (nxt,)):
+            break
+        until = until or p['end_date']
+        seen.add(nxt); cur = nxt
+    if cur == int(assignee_id):
+        return assignee_id, None
+    names = {r['id']: r['name'] for r in all_(conn, 'SELECT id,name FROM users WHERE id IN (?,?)', (int(assignee_id), cur))}
+    return cur, {'from': names.get(int(assignee_id), '—'), 'to': names.get(cur, '—'), 'until': until}
+
+def _leave_redirect_log(conn, task_id, info):
+    _task_log(conn, task_id, 'reassigned', info['from'], info['to'],
+              f"{info['from']} is on leave until {info['until']} — given to cover")
+
+def _leave_redirect_note(info):
+    return f"{info['from']} is on leave until {info['until']}, so this task was assigned to their cover, {info['to']}."
 
 def _in_periods(d, periods):
     ds = str(d)[:10]

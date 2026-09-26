@@ -1095,7 +1095,7 @@ function saveTask() {
   fetch('/api/task/add', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
     .then(r => r.json())
     .then(d => {
-      if (d.success) { location.reload(); }
+      if (d.success) { if (d.note) alert(d.note); location.reload(); }
       else { btn.disabled=false; btn.textContent='Create Task'; alert('Error: '+d.error); }
     })
     .catch(e => { btn.disabled=false; btn.textContent='Create Task'; alert('Network error: '+e); });
@@ -1126,7 +1126,7 @@ function saveEditTask() {
   };
   if (!data.title) { alert('Title required'); return; }
   fetch(`/api/task/${id}/edit`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
-    .then(r=>r.json()).then(d => { if(d.success) location.reload(); else alert('Error: '+d.error); });
+    .then(r=>r.json()).then(d => { if(d.success) { if (d.note) alert(d.note); location.reload(); } else alert('Error: '+d.error); });
 }
 
 // ── Task view: details, contextual actions, comments, activity ──
