@@ -3742,7 +3742,9 @@ def _task_can_see(t):
 @app.route('/api/task/add',methods=['POST'])
 @require_perm('tasks_create')
 def api_add_task():
-    d=request.get_json()
+    d=request.get_json() or {}
+    if not str(d.get('assigned_to') or '').strip():
+        return jsonify({'success': False, 'error': 'Please choose who should do this task (Assign To).'}), 400
     try:
         conn=get_db()
         assignee, cover = _leave_redirect(conn, d.get('assigned_to') or None)
@@ -3762,7 +3764,9 @@ def api_add_task():
 @app.route('/api/task/<int:id>/edit',methods=['POST'])
 @require_perm('tasks_edit')
 def api_edit_task(id):
-    d=request.get_json()
+    d=request.get_json() or {}
+    if not str(d.get('assigned_to') or '').strip():
+        return jsonify({'success': False, 'error': 'Please choose who should do this task (Assign To).'}), 400
     try:
         conn=get_db()
         old = one(conn, 'SELECT * FROM tasks WHERE id=?', (id,))

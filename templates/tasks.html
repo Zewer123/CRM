@@ -813,9 +813,9 @@
       <div class="form-group form-full"><label>Title *</label><input type="text" id="etTitle"></div>
       <div class="form-group form-full"><label>Description</label><textarea id="etDesc" rows="2"></textarea></div>
       <div class="form-group">
-        <label>Assign To</label>
+        <label>Assign To *</label>
         <select id="etAssign">
-          <option value="">— None —</option>
+          <option value="">— Select user —</option>
           {% for u in all_users %}<option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>{% endfor %}
         </select>
       </div>
@@ -1086,6 +1086,7 @@ function applyTemplate() {
 function saveTask() {
   const title = document.getElementById('tTitle').value.trim();
   if (!title) { alert('Task title is required'); document.getElementById('tTitle').focus(); return; }
+  if (!document.getElementById('tAssign').value) { alert('Please choose who should do this task (Assign To).'); document.getElementById('tAssign').focus(); return; }
   const data = {
     title,
     description: document.getElementById('tDesc').value.trim(),
@@ -1129,6 +1130,7 @@ function saveEditTask() {
     company_id: document.getElementById('etCompany').value || null,
   };
   if (!data.title) { alert('Title required'); return; }
+  if (!data.assigned_to) { alert('Please choose who should do this task (Assign To).'); document.getElementById('etAssign').focus(); return; }
   fetch(`/api/task/${id}/edit`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
     .then(r=>r.json()).then(d => { if(d.success) { if (d.note) alert(d.note); location.reload(); } else alert('Error: '+d.error); });
 }
