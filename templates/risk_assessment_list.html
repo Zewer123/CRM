@@ -135,7 +135,7 @@
       <div style="display:flex;gap:6px;">
         {% if a.status == 'done' %}
           <a href="{% if a.type == 'company' %}/risk-assessment/company/{{ a.id }}/result{% else %}/risk-assessment/individual/{{ a.id }}/result{% endif %}"
-             style="padding:7px 10px;background:var(--primary);color:white;border-radius:6px;font-weight:600;font-size:12px;text-decoration:none;">
+             style="padding:7px 10px;background:var(--primary);color:var(--on-primary);border-radius:6px;font-weight:600;font-size:12px;text-decoration:none;">
             👁 View
           </a>
           <a href="{% if a.type == 'company' %}/risk-assessment/company/{{ a.id }}{% else %}/risk-assessment/individual/{{ a.id }}{% endif %}"

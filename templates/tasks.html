@@ -23,9 +23,9 @@
 .seg{display:inline-flex;flex-wrap:wrap;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;}
 .seg button{border:0;background:transparent;color:var(--text-muted);padding:7px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-family:inherit;line-height:1.2;}
 .seg button:hover{color:var(--text);background:var(--surface3);}
-.seg button.active{background:var(--primary);color:#fff;}
+.seg button.active{background:var(--primary);color:var(--on-primary);}
 .seg .cnt{font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px;background:var(--surface3);color:var(--text-muted);}
-.seg button.active .cnt{background:rgba(255,255,255,0.22);color:#fff;}
+.seg button.active .cnt{background:rgba(255,255,255,0.22);color:var(--on-primary);}
 .seg .cnt.alert{background:var(--warning-bg);color:var(--warning);}
 .stat-grid.tk{grid-template-columns:repeat(6,minmax(0,1fr));}
 .stat-grid.tk4{grid-template-columns:repeat(4,minmax(0,1fr));}
@@ -42,7 +42,7 @@
 .st-pending_close{background:var(--warning-bg);color:var(--warning);}
 .st-done{background:var(--success-bg);color:var(--success);}
 .row-act{display:flex;gap:5px;align-items:center;justify-content:flex-end;flex-wrap:wrap;}
-.btn-go{background:var(--primary);color:#fff;border:0;}
+.btn-go{background:var(--primary);color:var(--on-primary);border:0;}
 .btn-close-task{background:var(--success);color:#fff;border:0;}
 .vt-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);}
 @media (max-width:560px){.vt-grid{grid-template-columns:1fr 1fr;}}
@@ -664,9 +664,7 @@
           <td>
             <div style="display:flex;gap:6px;">
             {% if user_role in ['admin','compliance'] or t.created_by == current_user_id %}
-              {% if is_done %}
-              <button class="btn btn-ghost btn-sm" onclick="completeAdditionalTask({{ t.id }}, false)" title="Reopen">↩ Reopen</button>
-              {% else %}
+              {% if not is_done %}
               <button class="btn btn-primary btn-sm" onclick="completeAdditionalTask({{ t.id }}, true)" title="Mark complete">✓ Complete</button>
               {% endif %}
             {% endif %}
@@ -730,7 +728,7 @@
 
     <div class="form-group" style="margin-top:16px;">
       <label>Comment <span style="color:var(--text-dim);font-weight:400;text-transform:none;">(saved with the next action, or on its own)</span></label>
-      <textarea id="vtComment" rows="2" placeholder="Progress update, reason for hold / reopen, ask for an extension…"></textarea>
+      <textarea id="vtComment" rows="2" placeholder="Progress update, reason for hold, ask for an extension…"></textarea>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:6px;">
       <button class="btn btn-ghost btn-sm" onclick="postComment()">💬 Add Comment</button>
@@ -1166,14 +1164,13 @@ function viewTask(id) {
   let acts = [], note = '';
   if (s === 'pending_close') {
     if (closer) {
-      note = `<div class="vt-note" style="background:var(--warning-bg);color:var(--warning);">✋ ${esc(t.assigned_name)} has marked this task as Done — please check and close it, or reopen it.</div>`;
-      acts.push(btn('✅ Close Task', 'btn-close-task', `taskAction('done')`), btn('↩ Reopen', 'btn-ghost', `taskAction('inprogress', true)`));
+      note = `<div class="vt-note" style="background:var(--warning-bg);color:var(--warning);">✋ ${esc(t.assigned_name)} has marked this task as Done — please check and close it.</div>`;
+      acts.push(btn('✅ Close Task', 'btn-close-task', `taskAction('done')`));
     } else {
       note = `<div class="vt-note" style="background:var(--warning-bg);color:var(--warning);">⏳ Marked as Done — waiting for ${esc(t.created_by_name)} to close it.</div>`;
     }
   } else if (s === 'done') {
     note = `<div class="vt-note" style="background:var(--success-bg);color:var(--success);">✅ This task is closed.</div>`;
-    if (closer) acts.push(btn('↩ Reopen', 'btn-ghost', `taskAction('inprogress', true)`));
   } else if (worker) {
     if (s === 'todo') acts.push(btn('▶ Start', 'btn-go', `taskAction('inprogress')`));
     if (s === 'hold') acts.push(btn('▶ Resume', 'btn-go', `taskAction('inprogress')`));
@@ -1666,18 +1663,9 @@ function loadHistory() {
           ${l.notes ? `<div style="color:var(--text-muted);margin-top:2px;white-space:pre-wrap;">${esc(l.notes)}</div>` : ''}
           ${l.status === 'reopened' ? `<div style="color:var(--danger);margin-top:2px;">Reopened by ${esc(l.reopened_by || '—')}: ${esc(l.reopen_reason)}</div>` : ''}
         </div>
-        ${d.can_reopen && l.status !== 'reopened' ? `<button class="btn btn-ghost btn-sm" style="flex-shrink:0;" onclick="reopenLog(${l.id})">↩ Reopen</button>` : ''}
       </div>`).join('') : '<div style="font-size:12px;color:var(--text-dim);">No logs this month.</div>';
   }).catch(() => { document.getElementById('hCal').innerHTML = '<div style="grid-column:1/-1;color:var(--danger);font-size:12px;">Network error</div>'; });
 }
-function reopenLog(logId) {
-  const reason = (prompt('Why is this day being reopened? The person will need to log it again.') || '').trim();
-  if (!reason) return;
-  fetch(`/api/regular-task/log/${logId}/reopen`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({reason}) })
-    .then(r => r.json()).then(d => { if (d.success) loadHistory(); else alert('Error: ' + d.error); })
-    .catch(() => alert('Network error'));
-}
-
 function rtPause(id, pause) {
   if (pause && !confirm('Pause this recurring task from today?\n\nWhile paused, no days are due and none are counted as missed. Days already missed before today stay on the list.')) return;
   fetch(`/api/regular-task/${id}/${pause ? 'pause' : 'resume'}`, { method: 'POST' })

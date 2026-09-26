@@ -209,7 +209,7 @@
   {% endif %}
   {% for pg in range(1, total_pages+1) %}
     {% if pg == page %}
-    <span style="background:var(--primary);color:#fff;padding:5px 12px;border-radius:6px;font-size:13px;font-weight:600;">{{ pg }}</span>
+    <span style="background:var(--primary);color:var(--on-primary);padding:5px 12px;border-radius:6px;font-size:13px;font-weight:600;">{{ pg }}</span>
     {% elif pg == 1 or pg == total_pages or (pg >= page-2 and pg <= page+2) %}
     <a href="?page={{ pg }}&search={{ search }}&resident={{ resident_filter }}&mode={{ mode_filter }}" class="btn btn-ghost btn-sm" style="min-width:36px;">{{ pg }}</a>
     {% elif pg == page-3 or pg == page+3 %}

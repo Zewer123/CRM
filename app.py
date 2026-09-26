@@ -115,11 +115,18 @@ DATABASE_URL = os.getenv('DATABASE_URL', '')
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SQLITE_PATH = os.getenv('SQLITE_PATH', os.path.join(BASE_DIR, 'data', 'aml_crm.db'))
 
+# Stylesheet version for the <link> URL, so browsers fetch the new file after each deploy
+# instead of keeping a stale cached copy.
+try:
+    CSS_VER = int(os.path.getmtime(os.path.join(BASE_DIR, 'static', 'style.css')))
+except OSError:
+    CSS_VER = 0
+
 @app.context_processor
 def inject_user():
     return dict(user_name=session.get('user_name',''), user_role=session.get('user_role',''),
                 user_email=session.get('user_email',''), current_user_id=session.get('user_id'),
-                has_perm=has_perm)
+                has_perm=has_perm, css_ver=CSS_VER)
 
 # ── DATABASE ────────────────────────────────────────────────
 
