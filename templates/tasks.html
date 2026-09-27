@@ -320,8 +320,6 @@
         <tr>
           <th>TASK</th>
           <th>ASSIGNED TO</th>
-          <th>COMPANY</th>
-          <th>PRIORITY</th>
           <th>DUE</th>
           <th>STATUS</th>
           <th style="text-align:right;">ACTION</th>
@@ -338,21 +336,11 @@
             data-search="{{ ((t.title or '') ~ ' ' ~ (t.description or '') ~ ' ' ~ (t.company_name or '') ~ ' ' ~ (t.ac_code or '') ~ ' ' ~ (t.assigned_name or '') ~ ' ' ~ (t.created_by_name or '') ~ ' #' ~ t.id)|lower }}">
           <td>
             <a href="#" onclick="viewTask({{ t.id }});return false;" style="font-weight:600;color:var(--text);text-decoration:none;">{{ t.title }}</a>
+            {% if t.priority == 'urgent' %}<span style="display:inline-block;margin-left:6px;padding:1px 6px;border-radius:4px;background:rgba(239,68,68,0.15);color:#fca5a5;font-size:9px;font-weight:800;letter-spacing:0.5px;vertical-align:middle;">URGENT</span>{% endif %}
             {% if t.description %}<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">{{ t.description[:80] }}{% if t.description|length > 80 %}…{% endif %}</div>{% endif %}
             <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">#{{ t.id }} · by {{ t.created_by_name or '—' }}</div>
           </td>
           <td style="color:var(--text-muted);">{{ t.assigned_name or '—' }}{% if is_mine %} <span style="font-size:10px;color:var(--primary);font-weight:700;">(you)</span>{% endif %}</td>
-          <td style="color:var(--text-muted);font-size:12px;">
-            {% if t.company_id %}
-            <a href="{{ url_for('company_detail', id=t.company_id) }}" style="color:var(--primary-light);text-decoration:none;">{{ t.ac_code }}</a>
-            <div style="font-size:11px;color:var(--text-dim);">{{ t.company_name }}</div>
-            {% else %}—{% endif %}
-          </td>
-          <td>
-            <span class="badge badge-{% if t.priority=='urgent' %}urgent{% elif t.priority=='high' %}high-p{% elif t.priority=='low' %}low-p{% else %}normal{% endif %}">
-              {{ (t.priority or 'normal').upper() }}
-            </span>
-          </td>
           <td style="font-size:12px;white-space:nowrap;">
             {% if t.due_date %}
               <div style="color:var(--text-muted);">{{ t.due_date[:10] }}</div>
@@ -466,7 +454,6 @@
       <option value="status">Status (overdue first)</option>
       <option value="title">Task name (A–Z)</option>
       <option value="nextdue">Next due date</option>
-      <option value="lastlogged">Last logged</option>
     </select>
   </div>
   <div class="form-group" style="min-width:140px;">
@@ -496,7 +483,6 @@
           <th>TASK</th>
           <th>FREQ</th>
           <th>ASSIGNED</th>
-          <th>LAST LOGGED</th>
           <th>NEXT DUE</th>
           <th>ACTIONS</th>
         </tr>
@@ -546,10 +532,6 @@
             {% if s.get('owner_on_leave_until') %}<div style="font-size:10px;color:#93c5fd;margin-top:2px;">🏖️ On leave → {{ s.owner_on_leave_until }}</div>{% endif %}
             {% if t.covering_for %}<div style="font-size:10px;color:#fcd34d;margin-top:2px;">🤝 You're covering → {{ t.cover_until }}</div>{% endif %}
           </td>
-          <td style="font-size:12px;">
-            {% if s.get('last_logged') %}<span style="color:#86efac;">{{ s.last_logged }}</span>
-            {% else %}<span style="color:#fca5a5;">Never</span>{% endif %}
-          </td>
           <td style="font-size:12px;color:var(--text-muted);">{{ s.get('next_due') or '—' }}</td>
           <td>
             <div style="display:flex;gap:6px;align-items:center;">
@@ -568,7 +550,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="7" style="text-align:center;padding:50px;color:var(--text-dim);">No regular tasks yet.{% if user_role in ['admin','compliance'] %} <a href="#" onclick="openTemplateModal();return false;" style="color:var(--primary);">Add one?</a>{% endif %}</td></tr>
+        <tr><td colspan="6" style="text-align:center;padding:50px;color:var(--text-dim);">No regular tasks yet.{% if user_role in ['admin','compliance'] %} <a href="#" onclick="openTemplateModal();return false;" style="color:var(--primary);">Add one?</a>{% endif %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -633,12 +615,10 @@
       <thead>
         <tr>
           <th>TASK</th>
-          <th>DETAILS</th>
           <th>FROM</th>
           <th>TO</th>
           {% if user_role == 'admin' %}<th>STAFF</th>{% endif %}
           <th>STATUS</th>
-          <th>LOGGED</th>
           <th>ACTIONS</th>
         </tr>
       </thead>
@@ -646,12 +626,7 @@
         {% for t in add_tasks %}
         {% set is_done = t.status == 'completed' %}
         <tr class="at-row" data-user="{{ t.created_by }}" data-from="{{ t.from_datetime[:10] }}" data-to="{{ t.to_datetime[:16] }}" data-status="{{ t.status or 'open' }}">
-          <td><div style="font-weight:600;color:var(--text);">🚗 {{ t.title }}</div></td>
-          <td style="font-size:12px;color:var(--text-muted);max-width:280px;">
-            {% if t.task_details %}<div>{{ t.task_details[:90] }}{% if t.task_details|length > 90 %}…{% endif %}</div>{% endif %}
-            {% if t.remarks %}<div style="color:var(--text-dim);margin-top:2px;"><em>{{ t.remarks[:70] }}{% if t.remarks|length > 70 %}…{% endif %}</em></div>{% endif %}
-            {% if not t.task_details and not t.remarks %}—{% endif %}
-          </td>
+          <td><div style="font-weight:600;color:var(--text);" title="{{ t.task_details or '' }}{% if t.remarks %}&#10;{{ t.remarks }}{% endif %}">🚗 {{ t.title }}</div></td>
           <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">{{ t.from_datetime }}</td>
           <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">{{ t.to_datetime }}</td>
           {% if user_role == 'admin' %}<td style="font-size:12px;color:var(--text-muted);">{{ t.staff_name or '—' }}</td>{% endif %}
@@ -660,7 +635,6 @@
             {% else %}<span class="badge" style="background:var(--surface3);color:var(--text-muted);">📋 Not started</span>
             <div class="at-late" style="display:none;font-size:10px;color:var(--danger);font-weight:700;margin-top:2px;">⚠️ overdue</div>{% endif %}
           </td>
-          <td style="font-size:11px;color:var(--text-dim);white-space:nowrap;">{{ t.created_at }}</td>
           <td>
             <div style="display:flex;gap:6px;">
             {% if user_role in ['admin','compliance'] or t.created_by == current_user_id %}
@@ -675,7 +649,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="{% if user_role == 'admin' %}8{% else %}7{% endif %}" style="text-align:center;padding:50px;color:var(--text-dim);">No additional jobs logged yet. <a href="#" onclick="openModal('addAdditionalModal');return false;" style="color:var(--primary);">Log one now?</a></td></tr>
+        <tr><td colspan="{% if user_role == 'admin' %}6{% else %}5{% endif %}" style="text-align:center;padding:50px;color:var(--text-dim);">No additional jobs logged yet. <a href="#" onclick="openModal('addAdditionalModal');return false;" style="color:var(--primary);">Log one now?</a></td></tr>
         {% endfor %}
       </tbody>
     </table>
