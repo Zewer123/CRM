@@ -1153,20 +1153,30 @@ def _client_ip():
         ip = ip.split(',')[0].strip()
     return ip
 
-# Login throttle: block after this many failures from one IP within the window.
-LOGIN_MAX_FAILS = 10
+# Login throttle. The whole office shares one public IP, so the per-account limit is the
+# one staff normally hit; the much higher per-IP limit only stops broad password guessing.
+LOGIN_MAX_FAILS = 10        # per IP + username
+LOGIN_MAX_FAILS_IP = 100    # per IP, all usernames combined
 LOGIN_WINDOW_MIN = 15
 
-def _too_many_attempts(conn, ip):
-    """True if this IP has exceeded the failed-login limit inside the time window."""
+def _too_many_attempts(conn, ip, login_id):
+    """True if this IP has exceeded a failed-login limit inside the time window."""
     if not ip:
         return False
     try:
         cutoff = (datetime.utcnow() - timedelta(minutes=LOGIN_WINDOW_MIN)).strftime('%Y-%m-%d %H:%M:%S')
-        n = cnt(conn, "SELECT COUNT(*) FROM login_history WHERE ip_address=? AND success IS NOT TRUE AND created_at >= ?",
-                (ip, cutoff))
-        return int(n or 0) >= LOGIN_MAX_FAILS
+        n_ip = cnt(conn, "SELECT COUNT(*) FROM login_history WHERE ip_address=? AND success IS NOT TRUE AND created_at >= ?",
+                   (ip, cutoff))
+        if int(n_ip or 0) >= LOGIN_MAX_FAILS_IP:
+            return True
+        if not login_id:
+            return False
+        n_user = cnt(conn, "SELECT COUNT(*) FROM login_history WHERE ip_address=? AND LOWER(username)=LOWER(?) "
+                           "AND success IS NOT TRUE AND created_at >= ?", (ip, login_id, cutoff))
+        return int(n_user or 0) >= LOGIN_MAX_FAILS
     except Exception:
+        try: conn.rollback()
+        except Exception: pass
         return False  # never lock people out because the check itself failed
 
 def _log_login(conn, user_id, username, success):
@@ -1190,14 +1200,14 @@ def login():
     if request.method=='POST':
         d=request.get_json(silent=True) or {}
         conn=get_db()
-        # Brute-force throttle: too many recent failures from this IP → refuse early.
-        if _too_many_attempts(conn, _client_ip()):
-            conn.close()
-            logger.warning(f'Login throttled for IP {_client_ip()}')
-            return jsonify({'success':False,'error':'Too many failed attempts. Please wait 15 minutes and try again.'}),429
         # Usernames are stored lower-case; phones capitalise the first letter and keyboards
         # add trailing spaces, so match trimmed + case-insensitive (username wins over email).
         login_id = (d.get('username') or d.get('email') or '').strip()
+        # Brute-force throttle: too many recent failures for this account / IP → refuse early.
+        if _too_many_attempts(conn, _client_ip(), login_id):
+            conn.close()
+            logger.warning(f'Login throttled for IP {_client_ip()} user {login_id}')
+            return jsonify({'success':False,'error':'Too many failed attempts. Please wait 15 minutes and try again.'}),429
         u=one(conn,'''SELECT * FROM users WHERE LOWER(username)=LOWER(?) OR LOWER(email)=LOWER(?)
             ORDER BY CASE WHEN LOWER(username)=LOWER(?) THEN 0 ELSE 1 END, id LIMIT 1''',
             (login_id,login_id,login_id)) if login_id else None
