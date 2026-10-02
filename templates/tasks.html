@@ -264,7 +264,7 @@
 <div class="search-bar" style="margin-bottom:16px;">
   <div class="form-group" style="min-width:140px;">
     <label>STATUS</label>
-    <select id="filterStatus" onchange="filterTasks()">
+    <select id="filterStatus" onchange="statusChanged()">
       <option value="">Any</option>
       <option value="todo">Not started</option>
       <option value="inprogress">In Progress</option>
@@ -1258,6 +1258,16 @@ function cardFilter(status) {
   sel.value = (sel.value === status) ? '' : status;
   _quick = 'all';
   document.querySelectorAll('#quickSeg button').forEach(b => b.classList.toggle('active', b.dataset.q === 'all'));
+  filterTasks();
+}
+
+// Picking a status in the dropdown must not be hidden by the quick view
+// (e.g. "Closed" under the default "Open" view showed nothing) — same as the cards.
+function statusChanged() {
+  if (document.getElementById('filterStatus').value) {
+    _quick = 'all';
+    document.querySelectorAll('#quickSeg button').forEach(b => b.classList.toggle('active', b.dataset.q === 'all'));
+  }
   filterTasks();
 }
 
