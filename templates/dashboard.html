@@ -163,6 +163,7 @@
       <div style="font-size:22px;font-weight:700;color:{% if s.pending == 0 %}#86efac{% elif s.pending <= 3 %}#fcd34d{% else %}#fca5a5{% endif %};">{{ s.pending }}</div>
       <div style="font-size:12px;color:var(--text-muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ s.name }}</div>
       <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">pending tasks</div>
+      {% if s.awaiting %}<div style="font-size:10px;color:#fcd34d;margin-top:2px;" title="Marked Done by this person — waiting for the task creator / admin to close">+{{ s.awaiting }} to close</div>{% endif %}
     </div>
     {% endfor %}
   </div>

@@ -1315,7 +1315,13 @@ def dashboard():
         row['due_date'] = str(row['due_date'])[:10] if row.get('due_date') else None
         utasks.append(row)
     try:
-        staff_task_counts=all_(conn,"SELECT u.name,u.id,COUNT(t.id) as pending FROM users u LEFT JOIN tasks t ON t.assigned_to=u.id AND t.status NOT IN ('done') WHERE u.is_active=1 GROUP BY u.id,u.name ORDER BY pending DESC")
+        # 'pending_close' = the assignee already marked it Done; it waits on the creator/admin,
+        # so it is shown separately as awaiting close, not as the staff member's pending work.
+        staff_task_counts=all_(conn,"""SELECT u.name,u.id,
+            COUNT(CASE WHEN t.status NOT IN ('done','pending_close') THEN 1 END) as pending,
+            COUNT(CASE WHEN t.status='pending_close' THEN 1 END) as awaiting
+            FROM users u LEFT JOIN tasks t ON t.assigned_to=u.id
+            WHERE u.is_active=1 GROUP BY u.id,u.name ORDER BY pending DESC""")
     except: staff_task_counts=[]
 
     # Upcoming client birthdays (next 30 days)
@@ -2482,7 +2488,7 @@ def _staff_task_report(conn, today, df, dt, staff_id=None):
         temp = all_(conn, """SELECT t.title,t.status,t.priority,t.due_date,t.updated_at,c.client_name AS company
             FROM tasks t LEFT JOIN companies c ON t.company_id=c.id
             WHERE t.assigned_to=? ORDER BY t.due_date""", (uid,))
-        temp_done = []; temp_pending = []; temp_overdue = []
+        temp_done = []; temp_pending = []; temp_overdue = []; temp_awaiting = []
         for t in temp:
             st = (t['status'] or 'todo')
             due = str(t['due_date']) if t['due_date'] else ''
@@ -2492,6 +2498,8 @@ def _staff_task_report(conn, today, df, dt, staff_id=None):
                 upd = str(t['updated_at'] or '')[:10]
                 if (not df or upd >= df) and (not dt or upd <= dt):
                     temp_done.append(item)                 # closed within range
+            elif st == 'pending_close':
+                temp_awaiting.append(item)             # staff marked Done; waiting on creator/admin to close
             elif due and due < str(today):
                 temp_overdue.append(item)
             else:
@@ -2549,6 +2557,7 @@ def _staff_task_report(conn, today, df, dt, staff_id=None):
         report.append({
             'name': u['name'], 'role': (u['role'] or '').title(), 'login': u.get('username') or u.get('email') or '',
             'temp_done': temp_done, 'temp_pending': temp_pending, 'temp_overdue': temp_overdue,
+            'temp_awaiting': temp_awaiting,
             'reg_list': reg_list, 'reg_pending': reg_pending, 'reg_overdue': reg_overdue,
             'add_list': add_list, 'add_done': add_done, 'add_open': add_open, 'add_overdue': add_overdue,
             'done_total': len(temp_done) + len(reg_list) + add_done,
