@@ -90,6 +90,8 @@ body.theme-navy .navbar-link.active { background:rgba(255,255,255,0.14); color:#
 body.theme-navy .user-name { color:#ffffff; }
 body.theme-navy .user-role { color:#9db0d6; }
 body.theme-navy .user-btn > span { color:#9db0d6 !important; }
+body.theme-navy .user-btn { background:rgba(255,255,255,0.10); border-color:rgba(255,255,255,0.22); }
+body.theme-navy .user-btn:hover { background:rgba(255,255,255,0.16); border-color:rgba(255,255,255,0.45); }
 
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; min-height:100vh; }
