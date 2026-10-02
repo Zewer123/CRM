@@ -958,10 +958,22 @@ ROLE_PERM_DEFAULTS = {
                    'companies_export','companies_import','alerts','clients','reports',
                    'aml_export','aml_import',
                    'tasks_view','tasks_create','tasks_edit','tasks_delete',
-                   'regular_tasks_view','regular_tasks_log','regular_tasks_manage',
+                   'regular_tasks_view','regular_tasks_log','regular_tasks_manage','regular_tasks_delete',
                    'zewer_docs_view','zewer_docs_edit'},
     'staff': {'dashboard','tasks_view','tasks_create','tasks_edit','regular_tasks_view','regular_tasks_log'},
 }
+
+# Permissions split out of an older combined one: {new: old}. A saved config written before
+# the split has never seen the new key, so each role keeps whatever the old one gave it.
+PERM_SPLITS = {'regular_tasks_delete': 'regular_tasks_manage'}
+
+def _perms_upgrade(cfg):
+    if not isinstance(cfg, dict): return cfg
+    for new, old in PERM_SPLITS.items():
+        if not any(isinstance(v, list) and new in v for v in cfg.values()):
+            for v in cfg.values():
+                if isinstance(v, list) and old in v: v.append(new)
+    return cfg
 
 def _role_perms_config():
     """Admin-saved role→perms map (cached per request); None if never configured."""
@@ -977,7 +989,7 @@ def _role_perms_config():
         conn.close()
         if row and row.get('value'):
             import json as _json
-            val = _json.loads(row['value'])
+            val = _perms_upgrade(_json.loads(row['value']))
     except Exception:
         val = None
     try:
@@ -5356,7 +5368,7 @@ def api_resume_regular_task(id):
         return _fail(e)
 
 @app.route('/api/regular-task/<int:id>/delete', methods=['POST'])
-@require_perm('regular_tasks_manage')
+@require_perm('regular_tasks_delete')
 def api_delete_regular_task(id):
     try:
         conn = get_db()
@@ -6264,7 +6276,7 @@ def api_get_role_permissions():
         conn.close()
         if row:
             import json as _json
-            return jsonify({'permissions': _json.loads(row['value'])})
+            return jsonify({'permissions': _perms_upgrade(_json.loads(row['value']))})
         return jsonify({'permissions': None})
     except Exception as e:
         logger.error(f'{request.path}: {e}')
@@ -6279,7 +6291,11 @@ def api_save_role_permissions():
     d = request.get_json()
     try:
         conn = get_db()
-        val = _json.dumps(d.get('permissions', {}))
+        perms = d.get('permissions', {}) or {}
+        # admin always has everything; keeping the split keys in its list marks the config as post-split
+        if isinstance(perms.get('admin'), list):
+            perms['admin'] = list(dict.fromkeys(perms['admin'] + list(PERM_SPLITS)))
+        val = _json.dumps(perms)
         x(conn, "INSERT INTO app_settings (key,value) VALUES ('role_permissions',?) ON CONFLICT(key) DO UPDATE SET value=?,updated_at=CURRENT_TIMESTAMP",
           (val, val))
         commit(conn); conn.close()

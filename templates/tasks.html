@@ -546,6 +546,8 @@
               {% elif state == 'active' %}
               <button class="btn btn-ghost btn-sm btn-icon" onclick="rtPause({{ t.id }}, true)" title="Pause">⏸️</button>
               {% endif %}
+              {% endif %}
+              {% if has_perm('regular_tasks_delete') and not t.get('_cover_only') %}
               <button class="btn btn-danger btn-sm btn-icon" onclick="deleteTemplate({{ t.id }})" title="Delete">🗑️</button>
               {% endif %}
             </div>
