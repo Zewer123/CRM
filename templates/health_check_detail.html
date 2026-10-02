@@ -269,15 +269,17 @@
     {% for label, val, icon in [
       ('KYC Status', company.kyc_status, '📋'),
       ('KYC Expiry', (company.kyc_expiry_date|string)[:10] if company.kyc_expiry_date else None, '📅'),
-      ('PEP', company.pep, '🚩'),
+      ('PEP Declaration', company.pep, '🚩'),
+      ('UBO PEP Status', ubo_pep, '🚩'),
       ('Source of Funds', company.source_of_fund, '💰'),
       ('Screening Tool', company.registration_screening_tool, '🔍'),
       ('Verified By', company.verified_by, '✅'),
     ] %}{% if val %}
     <div class="info-row">
       <span style="color:var(--text-dim);">{{ icon }} {{ label }}</span>
-      <span style="font-weight:600;color:
-        {% if val=='Completed' or val=='Yes' or val=='Low' %}#86efac
+      <span style="font-weight:600;text-align:right;color:
+        {% if 'PEP' in label %}{% if val.startswith('Yes') %}#fca5a5{% else %}var(--text-muted){% endif %}
+        {% elif val=='Completed' or val=='Yes' or val=='Low' %}#86efac
         {% elif val=='High' or val=='Incompleted' %}#fca5a5
         {% elif val=='Medium' %}#fcd34d
         {% else %}var(--text-muted){% endif %};">{{ val }}</span>

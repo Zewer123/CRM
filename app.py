@@ -1869,8 +1869,14 @@ def health_check_detail(id):
     elif score >= 50: grade = 'Average'; grade_color = '#f59e0b'
     else: grade = 'Poor'; grade_color = '#ef4444'
 
+    # PEP on the beneficial owners (each UBO has its own PEP Status)
+    pep_ubos = [u.get('person_name') or 'Unnamed' for u in ubos if (u.get('pep_status') or '').lower() == 'yes']
+    if pep_ubos: ubo_pep = 'Yes — ' + ', '.join(pep_ubos)
+    elif any(u.get('pep_status') for u in ubos): ubo_pep = 'No'
+    else: ubo_pep = None
+
     return render_template('health_check_detail.html',
-        company=co, ubos=ubos, docs=docs, summary=summary,
+        company=co, ubos=ubos, docs=docs, summary=summary, ubo_pep=ubo_pep,
         score=score, grade=grade, grade_color=grade_color,
         deductions=deductions, today=str(today), risk_assessment=risk_assessment)
 
