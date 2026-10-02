@@ -1415,46 +1415,158 @@ def dashboard():
         urgent_tasks=utasks,today=str(today),days_left=days_left,staff_task_counts=staff_task_counts,
         upcoming_birthdays=upcoming_birthdays,kyc_alerts=kyc_alerts)
 
+# ── COMPANIES: dynamic filter builder ─────────────────────────
+# Fields come from the import column definitions (so new columns appear automatically).
+# Column names are only ever taken from this whitelist, never from the request.
+_ADV_OPS = {
+    'text':   ('contains', 'not_contains', 'eq', 'empty', 'not_empty'),
+    'choice': ('eq', 'neq', 'empty', 'not_empty'),
+    'date':   ('on', 'before', 'after', 'between', 'expired', 'within', 'empty', 'not_empty'),
+    'num':    ('eq', 'gt', 'lt', 'empty', 'not_empty'),
+}
+
+def _company_filter_fields():
+    def kind_of(kind, src):
+        if kind == 'date': return 'date'
+        if kind in ('int', 'num'): return 'num'
+        return 'choice' if src else 'text'
+    f = {}
+    for k, lbl, kind, src in COMPANY_IMPORT_COLS:
+        f[k] = {'label': lbl.replace(' *', ''), 'kind': kind_of(kind, src), 'src': src, 'ubo': False}
+    f['created_at'] = {'label': 'Added to CRM (date)', 'kind': 'date', 'src': None, 'ubo': False}
+    for k, lbl, kind, src in UBO_IMPORT_COLS:
+        if k == 'ac_code': continue
+        f['ubo.' + k] = {'label': 'Owner / UBO — ' + lbl.replace(' *', ''), 'kind': kind_of(kind, src), 'src': src, 'ubo': True}
+    return f
+
+def _adv_condition(fd, col, op, v, v2, today):
+    """One filter row -> (sql, params). Returns None if the row is incomplete/invalid."""
+    from datetime import date
+    t = f'CAST({col} AS TEXT)'
+    has = f"({col} IS NOT NULL AND {t} <> '')"
+    if op == 'empty': return f"({col} IS NULL OR {t} = '')", []
+    if op == 'not_empty': return has, []
+    kind = fd['kind']; v = (v or '').strip(); v2 = (v2 or '').strip()
+    if kind in ('text', 'choice'):
+        if not v: return None
+        if op == 'contains': return f'LOWER({t}) LIKE ?', ['%' + v.lower() + '%']
+        if op == 'not_contains': return f'({col} IS NULL OR LOWER({t}) NOT LIKE ?)', ['%' + v.lower() + '%']
+        if op == 'eq': return f'LOWER(TRIM({t})) = ?', [v.lower()]
+        if op == 'neq': return f'({col} IS NULL OR LOWER(TRIM({t})) <> ?)', [v.lower()]
+    if kind == 'date':
+        if op == 'expired': return f'({has} AND {col} < ?)', [str(today)]
+        if op == 'within':
+            try: n = max(0, min(3650, int(v)))
+            except ValueError: return None
+            return f'({has} AND {col} >= ? AND {col} < ?)', [str(today), str(today + timedelta(days=n + 1))]
+        try:
+            d1 = date.fromisoformat(v)
+            d2 = date.fromisoformat(v2) if op == 'between' else None
+        except ValueError:
+            return None
+        nxt = lambda d: str(d + timedelta(days=1))      # half-open ranges also work for timestamps
+        if op == 'on': return f'({has} AND {col} >= ? AND {col} < ?)', [str(d1), nxt(d1)]
+        if op == 'before': return f'({has} AND {col} < ?)', [str(d1)]
+        if op == 'after': return f'({has} AND {col} >= ?)', [nxt(d1)]
+        if op == 'between':
+            lo, hi = sorted([d1, d2])
+            return f'({has} AND {col} >= ? AND {col} < ?)', [str(lo), nxt(hi)]
+    if kind == 'num':
+        try: n = float(v)
+        except ValueError: return None
+        sym = {'eq': '=', 'gt': '>', 'lt': '<'}.get(op)
+        if sym: return f'({col} IS NOT NULL AND {col} {sym} ?)', [n]
+    return None
+
+def _company_adv_from_request(args):
+    """The builder's rows (JSON in ?adv=) plus the old fixed Advanced-filter params, as one list."""
+    import json as _json
+    rows = []
+    try:
+        raw = _json.loads(args.get('adv') or '[]')
+        if isinstance(raw, list): rows = [r for r in raw if isinstance(r, dict)][:25]
+    except ValueError:
+        rows = []
+    for param, field in (('nature', 'nature'), ('type_of_client', 'type_of_client'), ('country', 'country_of_incorporation'),
+                         ('risk_status', 'risk_status'), ('kyc_status', 'kyc_status'), ('doc_status', 'doc_status')):
+        if args.get(param): rows.append({'f': field, 'op': 'eq', 'v': args.get(param)})
+    return rows
+
+def _company_where(args, today):
+    """WHERE clause (without 'WHERE') + params for the Companies list and its export,
+       plus the builder rows that were actually applied."""
+    s = args.get('search', ''); sf = args.get('status', '')
+    q = '1=1'; p = []
+    # each space-separated search term must match (progressively narrows)
+    for term in [t for t in s.split() if t]:
+        q += (' AND (client_name LIKE ? OR ac_code LIKE ? OR mobile LIKE ? OR trade_license_no LIKE ?'
+              ' OR region LIKE ? OR country_of_incorporation LIKE ? OR contact_person_name LIKE ?'
+              ' OR contact_person_number LIKE ? OR account_manager LIKE ? OR email_id LIKE ?)')
+        p += [f'%{term}%'] * 10
+    # Status filter: Active/Inactive use ac_status; Disabled uses the out-of-scope flag.
+    # Disabled records are hidden by default unless explicitly requested (or status='all').
+    if sf == 'Disabled':
+        q += ' AND disabled IS TRUE'
+    elif sf == 'all':
+        pass
+    elif sf in ('Active', 'Inactive'):
+        q += ' AND ac_status=? AND disabled IS NOT TRUE'; p.append(sf)
+    else:
+        q += ' AND disabled IS NOT TRUE'
+    for param, col in (('region', 'region'), ('mode', 'mode_of_ac'), ('group', 'group_name')):
+        if args.get(param): q += f' AND {col}=?'; p.append(args.get(param))
+    fields = _company_filter_fields()
+    applied = []
+    for r in _company_adv_from_request(args):
+        key = r.get('f'); fd = fields.get(key) if isinstance(key, str) else None
+        op = r.get('op')
+        if not fd or op not in _ADV_OPS[fd['kind']]: continue
+        col = ('u.' + key[4:]) if fd['ubo'] else key
+        v, v2 = str(r.get('v') or ''), str(r.get('v2') or '')
+        cond = _adv_condition(fd, col, op, v, v2, today)
+        if not cond: continue
+        sql, cp = cond
+        if fd['ubo']: sql = f'EXISTS (SELECT 1 FROM ubos u WHERE u.company_id=companies.id AND {sql})'
+        q += ' AND ' + sql; p += cp
+        applied.append({'f': key, 'op': op, 'v': v, 'v2': v2})
+    return q, p, applied
+
+@app.route('/api/companies/filter-values')
+@require_perm('companies_view')
+def api_company_filter_values():
+    """Values for a dropdown-type filter: the configured list plus whatever is actually stored."""
+    key = request.args.get('field', '')
+    fd = _company_filter_fields().get(key)
+    if not fd or fd['kind'] != 'choice':
+        return jsonify({'values': []})
+    conn = get_db()
+    try:
+        vals = list(_xl_lists(conn).get(fd['src'], []))
+        seen = {v_.lower() for v_ in vals}
+        tbl, col = ('ubos', key[4:]) if fd['ubo'] else ('companies', key)
+        for r in all_(conn, f"SELECT DISTINCT TRIM(CAST({col} AS TEXT)) AS v FROM {tbl} WHERE {col} IS NOT NULL"):
+            if r['v'] and r['v'].lower() not in seen:
+                vals.append(r['v']); seen.add(r['v'].lower())
+    except Exception as e:
+        logger.warning(f'filter values for {key}: {e}')
+        try: conn.rollback()
+        except Exception: pass
+        vals = []
+    conn.close()
+    return jsonify({'values': vals})
+
 @app.route('/companies')
 @require_perm('companies_view')
 def companies():
     conn=get_db()
     s=request.args.get('search',''); sf=request.args.get('status','')
     rgf=request.args.get('region',''); modf=request.args.get('mode',''); grpf=request.args.get('group','')
-    # Advanced filter: extra fields + multi-term search (each space-separated term
-    # must match, so terms act like progressively-refining chips: "UAE Dubai" etc.)
-    naf=request.args.get('nature',''); tcf=request.args.get('type_of_client','')
-    cof=request.args.get('country',''); rif=request.args.get('risk_status','')
-    kyf=request.args.get('kyc_status',''); dsf=request.args.get('doc_status','')
-    q='SELECT * FROM companies WHERE 1=1'; p=[]
-    for term in [t for t in s.split() if t]:
-        q+=(' AND (client_name LIKE ? OR ac_code LIKE ? OR mobile LIKE ? OR trade_license_no LIKE ?'
-            ' OR region LIKE ? OR country_of_incorporation LIKE ? OR contact_person_name LIKE ?'
-            ' OR contact_person_number LIKE ? OR account_manager LIKE ? OR email_id LIKE ?)')
-        p+=[f'%{term}%']*10
-    # Status filter: Active/Inactive use ac_status; Disabled uses the out-of-scope flag.
-    # Disabled records are hidden by default unless explicitly requested (or status='all').
-    if sf == 'Disabled':
-        q+=' AND disabled IS TRUE'
-    elif sf == 'all':
-        pass  # show everything incl. disabled
-    elif sf in ('Active','Inactive'):
-        q+=' AND ac_status=? AND disabled IS NOT TRUE'; p.append(sf)
-    else:
-        q+=' AND disabled IS NOT TRUE'
-    if rgf: q+=' AND region=?'; p.append(rgf)
-    if modf: q+=' AND mode_of_ac=?'; p.append(modf)
-    if grpf: q+=' AND group_name=?'; p.append(grpf)
-    if naf: q+=' AND nature=?'; p.append(naf)
-    if tcf: q+=' AND type_of_client=?'; p.append(tcf)
-    if cof: q+=' AND country_of_incorporation=?'; p.append(cof)
-    if rif: q+=' AND risk_status=?'; p.append(rif)
-    if kyf: q+=' AND kyc_status=?'; p.append(kyf)
-    if dsf: q+=' AND doc_status=?'; p.append(dsf)
+    where, p, adv_applied = _company_where(request.args, dubai_today())
+    q='SELECT * FROM companies WHERE '+where
 
     page = max(1, int(request.args.get('page', 1)))
     per_page = 100
-    total_count = cnt(conn, f"SELECT COUNT(*) FROM companies WHERE {q.split('WHERE',1)[1]}", p or None)
+    total_count = cnt(conn, f"SELECT COUNT(*) FROM companies WHERE {where}", p or None)
     rows=all_(conn,q+f' ORDER BY created_at DESC LIMIT {per_page} OFFSET {(page-1)*per_page}',p or None)
     total_pages = max(1, (total_count + per_page - 1) // per_page)
     dd=dropdowns()
@@ -1467,14 +1579,15 @@ def companies():
         cl.append({**c,'tl_days':tl,'tl_status':exp_status(tl),'ap_days':ap,'ap_status':exp_status(ap),
                    'trade_license_expiry':str(c['trade_license_expiry']) if c['trade_license_expiry'] else None,
                    'address_proof_expiry':str(c['address_proof_expiry']) if c['address_proof_expiry'] else None})
+    from urllib.parse import urlencode
+    fields = _company_filter_fields()
     return render_template('companies.html',companies=cl,search=s,
         status_filter=sf,region_filter=rgf,mode_filter=modf,group_filter=grpf,
-        nature_filter=naf,type_filter=tcf,country_filter=cof,risk_filter=rif,kyc_filter=kyf,doc_filter=dsf,
         regions=dd.get('REGION',[]),modes=dd.get('MODE OF AC',[]),
-        natures=dd.get('NATURE',[]),types=dd.get('TYPE OF CLIENT',[]),countries=dd.get('COUNTRY',[]),
-        risk_statuses=dd.get('RISK STATUS',['High','Medium','Low','Unspecified']),
-        kyc_statuses=dd.get('KYC STATUS',[]),doc_statuses=dd.get('DOC STATUS',['Completed','Incompleted']),
         groups=[g['group_name'] for g in groups],
+        adv_applied=adv_applied, adv_ops=_ADV_OPS,
+        qs=urlencode([(k, v) for k, v in request.args.items(multi=True) if k != 'page']),
+        adv_fields=[{'key': k, 'label': v['label'], 'kind': v['kind'], 'ubo': v['ubo']} for k, v in fields.items()],
         page=page, total_pages=total_pages, total_count=total_count, per_page=per_page)
 
 @app.route('/company/new')
@@ -3993,14 +4106,17 @@ def api_delete_document(did):
 def export_companies():
     scope=request.args.get('scope','all'); fmt=request.args.get('format','csv')
     conn=get_db()
-    q='SELECT * FROM companies WHERE 1=1'
-    if scope=='active': q+=' AND ac_status=\'Active\''
+    q='SELECT * FROM companies WHERE 1=1'; qp=None
+    if scope=='filtered':
+        where, qp, _ = _company_where(request.args, dubai_today())
+        q='SELECT * FROM companies WHERE '+where+' ORDER BY created_at DESC'
+    elif scope=='active': q+=' AND ac_status=\'Active\''
     elif scope=='inactive': q+=' AND ac_status=\'Inactive\''
     elif scope=='high': q+=' AND risk_status=\'High\''
     elif scope=='medium': q+=' AND risk_status=\'Medium\''
     elif scope=='low': q+=' AND risk_status=\'Low\''
     elif scope=='incomplete': q+=' AND doc_status=\'Incompleted\''
-    rows=all_(conn,q)
+    rows=all_(conn,q,qp or None)
 
     # Pull UBO/Authorized Person records for these companies too
     company_ids = [r['id'] for r in rows]
