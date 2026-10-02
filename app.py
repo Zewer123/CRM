@@ -2570,7 +2570,7 @@ def _staff_task_report(conn, today, df, dt, staff_id=None):
 
 
 @app.route('/reports/tasks')
-@require_perm('reports')
+@admin_required
 def task_report():
     """On-screen detailed task report: per staff, every task done / pending / overdue
        within the selected date range (one-off + regular + additional)."""
@@ -4151,6 +4151,8 @@ def export_report():
             FROM ubos u JOIN companies c ON u.company_id=c.id
             ORDER BY c.ac_code,u.share_percentage DESC''')
     elif rt=='tasks':
+        if session.get('user_role') != 'admin':       # task reports are admin-only
+            conn.close(); flash("That report is for administrators only."); return redirect(url_for('reports'))
         status_f=request.args.get('status','all')
         w='1=1'; p=[]
         if status_f and status_f!='all': w+=' AND t.status=?'; p.append(status_f)
@@ -4634,7 +4636,7 @@ def regular_tasks():
 
 # ── EXPORT: every task and its status, one workbook ──────────
 @app.route('/export/tasks-all')
-@require_perm('tasks_view')
+@admin_required
 def export_tasks_all():
     """One click → Excel with One-time tasks, Recurring tasks (status per person),
        Recurring logs and Additional tasks. Admin gets everyone; others get their own."""
@@ -4744,7 +4746,7 @@ def export_tasks_all():
 
 # ── TASK HISTORY (completed / logged regular tasks) ──────────
 @app.route('/task-history')
-@require_perm('regular_tasks_view')
+@admin_required
 def task_history():
     """Task Report: everything done AND everything still pending, in one list —
        recurring logs + missed/due recurring days, one-off tasks (closed and open),
@@ -5199,7 +5201,8 @@ def analytics():
 
     # Detailed per-staff drill-down (same builder as the Reports page), scoped to the period
     try:
-        staff_report, _sr_users = _staff_task_report(conn, today, ps, pe, None)
+        # per-staff task report is admin-only (tab hidden for everyone else)
+        staff_report = _staff_task_report(conn, today, ps, pe, None)[0] if session.get('user_role') == 'admin' else []
     except Exception:
         staff_report = []
 

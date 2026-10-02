@@ -75,7 +75,7 @@
   <button class="an-tab-btn" data-tab="compliance" onclick="switchAnTab('compliance',this)">🛡️ Compliance</button>
   <button class="an-tab-btn" data-tab="expiries" onclick="switchAnTab('expiries',this)">⏰ Expiries</button>
   <button class="an-tab-btn" data-tab="tasks" onclick="switchAnTab('tasks',this)">✅ Tasks</button>
-  <button class="an-tab-btn" data-tab="staff" onclick="switchAnTab('staff',this)">👥 Staff</button>
+  {% if user_role == 'admin' %}<button class="an-tab-btn" data-tab="staff" onclick="switchAnTab('staff',this)">👥 Staff</button>{% endif %}
 </div>
 
 {% macro bar(label, val, mx, color) %}
@@ -348,6 +348,7 @@
 </div>
 
 <!-- ═══════════ STAFF ═══════════ -->
+{% if user_role == 'admin' %}
 <div class="an-tab-pane" id="an-staff" style="display:none;">
   {# numbers link to the filtered task list (admin sees everyone's tasks there) #}
   {% macro tlink(n, uid, status='', q='', color='var(--text)') -%}
@@ -511,6 +512,7 @@
   <div class="an-empty">No staff activity to break down.</div>
   {% endfor %}
 </div>
+{% endif %}
 
 {% endblock %}
 {% block scripts %}
@@ -529,6 +531,7 @@ function trAll(open) {
 </script>
 <script>
 function switchAnTab(name, btn) {
+  if (!document.getElementById('an-' + name)) { name = 'overview'; btn = null; }   // e.g. Staff tab (admin only)
   document.querySelectorAll('.an-tab-pane').forEach(p => p.style.display = 'none');
   const pane = document.getElementById('an-' + name);
   if (pane) pane.style.display = '';
