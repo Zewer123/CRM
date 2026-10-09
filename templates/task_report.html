@@ -102,7 +102,7 @@
     <div class="tr-sub">➕ Additional jobs in range ({{ s.add_list|length }})</div>
     {% if s.add_list %}
     <table class="tr-table"><thead><tr><th>Task</th><th>From</th><th>To</th><th>Status</th></tr></thead><tbody>
-      {% for a in s.add_list %}<tr><td style="color:var(--text);">{{ a.title }}</td><td>{{ a.from }}</td><td>{{ a.to }}</td><td>{% if a.status=='completed' %}✅ Done{% elif a.overdue %}<span style="color:#fca5a5;">⚠️ Overdue</span>{% else %}<span style="color:#93c5fd;">📋 Not started</span>{% endif %}</td></tr>{% endfor %}
+      {% for a in s.add_list %}<tr><td style="color:var(--text);">{{ a.title }}</td><td>{{ a.from }}</td><td>{{ a.to }}</td><td>{% if a.status=='completed' %}🔒 Closed{% elif a.status=='done' %}✅ Done{% elif a.status=='skipped' %}⏭ Skipped{% elif a.overdue %}<span style="color:#fca5a5;">⚠️ Overdue</span>{% elif a.status=='hold' %}⏸ Hold{% else %}<span style="color:#93c5fd;">📋 Not started</span>{% endif %}</td></tr>{% endfor %}
     </tbody></table>
     {% else %}<div class="tr-none">No additional jobs in this range.</div>{% endif %}
 
@@ -110,7 +110,7 @@
     {% if s.temp_pending or s.temp_overdue %}
     <table class="tr-table"><thead><tr><th>Task</th><th>Company</th><th>Due</th><th>State</th></tr></thead><tbody>
       {% for t in s.temp_overdue %}<tr><td style="color:var(--text);">{{ t.title }}</td><td>{{ t.company or '—' }}</td><td>{{ t.due or '—' }}</td><td><span style="color:#fca5a5;">Overdue</span></td></tr>{% endfor %}
-      {% for t in s.temp_pending %}<tr><td style="color:var(--text);">{{ t.title }}</td><td>{{ t.company or '—' }}</td><td>{{ t.due or '—' }}</td><td><span style="color:#93c5fd;">{{ {'inprogress':'In Progress','hold':'Hold','pending_close':'Done'}.get(t.status, 'Not started') }}</span></td></tr>{% endfor %}
+      {% for t in s.temp_pending %}<tr><td style="color:var(--text);">{{ t.title }}</td><td>{{ t.company or '—' }}</td><td>{{ t.due or '—' }}</td><td><span style="color:#93c5fd;">{{ {'hold':'Hold','pending_close':'Done'}.get(t.status, 'Not started') }}</span></td></tr>{% endfor %}
     </tbody></table>
     {% else %}<div class="tr-none">Nothing pending.</div>{% endif %}
     {% if s.temp_awaiting %}

@@ -52,10 +52,10 @@
     <select id="hFilterStatus" onchange="filterHistory()">
       <option value="">Everything</option>
       <option value="@notstarted">📋 Not started</option>
-      <option value="@inprogress">🔄 In Progress (one-off)</option>
       <option value="@hold">⏸ Hold</option>
       <option value="@done">✅ Done</option>
       <option value="@closed">🔒 Closed</option>
+      <option value="@skipped">⏭ Skipped</option>
       <option value="@overdue">⚠️ Overdue</option>
       <option value="@late">🕒 Done late (after due)</option>
       <option value="@open" hidden>Open (not done yet)</option>
@@ -113,14 +113,15 @@
       </thead>
       <tbody id="historyBody">
         {% for l in logs %}
-        {# One status vocabulary for every task type: Not started / Hold / Done / Closed (+ In Progress for
-           one-off). Overdue is a flag on top. One-off: Done = finished by the assignee, Closed = closed by the
-           creator/admin. Recurring and additional jobs have no closing step, so finished = Done. #}
+        {# One status vocabulary for every task type: Not started / Hold / Done / Closed / Skipped.
+           Overdue is a flag on top. One-off: Done = finished by the assignee, Closed = closed by the
+           creator/admin. Additional job: Done, then Closed by the doer (stored as 'completed').
+           A recurring day has no closing step, so a logged day = Done. #}
         {% set bucket = 'reopened' if l.status == 'reopened'
-             else ('closed' if (l.group == 'completed' and l.kind == 'One-off') or l.status == 'ended'
+             else ('skipped' if l.status == 'skipped'
+             else ('closed' if (l.group == 'completed' and l.kind in ('One-off', 'Additional')) or l.status == 'ended'
              else ('done' if l.group in ('completed', 'awaiting')
-             else ('hold' if l.status in ('hold', 'paused')
-             else ('inprogress' if l.status == 'inprogress' else 'notstarted')))) %}
+             else ('hold' if l.status in ('hold', 'paused') else 'notstarted')))) %}
         <tr data-bucket="{{ bucket }}" data-user="{{ l.user_id }}" data-staff="{{ l.staff_name }}" data-kind="{{ l.kind }}" data-freq="{{ l.freq }}" data-status="{{ l.status }}"
             data-group="{{ l.group }}" data-overdue="{{ '1' if l.overdue else '' }}" data-date="{{ (l.when or '')[:10] }}" data-late="{{ '1' if (l.late and l.group in ('completed', 'awaiting')) else '' }}">
           <td style="font-weight:500;color:var(--text);">{{ l.title }}</td>
@@ -138,14 +139,14 @@
           <td>
             {# The small line underneath keeps the type-specific detail. #}
             {% set st = l.status %}
-            {% set sub = {'partial': 'partial', 'skipped': 'skipped', 'missed': 'missed day', 'due': 'due today'}.get(st, '') %}
+            {% set sub = {'partial': 'partial', 'missed': 'missed day', 'due': 'due today'}.get(st, '') %}
             {% if bucket == 'reopened' %}<span class="st-b" style="background:var(--danger-bg);color:var(--danger);" title="Reopened by a manager — the day counts as missed again">↩ Reopened</span>
             {% elif bucket == 'closed' %}<span class="st-b" style="background:var(--surface3);color:var(--text-muted);">🔒 Closed</span>
-            {% elif bucket == 'done' %}<span class="st-b" style="background:var(--success-bg);color:var(--success);">✅ Done</span>{% if st == 'pending_close' %}{% set sub = 'to be closed by ' ~ l.closer if l.closer else 'waiting to be closed' %}{% endif %}
+            {% elif bucket == 'done' %}<span class="st-b" style="background:var(--success-bg);color:var(--success);">✅ Done</span>{% if l.group == 'awaiting' %}{% set sub = 'to be closed by ' ~ l.closer if l.closer else 'waiting to be closed' %}{% endif %}
             {% elif bucket == 'hold' %}<span class="st-b" style="background:rgba(168,85,247,0.14);color:#a855f7;">⏸ Hold</span>
-            {% elif bucket == 'inprogress' %}<span class="st-b" style="background:rgba(59,130,246,0.14);color:#93c5fd;">🔄 In Progress</span>
+            {% elif bucket == 'skipped' %}<span class="st-b" style="background:var(--surface3);color:var(--text-muted);">⏭ Skipped</span>
             {% else %}<span class="st-b" style="background:var(--surface3);color:var(--text-muted);">📋 Not started</span>{% endif %}
-            {% if l.overdue and bucket not in ('done', 'closed') %}<div style="font-size:10px;color:var(--danger);font-weight:700;margin-top:2px;">⚠️ Overdue</div>{% endif %}
+            {% if l.overdue and bucket not in ('done', 'closed', 'skipped') %}<div style="font-size:10px;color:var(--danger);font-weight:700;margin-top:2px;">⚠️ Overdue</div>{% endif %}
             {% if sub %}<div style="font-size:10px;color:var(--text-dim);margin-top:2px;">{{ sub }}</div>{% endif %}
           </td>
           <td style="font-size:12px;color:var(--text-dim);">{{ l.notes or '—' }}</td>
@@ -191,7 +192,7 @@ function _rowMatch(row, ignoreUser) {
   if (!ignoreUser && u && row.dataset.user !== u) return false;
   if (k && row.dataset.kind !== k) return false;
   if (f && row.dataset.freq !== f) return false;
-  if (['@notstarted', '@inprogress', '@hold', '@done', '@closed'].includes(s) && row.dataset.bucket !== s.slice(1)) return false;
+  if (['@notstarted', '@hold', '@done', '@closed', '@skipped'].includes(s) && row.dataset.bucket !== s.slice(1)) return false;
   if (s === '@overdue' && !(row.dataset.overdue && row.dataset.group === 'pending')) return false;
   // older links / staff-card clicks
   if (s === '@completed' && row.dataset.group !== 'completed') return false;

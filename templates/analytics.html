@@ -360,9 +360,9 @@
   <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:18px;" class="an-team-grid">
     <div class="an-kpi" style="border-top-color:var(--danger);"><div class="an-kpi-label">Overdue</div><div class="an-kpi-val" style="color:var(--danger);">{{ team.overdue }}</div><div class="an-kpi-sub">one-time tasks</div></div>
     <div class="an-kpi" style="border-top-color:var(--text-dim);"><div class="an-kpi-label">Not started</div><div class="an-kpi-val">{{ team.todo }}</div></div>
-    <div class="an-kpi" style="border-top-color:var(--blue);"><div class="an-kpi-label">In Progress</div><div class="an-kpi-val" style="color:var(--blue);">{{ team.inprogress }}</div></div>
     <div class="an-kpi" style="border-top-color:#a855f7;"><div class="an-kpi-label">Hold</div><div class="an-kpi-val" style="color:#a855f7;">{{ team.hold }}</div></div>
     <div class="an-kpi" style="border-top-color:var(--warning);"><div class="an-kpi-label">Done</div><div class="an-kpi-val" style="color:var(--warning);">{{ team.awaiting }}</div><div class="an-kpi-sub">waiting to be closed</div></div>
+    <div class="an-kpi" style="border-top-color:var(--text-dim);"><div class="an-kpi-label">Skipped</div><div class="an-kpi-val" style="color:var(--text-muted);">{{ team.skipped }}</div><div class="an-kpi-sub">one-time tasks</div></div>
     <div class="an-kpi" style="border-top-color:var(--success);"><div class="an-kpi-label">Recurring Completion</div><div class="an-kpi-val" style="color:{% if team.rec_completion is none %}var(--text-dim){% elif team.rec_completion >= 90 %}var(--success){% elif team.rec_completion >= 70 %}var(--warning){% else %}var(--danger){% endif %};">{{ team.rec_completion if team.rec_completion is not none else '—' }}{% if team.rec_completion is not none %}%{% endif %}</div><div class="an-kpi-sub">{{ team.rec_missed }} missed day(s) · {{ period_label }}</div></div>
   </div>
   <style>@media (max-width:900px){.an-team-grid{grid-template-columns:repeat(3,minmax(0,1fr)) !important;}}</style>
@@ -379,7 +379,6 @@
             <th>Staff</th><th>Role</th>
             <th title="Everything finished within the selected period (one-off closed + recurring logs + additional done)">✅ Done / Closed ({{ period_label }})</th>
             <th title="Assigned one-time tasks not started">📋 Not started</th>
-            <th title="Assigned one-time tasks in progress">🔄 In Progress</th>
             <th title="Assigned one-time tasks on hold">⏸ Hold</th>
             <th title="They marked it Done — waiting for the task creator to close it">✅ Done (to close)</th>
             <th title="Tasks THEY created that others marked Done — waiting for them to close">✋ To Close</th>
@@ -398,7 +397,6 @@
               <div style="font-size:10px;color:var(--text-dim);">{{ s.temp_done }} one-off · {{ s.logs }} regular · {{ s.add_done }} add'l job</div>
             </td>
             <td>{{ tlink(s.todo, s.id, 'todo') }}</td>
-            <td>{{ tlink(s.inprogress, s.id, 'inprogress', '', 'var(--blue)') }}</td>
             <td>{{ tlink(s.hold, s.id, 'hold', '', '#a855f7') }}</td>
             <td>{{ tlink(s.awaiting, s.id, 'pending_close', '', 'var(--warning)') }}</td>
             <td>{% if s.to_close and user_role == 'admin' %}<a href="{{ url_for('tasks', tab='temp', created_by=s.id, status='pending_close') }}" style="font-weight:700;color:var(--primary);text-decoration:underline dotted;">{{ s.to_close }}</a>{% elif s.to_close %}<span style="font-weight:700;color:var(--primary);">{{ s.to_close }}</span>{% else %}<span style="color:var(--text-dim);">0</span>{% endif %}</td>
@@ -407,7 +405,7 @@
             <td>{% if s.reg_pending %}<span style="font-weight:700;color:#fcd34d;">{{ s.reg_pending }}</span>{% else %}<span style="color:var(--text-dim);">0</span>{% endif %}</td>
           </tr>
           {% else %}
-          <tr><td colspan="11" class="an-empty">No active staff.</td></tr>
+          <tr><td colspan="10" class="an-empty">No active staff.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -488,7 +486,7 @@
       <div class="tr-sub">➕ Additional jobs in period ({{ s.add_list|length }})</div>
       {% if s.add_list %}
       <table class="tr-table"><thead><tr><th>Task</th><th>From</th><th>To</th><th>Status</th></tr></thead><tbody>
-        {% for a in s.add_list %}<tr><td style="color:var(--text);">{{ a.title }}</td><td>{{ a.from }}</td><td>{{ a.to }}</td><td>{% if a.status=='completed' %}✅ Done{% elif a.overdue %}<span style="color:#fca5a5;">⚠️ Overdue</span>{% else %}<span style="color:#93c5fd;">📋 Not started</span>{% endif %}</td></tr>{% endfor %}
+        {% for a in s.add_list %}<tr><td style="color:var(--text);">{{ a.title }}</td><td>{{ a.from }}</td><td>{{ a.to }}</td><td>{% if a.status=='completed' %}🔒 Closed{% elif a.status=='done' %}✅ Done{% elif a.status=='skipped' %}⏭ Skipped{% elif a.overdue %}<span style="color:#fca5a5;">⚠️ Overdue</span>{% elif a.status=='hold' %}⏸ Hold{% else %}<span style="color:#93c5fd;">📋 Not started</span>{% endif %}</td></tr>{% endfor %}
       </tbody></table>
       {% else %}<div class="tr-none">No additional jobs in this period.</div>{% endif %}
 
@@ -496,7 +494,7 @@
       {% if s.temp_pending or s.temp_overdue %}
       <table class="tr-table"><thead><tr><th>Task</th><th>Company</th><th>Due</th><th>State</th></tr></thead><tbody>
         {% for t in s.temp_overdue %}<tr><td style="color:var(--text);">{{ t.title }}</td><td>{{ t.company or '—' }}</td><td>{{ t.due or '—' }}</td><td><span style="color:#fca5a5;">Overdue</span></td></tr>{% endfor %}
-        {% for t in s.temp_pending %}<tr><td style="color:var(--text);">{{ t.title }}</td><td>{{ t.company or '—' }}</td><td>{{ t.due or '—' }}</td><td><span style="color:#93c5fd;">{{ {'inprogress':'In Progress','hold':'Hold','pending_close':'Done'}.get(t.status, 'Not started') }}</span></td></tr>{% endfor %}
+        {% for t in s.temp_pending %}<tr><td style="color:var(--text);">{{ t.title }}</td><td>{{ t.company or '—' }}</td><td>{{ t.due or '—' }}</td><td><span style="color:#93c5fd;">{{ {'hold':'Hold','pending_close':'Done'}.get(t.status, 'Not started') }}</span></td></tr>{% endfor %}
       </tbody></table>
       {% else %}<div class="tr-none">Nothing pending.</div>{% endif %}
       {% if s.temp_awaiting %}

@@ -469,6 +469,26 @@ def _run_migrations(conn):
             commit(conn)
     except Exception:
         if pg: conn.rollback()
+    # One-time: "In Progress" was removed from one-time tasks (statuses are now the same for
+    # every task type: Not started / Hold / Done / Closed / Skipped). Move those tasks back to
+    # Not started and leave a line in each task's activity log. Flag-guarded like the backfill above.
+    try:
+        if not one(conn, "SELECT value FROM app_settings WHERE key=?", ('tasks_inprogress_removed',)):
+            now_s = datetime.now(DUBAI_TZ).strftime('%Y-%m-%d %H:%M:%S')
+            for r in all_(conn, "SELECT id FROM tasks WHERE status='inprogress'"):
+                x(conn, """INSERT INTO task_activity (task_id,user_id,action,old_value,new_value,comment,created_at)
+                    VALUES (?,?,?,?,?,?,?)""", (r['id'], None, 'status', 'inprogress', 'todo',
+                                                '"In Progress" status was removed — moved to Not started', now_s))
+            x(conn, "UPDATE tasks SET status='todo' WHERE status='inprogress'")
+            if pg:
+                x(conn, "INSERT INTO app_settings (key,value) VALUES (%s,%s) ON CONFLICT(key) DO UPDATE SET value=%s", ('tasks_inprogress_removed', '1', '1'))
+            else:
+                conn.execute("INSERT INTO app_settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", ('tasks_inprogress_removed', '1'))
+            commit(conn)
+    except Exception as e:
+        logger.warning(f'inprogress -> todo migration failed: {e}')
+        try: conn.rollback()
+        except Exception: pass
     # Force-insert new dropdown values on existing DBs
     new_dd = [
         ('ID TYPE','National ID'),('ID TYPE','Passport'),('ID TYPE','Emirates ID'),('ID TYPE','Visa No'),('ID TYPE','Other'),
@@ -1262,7 +1282,7 @@ def dashboard():
         today = dubai_today()
         my_tasks = all_(conn, '''SELECT t.*,c.client_name as company_name,c.ac_code
             FROM tasks t LEFT JOIN companies c ON t.company_id=c.id
-            WHERE t.assigned_to=? AND t.status NOT IN ('done')
+            WHERE t.assigned_to=? AND t.status NOT IN ('done','skipped')
             ORDER BY CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3 ELSE 4 END,t.due_date''', (uid,))
         tl = []
         for t in my_tasks:
@@ -1271,12 +1291,12 @@ def dashboard():
                        'due_date':str(t['due_date']) if t['due_date'] else None,
                        'days_until_due':d,'is_overdue':(d is not None and d<0)})
         todo_c = sum(1 for t in tl if t['status']=='todo')
-        inprog_c = sum(1 for t in tl if t['status']=='inprogress')
+        hold_c = sum(1 for t in tl if t['status']=='hold')
         pending_c = sum(1 for t in tl if t['status']=='pending_close')
         overdue_c = sum(1 for t in tl if t['is_overdue'])
         conn.close()
         return render_template('staff_dashboard.html', my_tasks=tl,
-            todo_count=todo_c, inprogress_count=inprog_c,
+            todo_count=todo_c, hold_count=hold_c,
             pending_count=pending_c, overdue_count=overdue_c, today=str(today))
 
     conn=get_db(); today=dubai_today()
@@ -1311,13 +1331,13 @@ def dashboard():
     exp_60 = doc_count(60)
     exp_90 = doc_count(90)
     urgent = []  # no longer used in template
-    otasks=c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done')")
-    overtasks=c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done','pending_close') AND due_date<?", (today,))
-    dtasks=c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done') AND due_date=?", (today,))
+    otasks=c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done','skipped')")
+    overtasks=c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done','pending_close','skipped') AND due_date<?", (today,))
+    dtasks=c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done','skipped') AND due_date=?", (today,))
     ptasks=c("SELECT COUNT(*) FROM tasks WHERE status='pending_close'")
     utasks_raw=all_(conn,"""SELECT t.id,t.title,t.priority,t.status,t.due_date,u.name as assigned_name
         FROM tasks t LEFT JOIN users u ON t.assigned_to=u.id
-        WHERE t.status NOT IN ('done') AND (t.priority IN ('urgent','high') OR t.due_date<=?)
+        WHERE t.status NOT IN ('done','skipped') AND (t.priority IN ('urgent','high') OR t.due_date<=?)
         ORDER BY CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 ELSE 3 END,t.due_date LIMIT 8""",
         (today+timedelta(days=2),))
     # Convert date objects to strings
@@ -1330,7 +1350,7 @@ def dashboard():
         # 'pending_close' = the assignee already marked it Done; it waits on the creator/admin,
         # so it is shown separately as awaiting close, not as the staff member's pending work.
         staff_task_counts=all_(conn,"""SELECT u.name,u.id,
-            COUNT(CASE WHEN t.status NOT IN ('done','pending_close') THEN 1 END) as pending,
+            COUNT(CASE WHEN t.status NOT IN ('done','pending_close','skipped') THEN 1 END) as pending,
             COUNT(CASE WHEN t.status='pending_close' THEN 1 END) as awaiting
             FROM users u LEFT JOIN tasks t ON t.assigned_to=u.id
             WHERE u.is_active=1 GROUP BY u.id,u.name ORDER BY pending DESC""")
@@ -2629,6 +2649,8 @@ def _staff_task_report(conn, today, df, dt, staff_id=None):
                 upd = str(t['updated_at'] or '')[:10]
                 if (not df or upd >= df) and (not dt or upd <= dt):
                     temp_done.append(item)                 # closed within range
+            elif st == 'skipped':
+                continue                               # skipped by the creator/admin: not pending work
             elif st == 'pending_close':
                 temp_awaiting.append(item)             # staff marked Done; waiting on creator/admin to close
             elif due and due < str(today):
@@ -2680,10 +2702,10 @@ def _staff_task_report(conn, today, df, dt, staff_id=None):
                      'from': str(a['from_datetime'])[:16], 'to': str(a['to_datetime'])[:16],
                      'details': a.get('task_details') or ''} for a in adds]
         for a in add_list:      # open and past its end time = Overdue
-            a['overdue'] = a['status'] != 'completed' and bool(a['to']) and a['to'].replace('T', ' ') < now_s
-        add_done = len([a for a in add_list if a['status'] == 'completed'])
+            a['overdue'] = a['status'] in ADD_OPEN and bool(a['to']) and a['to'].replace('T', ' ') < now_s
+        add_done = len([a for a in add_list if a['status'] in ('done', 'completed')])
         add_overdue = len([a for a in add_list if a['overdue']])
-        add_open = len(add_list) - add_done - add_overdue
+        add_open = len([a for a in add_list if a['status'] in ADD_OPEN]) - add_overdue
 
         report.append({
             'name': u['name'], 'role': (u['role'] or '').title(), 'login': u.get('username') or u.get('email') or '',
@@ -3720,7 +3742,7 @@ def tasks():
     for t in rt_templates:
         own = not t.get('_cover_only') and _regular_is_own(t, uid, role)
         try:
-            user_logs=all_(conn,"""SELECT DATE(logged_at) as log_date FROM regular_task_logs
+            user_logs=all_(conn,"""SELECT DATE(logged_at) as log_date, status FROM regular_task_logs
                 WHERE template_id=? AND user_id=? AND COALESCE(status,'done') <> 'reopened' ORDER BY logged_at ASC""", (t['id'],uid))
             missed=_regular_missed_dates(conn, t, uid, today, own)
             # A cover-only task drops off the list once the leave is over and nothing is owed
@@ -3734,6 +3756,9 @@ def tasks():
                 # days actually past due (today's due day is 'Pending', not overdue)
                 'late_count':len([d for d in missed if str(d) != str(today)]),
                 'next_due':str(next_due) if next_due else '','last_logged':str(user_logs[-1]['log_date'])[:10] if user_logs else None,
+                # how today's entry was logged ('done' / 'skipped'), for the status column + filter
+                'today_status':next((l.get('status') or 'done' for l in reversed(user_logs)
+                                     if str(l['log_date'])[:10] == str(today)), None),
                 'missed_dates':[str(d) for d in missed[-3:]],
                 'missed_all':[str(d) for d in missed[-180:]],
                 'owner_on_leave_until':on_leave_now.get(t.get('assigned_user_id')),
@@ -3804,7 +3829,7 @@ def _build_my_day(conn, uid, role, today, tl, rt_templates, task_status):
                 'self_close': closer and t.get('assigned_to') == uid}
         if st == 'pending_close' and closer:
             md['closure'].append(item); continue
-        if t.get('assigned_to') != uid or st in ('done', 'pending_close'):
+        if t.get('assigned_to') != uid or st in TASK_FINISHED:
             continue
         if st == 'hold': md['hold'].append(item)
         elif due and due < tstr: md['overdue'].append({**item, 'days': (today - datetime.strptime(due, '%Y-%m-%d').date()).days})
@@ -3857,11 +3882,15 @@ def _build_my_day(conn, uid, role, today, tl, rt_templates, task_status):
     return md
 
 # ── ONE-TIME TASKS: workflow + audit trail ──
-# Status flow: todo (Not started) -> inprogress -> pending_close (assignee marked Done)
-#   -> done (Closed, by initiator/admin only). hold = Hold. Overdue is derived from due_date.
-TASK_STATUSES = ('todo', 'inprogress', 'hold', 'pending_close', 'done')
+# Same five statuses on every task type: Not started / Hold / Done / Closed / Skipped.
+# Status flow: todo (Not started) <-> hold -> pending_close (assignee marked Done)
+#   -> done (Closed, by initiator/admin only). skipped = Skipped (initiator/admin only, reason
+#   required). Overdue is a flag derived from due_date, not a status.
+TASK_STATUSES = ('todo', 'hold', 'pending_close', 'done', 'skipped')
+TASK_FINISHED = ('pending_close', 'done', 'skipped')      # not open any more (never overdue)
+# 'inprogress' no longer exists but stays here so old activity-log rows still read well
 TASK_STATUS_LABELS = {'todo': 'Not started', 'inprogress': 'In Progress', 'hold': 'Hold',
-                      'pending_close': 'Done', 'done': 'Closed'}
+                      'pending_close': 'Done', 'done': 'Closed', 'skipped': 'Skipped'}
 
 def _task_log(conn, task_id, action, old=None, new=None, comment=None):
     """Append one audit row. Never lets a logging failure break the actual change:
@@ -3979,7 +4008,13 @@ def api_task_status(id):
         if new == 'done' and not closer:
             conn.close()
             return jsonify({'success': False, 'error': 'Only the person who created this task, or an admin, can close it. Use "Mark Done" instead.'}), 403
-        if old in ('pending_close', 'done') and new != old and not closer:
+        if new == 'skipped' and not closer:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Only the person who created this task, or an admin, can skip it. Add a comment to ask.'}), 403
+        if new == 'skipped' and new != old and not comment:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Please give a reason for skipping'}), 400
+        if old in TASK_FINISHED and new != old and not closer:
             conn.close()
             return jsonify({'success': False, 'error': 'This task has been handed over — only the person who created it, or an admin, can close or reopen it.'}), 403
         if new == old:
@@ -3987,7 +4022,8 @@ def api_task_status(id):
             commit(conn); conn.close(); return jsonify({'success': True})
         x(conn,'UPDATE tasks SET status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',(new,id))
         if new == 'done': action = 'closed'
-        elif old in ('pending_close', 'done'): action = 'reopened'
+        elif new == 'skipped': action = 'skipped'
+        elif old in TASK_FINISHED: action = 'reopened'
         elif new == 'pending_close': action = 'marked_done'
         else: action = 'status'
         _task_log(conn, id, action, old, new, comment)
@@ -4805,7 +4841,7 @@ def export_tasks_all():
     one_rows = []
     for t in tasks_:
         st = t.get('status') or 'todo'; due = str(t.get('due_date') or '')[:10]
-        od = (today - datetime.strptime(due, '%Y-%m-%d').date()).days if (due and due < tstr and st not in ('done', 'pending_close')) else ''
+        od = (today - datetime.strptime(due, '%Y-%m-%d').date()).days if (due and due < tstr and st not in TASK_FINISHED) else ''
         one_rows.append([t['id'], t.get('title'), t.get('description'), t.get('assignee'), t.get('creator'),
                          t.get('ac_code'), t.get('client_name'), (t.get('priority') or 'normal').title(), due,
                          TASK_STATUS_LABELS.get(st, st) + (' (Overdue)' if od != '' else ''),
@@ -4865,9 +4901,10 @@ def export_tasks_all():
         adds = []
     now_s = datetime.now(DUBAI_TZ).strftime('%Y-%m-%d %H:%M')
     def _add_status(a):
-        if a.get('status') == 'completed': return 'Done'
+        st = a.get('status') or 'open'
+        label = ADD_STATUS_LABELS.get(st, st)
         end = str(a.get('to_datetime') or '')[:16].replace('T', ' ')
-        return 'Not started (Overdue)' if end and end < now_s else 'Not started'
+        return label + ' (Overdue)' if st in ADD_OPEN and end and end < now_s else label
     sheet(wb.create_sheet(), 'Additional Jobs', ['Job', 'Person', 'From', 'To', 'Status', 'Completed At', 'Details', 'Remarks'],
           [[a.get('title'), a.get('person'), str(a.get('from_datetime') or '')[:16], str(a.get('to_datetime') or '')[:16],
             _add_status(a), str(a.get('completed_at') or '')[:16],
@@ -4920,11 +4957,11 @@ def task_history():
         if is_mgr:
             ones = all_(conn, """SELECT t.*,u.name AS staff_name
                 FROM tasks t LEFT JOIN users u ON t.assigned_to=u.id
-                WHERE t.status='done' ORDER BY t.updated_at DESC LIMIT 1000""")
+                WHERE t.status IN ('done','skipped') ORDER BY t.updated_at DESC LIMIT 1000""")
         else:
             ones = all_(conn, """SELECT t.*,u.name AS staff_name
                 FROM tasks t LEFT JOIN users u ON t.assigned_to=u.id
-                WHERE t.status='done' AND t.assigned_to=? ORDER BY t.updated_at DESC LIMIT 500""", (uid,))
+                WHERE t.status IN ('done','skipped') AND t.assigned_to=? ORDER BY t.updated_at DESC LIMIT 500""", (uid,))
     except Exception:
         ones = []
     done_at = _task_done_times(conn)
@@ -4936,7 +4973,7 @@ def task_history():
         rows.append({
             'kind': 'One-off', 'title': t.get('title') or '—', 'freq': '',
             'user_id': t.get('assigned_to'), 'staff_name': t.get('staff_name') or 'Unassigned',
-            'status': 'done', 'notes': t.get('description') or '',
+            'status': t.get('status') or 'done', 'notes': t.get('description') or '',
             'when': fin or str(t.get('updated_at') or '')[:16], 'due': due,
             'late': _days_late(due, fin) if fin else 0, 'done_unknown': not fin,
             'group': 'completed',
@@ -4947,11 +4984,11 @@ def task_history():
         if is_mgr:
             adds = all_(conn, """SELECT a.*,u.name AS staff_name
                 FROM additional_tasks a LEFT JOIN users u ON a.created_by=u.id
-                WHERE a.status='completed' ORDER BY a.completed_at DESC LIMIT 1000""")
+                WHERE a.status IN ('completed','skipped') ORDER BY a.completed_at DESC LIMIT 1000""")
         else:
             adds = all_(conn, """SELECT a.*,u.name AS staff_name
                 FROM additional_tasks a LEFT JOIN users u ON a.created_by=u.id
-                WHERE a.status='completed' AND a.created_by=? ORDER BY a.completed_at DESC LIMIT 500""", (uid,))
+                WHERE a.status IN ('completed','skipped') AND a.created_by=? ORDER BY a.completed_at DESC LIMIT 500""", (uid,))
     except Exception:
         adds = []
     for a in adds:
@@ -4961,7 +4998,7 @@ def task_history():
         rows.append({
             'kind': 'Additional', 'title': a.get('title') or '—', 'freq': '',
             'user_id': a.get('created_by'), 'staff_name': a.get('staff_name') or '—',
-            'status': 'completed', 'notes': details,
+            'status': a.get('status') or 'completed', 'notes': details,
             'when': when[:16], 'due': due,
             # whole days only: staff often log a job after doing it, so finishing later the same day isn't late
             'late': _days_late(due[:10], when[:16]),
@@ -4974,7 +5011,7 @@ def task_history():
     try:
         q = """SELECT t.*,u.name AS staff_name,c.ac_code,cu.name AS creator_name FROM tasks t LEFT JOIN users u ON t.assigned_to=u.id
                LEFT JOIN companies c ON t.company_id=c.id LEFT JOIN users cu ON t.created_by=cu.id
-               WHERE COALESCE(t.status,'todo') <> 'done'"""
+               WHERE COALESCE(t.status,'todo') NOT IN ('done','skipped')"""
         opens = all_(conn, q + " ORDER BY t.due_date") if is_mgr else all_(conn, q + " AND t.assigned_to=? ORDER BY t.due_date", (uid,))
     except Exception:
         opens = []
@@ -5017,7 +5054,7 @@ def task_history():
     # 6) additional tasks still open
     try:
         q = """SELECT a.*,u.name AS staff_name FROM additional_tasks a LEFT JOIN users u ON a.created_by=u.id
-               WHERE COALESCE(a.status,'open') <> 'completed'"""
+               WHERE COALESCE(a.status,'open') NOT IN ('completed','skipped')"""
         aopen = all_(conn, q) if is_mgr else all_(conn, q + " AND a.created_by=?", (uid,))
     except Exception:
         aopen = []
@@ -5027,9 +5064,12 @@ def task_history():
         rows.append({
             'kind': 'Additional', 'title': a.get('title') or '—', 'freq': '',
             'user_id': a.get('created_by'), 'staff_name': a.get('staff_name') or '—',
-            'status': 'open', 'notes': a.get('task_details') or a.get('remarks') or '',
-            'when': str(a.get('to_datetime') or a.get('from_datetime') or '')[:16], 'group': 'pending',
-            'overdue': bool(end) and end < now_s,          # past its end time, like the Tasks page
+            'status': a.get('status') or 'open', 'notes': a.get('task_details') or a.get('remarks') or '',
+            'when': str(a.get('to_datetime') or a.get('from_datetime') or '')[:16],
+            # Done = finished, waiting for the doer to close it
+            'group': 'awaiting' if a.get('status') == 'done' else 'pending',
+            'closer': a.get('staff_name') or '—',
+            'overdue': a.get('status') != 'done' and bool(end) and end < now_s,   # past its end time, like the Tasks page
         })
 
     rows.sort(key=lambda r: r['when'], reverse=True)
@@ -5153,7 +5193,7 @@ def analytics():
                 + expcount('emirates_id_expiry', 'ubos', 0, days, NDU))
     docs_exp_30 = docs_exp(30)
 
-    open_tasks = c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done')")
+    open_tasks = c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done','skipped')")
     new_co = c('SELECT COUNT(*) FROM companies WHERE created_at BETWEEN ? AND ?' + ND, (ps, pe + ' 23:59:59'))
     new_ind = c('SELECT COUNT(*) FROM clients WHERE created_at BETWEEN ? AND ?' + ND, (ps, pe + ' 23:59:59'))
 
@@ -5216,8 +5256,8 @@ def analytics():
 
     # ── TASKS ──
     t_open = open_tasks
-    t_overdue = c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done','pending_close') AND due_date<?", (str(today),))
-    t_due = c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done') AND due_date=?", (str(today),))
+    t_overdue = c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done','pending_close','skipped') AND due_date<?", (str(today),))
+    t_due = c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done','skipped') AND due_date=?", (str(today),))
     t_done = c("SELECT COUNT(*) FROM tasks WHERE status='done'")
     try:
         reg_total = c('SELECT COUNT(*) FROM regular_task_templates')
@@ -5230,11 +5270,11 @@ def analytics():
         add_period = 0
     try:
         staff_task_load = all_(conn, """SELECT u.name,
-              SUM(CASE WHEN t.status NOT IN ('done') THEN 1 ELSE 0 END) AS open_c,
-              SUM(CASE WHEN t.status NOT IN ('done','pending_close') AND t.due_date<? THEN 1 ELSE 0 END) AS overdue_c
+              SUM(CASE WHEN t.status NOT IN ('done','skipped') THEN 1 ELSE 0 END) AS open_c,
+              SUM(CASE WHEN t.status NOT IN ('done','pending_close','skipped') AND t.due_date<? THEN 1 ELSE 0 END) AS overdue_c
             FROM users u LEFT JOIN tasks t ON t.assigned_to=u.id
             WHERE u.is_active=1 GROUP BY u.id,u.name
-            HAVING SUM(CASE WHEN t.status NOT IN ('done') THEN 1 ELSE 0 END) > 0
+            HAVING SUM(CASE WHEN t.status NOT IN ('done','skipped') THEN 1 ELSE 0 END) > 0
             ORDER BY open_c DESC""", (str(today),))
         staff_task_load = [{'name': r['name'], 'open': r['open_c'] or 0, 'overdue': r['overdue_c'] or 0} for r in staff_task_load]
     except Exception:
@@ -5265,11 +5305,10 @@ def analytics():
         for u in all_(conn, 'SELECT id,name,role FROM users WHERE is_active=1 ORDER BY name'):
             uid = u['id']; urole = (u['role'] or '').lower()
             # live snapshot (now)
-            open_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status NOT IN ('done')", (uid,))
-            overdue_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status NOT IN ('done','pending_close') AND due_date<?", (uid, str(today)))
-            due_today_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status NOT IN ('done') AND due_date=?", (uid, str(today)))
+            open_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status NOT IN ('done','skipped')", (uid,))
+            overdue_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status NOT IN ('done','pending_close','skipped') AND due_date<?", (uid, str(today)))
+            due_today_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status NOT IN ('done','skipped') AND due_date=?", (uid, str(today)))
             todo_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND COALESCE(status,'todo')='todo'", (uid,))
-            inprog_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status='inprogress'", (uid,))
             hold_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status='hold'", (uid,))
             await_c = c("SELECT COUNT(*) FROM tasks WHERE assigned_to=? AND status='pending_close'", (uid,))
             to_close_c = c("SELECT COUNT(*) FROM tasks WHERE created_by=? AND status='pending_close'", (uid,))
@@ -5305,7 +5344,7 @@ def analytics():
             done_period = (temp_done_p or 0) + (logs_c or 0) + (add_done_p or 0)
             staff_full.append({'id': uid, 'name': u['name'], 'role': (u['role'] or '').title(),
                                'open': open_c, 'overdue': overdue_c, 'due_today': due_today_c,
-                               'todo': todo_c, 'inprogress': inprog_c, 'hold': hold_c,
+                               'todo': todo_c, 'hold': hold_c,
                                'awaiting': await_c, 'to_close': to_close_c,
                                'done': done_period, 'temp_done': temp_done_p or 0,
                                'logs': logs_c, 'add_done': add_done_p or 0,
@@ -5316,11 +5355,11 @@ def analytics():
 
     # Team snapshot (live) + recurring-task performance (period)
     team = {
-        'overdue': c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done','pending_close') AND due_date<?", (str(today),)),
+        'overdue': c("SELECT COUNT(*) FROM tasks WHERE status NOT IN ('done','pending_close','skipped') AND due_date<?", (str(today),)),
         'todo': c("SELECT COUNT(*) FROM tasks WHERE COALESCE(status,'todo')='todo'"),
-        'inprogress': c("SELECT COUNT(*) FROM tasks WHERE status='inprogress'"),
         'hold': c("SELECT COUNT(*) FROM tasks WHERE status='hold'"),
         'awaiting': c("SELECT COUNT(*) FROM tasks WHERE status='pending_close'"),
+        'skipped': c("SELECT COUNT(*) FROM tasks WHERE status='skipped'"),
     }
     try:
         recurring_perf = _recurring_performance(conn, today, start_p, end_p)
@@ -5910,6 +5949,12 @@ def api_regular_due_in_range():
 @require_perm('regular_tasks_log')
 def api_log_regular_task(id):
     d = request.get_json() or {}
+    # Same statuses as every task type: a due day is logged Done or Skipped ("Partially done" retired;
+    # old partial logs still count as done). Skipping needs a reason.
+    if d.get('status', 'done') not in ('done', 'skipped'):
+        return jsonify({'success': False, 'error': 'Status must be Done or Skipped'}), 400
+    if d.get('status') == 'skipped' and not (d.get('notes') or '').strip():
+        return jsonify({'success': False, 'error': 'Please give a reason for skipping'}), 400
     try:
         conn = get_db()
         uid = session.get('user_id')
@@ -6175,24 +6220,45 @@ def api_delete_additional_task(id):
     except Exception as e:
         return _fail(e)
 
-@app.route('/api/additional-task/<int:id>/complete', methods=['POST'])
+# Additional-job statuses — same names as every other task type. 'completed' is the stored value
+# for Closed (it predates the Done/Closed split, and reports already count it as finished).
+ADD_STATUSES = ('open', 'hold', 'done', 'completed', 'skipped')
+ADD_OPEN = ('open', 'hold')              # still to do: the only ones that can be overdue
+ADD_STATUS_LABELS = {'open': 'Not started', 'hold': 'Hold', 'done': 'Done', 'completed': 'Closed', 'skipped': 'Skipped'}
+
+@app.route('/api/additional-task/<int:id>/status', methods=['POST'])
 @login_required
-def api_complete_additional_task(id):
-    """Mark an additional task complete, or reopen it. Body: {completed: true|false}."""
+def api_additional_task_status(id):
+    """Change an additional job's status. Body: {status, reason}. The doer (or admin / compliance)
+       moves it Not started <-> Hold -> Done -> Closed, or Skipped (reason required); any finished
+       job can be reopened back to Not started."""
     d = request.get_json(silent=True) or {}
-    completed = d.get('completed', True)
+    new = d.get('status')
+    reason = (d.get('reason') or '').strip()
+    if new not in ADD_STATUSES:
+        return jsonify({'success': False, 'error': 'Unknown status'}), 400
+    if new == 'skipped' and not reason:
+        return jsonify({'success': False, 'error': 'Please give a reason for skipping'}), 400
     try:
         conn = get_db()
         uid = session.get('user_id'); role = session.get('user_role')
-        task = one(conn, 'SELECT created_by FROM additional_tasks WHERE id=?', (id,))
-        if not task: return jsonify({'success': False, 'error': 'Not found'}), 404
+        task = one(conn, 'SELECT created_by,status,remarks,completed_at FROM additional_tasks WHERE id=?', (id,))
+        if not task:
+            conn.close(); return jsonify({'success': False, 'error': 'Not found'}), 404
         if role not in ('admin', 'compliance') and task['created_by'] != uid:
-            return jsonify({'success': False, 'error': 'Not allowed'}), 403
-        if completed:
-            x(conn, "UPDATE additional_tasks SET status='completed', completed_at=?, completed_by=? WHERE id=?",
-              (datetime.now(DUBAI_TZ).strftime('%Y-%m-%d %H:%M:%S'), uid, id))
+            conn.close(); return jsonify({'success': False, 'error': 'Not allowed'}), 403
+        now_s = datetime.now(DUBAI_TZ).strftime('%Y-%m-%d %H:%M:%S')
+        if new in ADD_OPEN:
+            x(conn, 'UPDATE additional_tasks SET status=?, completed_at=NULL, completed_by=NULL WHERE id=?', (new, id))
+        elif new == 'completed' and task.get('completed_at'):
+            # Closing keeps the time it was actually marked Done
+            x(conn, 'UPDATE additional_tasks SET status=? WHERE id=?', (new, id))
         else:
-            x(conn, "UPDATE additional_tasks SET status='open', completed_at=NULL, completed_by=NULL WHERE id=?", (id,))
+            x(conn, 'UPDATE additional_tasks SET status=?, completed_at=?, completed_by=? WHERE id=?', (new, now_s, uid, id))
+        if new == 'skipped':
+            note = f"[Skipped {now_s[:16]} by {session.get('user_name') or 'user'}] {reason[:1000]}"
+            x(conn, 'UPDATE additional_tasks SET remarks=? WHERE id=?',
+              (((task.get('remarks') or '').rstrip() + '\n' + note).strip(), id))
         commit(conn); conn.close()
         return jsonify({'success': True})
     except Exception as e:
