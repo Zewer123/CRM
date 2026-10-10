@@ -546,7 +546,9 @@
           <td style="font-size:12px;color:var(--text-muted);">{{ s.get('next_due') or '—' }}</td>
           <td>
             <div style="display:flex;gap:6px;align-items:center;">
+              {% if not s.get('others_task') %}
               <button class="btn btn-primary btn-sm" onclick="openLogModal({{ t.id }},'{{ t.title|replace("'","\\'") }}',{{ s.get('overdue_count', 0) }})">✅ Log</button>
+              {% endif %}
               <button class="btn btn-ghost btn-sm btn-icon" onclick="openHistory({{ t.id }})" title="History">📊</button>
               {% if has_perm('regular_tasks_manage') and not t.get('_cover_only') %}
               <button class="btn btn-ghost btn-sm btn-icon" onclick="openTemplateModal({{ t.id }})" title="Edit">✏️</button>

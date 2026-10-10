@@ -3741,10 +3741,16 @@ def tasks():
     kept = []
     for t in rt_templates:
         own = not t.get('_cover_only') and _regular_is_own(t, uid, role)
+        # Admin/compliance looking at a task assigned to someone else: show that person's
+        # status (their logs), not the viewer's — otherwise every day they did shows as missed.
+        person = uid
+        if (role in ('admin','compliance') and not t.get('_cover_only')
+                and t.get('assigned_user_id') and t['assigned_user_id'] != uid):
+            person = t['assigned_user_id']
         try:
             user_logs=all_(conn,"""SELECT DATE(logged_at) as log_date, status FROM regular_task_logs
-                WHERE template_id=? AND user_id=? AND COALESCE(status,'done') <> 'reopened' ORDER BY logged_at ASC""", (t['id'],uid))
-            missed=_regular_missed_dates(conn, t, uid, today, own)
+                WHERE template_id=? AND user_id=? AND COALESCE(status,'done') <> 'reopened' ORDER BY logged_at ASC""", (t['id'],person))
+            missed=_regular_missed_dates(conn, t, person, today, own)
             # A cover-only task drops off the list once the leave is over and nothing is owed
             if t.get('_cover_only') and not missed and str(t.get('cover_until')) < str(today):
                 continue
@@ -3765,6 +3771,7 @@ def tasks():
                 'state':state,
                 'schedule':_rule_text(t.get('frequency'), t.get('weekday'), t.get('month_day')),
                 'end_date':str(t.get('end_date') or '')[:10],
+                'others_task':person != uid,
             }
         except: task_status[t['id']]={'overdue_count':0,'is_due_today':False,'next_due':str(today),'last_logged':None,'missed_dates':[]}
         kept.append(t)
